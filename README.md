@@ -1,29 +1,43 @@
-# 医疗行业 QMS 智能问答系统
+# QMS 体系搭建助手
 
-基于 RAG（检索增强生成）的医疗器械质量管理体系法规智能问答平台。上传法规/标准文件，即可就医疗器械注册、体系建设等问题进行智能问答。
+面向医疗器械软件（SaMD）企业的质量管理体系搭建平台，覆盖中国 NMPA、欧盟 CE/MDR、美国 FDA 多市场合规要求。
 
-## 功能特性
+## 功能模块
 
-- **流式回答**：实时逐字显示，无需等待
-- **Markdown 渲染**：表格、标题、加粗格式完整显示
-- **多轮对话**：支持追问，保留上下文
-- **法规感知分块**：按「第X条/章」和 ISO 章节边界切分，每块 = 完整条款
-- **文档管理**：上传 PDF / DOCX / TXT，支持扫描版 PDF（OCR）
-- **多集合管理**：法规文件 / 标准文件 / 指导原则分类管理
+### 🗺️ 体系地图
+按 4 个实施阶段展示 43 份必要文件（质量手册、程序文件、记录表单），标注对应标准（ISO 13485、IEC 62304、ISO 14971 等）和适用市场，点击任意文件可直接触发生成。
+
+### 📝 文件生成器
+选择文件类型 → AI 流式生成定制化模板。模板结合公司信息（企业名称、产品、预期用途）自动填入，生成后可直接复制使用。
+
+### 💬 法规顾问
+上传法规/标准文件后，基于 RAG 检索回答问题，支持多轮追问，回答附带原文来源引用。
+
+### ⚙️ 公司信息
+配置企业名称、产品名称、注册类别、目标市场，所有文件生成和顾问回答自动结合公司信息。
 
 ## 系统架构
 
 ```
-用户问题 → jieba 分词 → BM25 检索 → Top-K 相关条款 → Claude 生成回答（流式）
+文件生成：公司信息 + 文件类型 → Claude 流式生成定制模板
+法规问答：问题 → jieba BM25 检索 → Top-K 相关条款 → Claude 生成回答
 ```
 
 | 组件 | 技术 |
 |------|------|
 | 检索引擎 | BM25Okapi + jieba（医学专业词典）|
-| 存储 | SQLite（本地持久化，无需数据库服务）|
+| 存储 | SQLite（本地持久化）|
 | LLM | OpenAI 兼容 API（默认 Poe + Claude Opus）|
 | 后端 | FastAPI + SSE 流式输出 |
 | 文档解析 | PyMuPDF / python-docx / pytesseract（OCR）|
+
+## 适用场景
+
+- **SaMD 软件**（二类 / 三类）
+- **多市场注册**：中国 NMPA、欧盟 CE/MDR、美国 FDA
+- **从零开始**搭建质量管理体系
+
+涵盖标准：ISO 13485、IEC 62304、ISO 14971、IEC 62366、YY/T 0664、YY/T 1833.1、GDPR、个人信息保护法等。
 
 ## 快速开始
 
@@ -34,24 +48,28 @@
 - tesseract-ocr（扫描版 PDF 需要，可选）
 
 ```bash
-# Ubuntu/Debian 安装 tesseract
+# Ubuntu/Debian
 sudo apt-get install tesseract-ocr tesseract-ocr-chi-sim
 ```
 
-### 1. 克隆项目
+### 安装与启动
 
 ```bash
-git clone https://github.com/你的用户名/medical-qms-rag.git
+# 1. 克隆项目
+git clone https://github.com/yy-hh/medical-qms-rag.git
 cd medical-qms-rag
-```
 
-### 2. 配置 API Key
-
-```bash
+# 2. 配置 API Key
 cp .env.example .env
+# 编辑 .env，填入 API_KEY（支持任何 OpenAI 兼容接口）
+
+# 3. 一键启动（首次自动创建 conda 环境，约 2-3 分钟）
+bash start.sh
 ```
 
-编辑 `.env`，填入你的 API 信息：
+访问 **http://localhost:8003**
+
+### .env 配置示例
 
 ```env
 API_KEY=sk-poe-你的key
@@ -59,74 +77,30 @@ API_BASE_URL=https://api.poe.com/v1
 CLAUDE_MODEL=claude-opus-4-6
 ```
 
-> 支持任何 OpenAI 兼容 API（Poe、OpenAI、Azure、本地 Ollama 等）
+> 支持 Poe、OpenAI、Azure、本地 Ollama 等任何 OpenAI 兼容 API。
 
-### 3. 一键启动
+## 使用流程
 
-```bash
-bash start.sh
-```
-
-首次运行会自动创建 conda 环境（约 2-3 分钟）。启动后访问：
-
-**http://localhost:8003**
-
-### 4. 上传文档开始问答
-
-在界面左侧上传法规 PDF 文件，选择对应集合（法规/标准/指导原则），然后在右侧对话框提问。
-
-## 批量导入文档
-
-```bash
-# 批量抓取内置法规链接（含自动下载+OCR）
-conda activate medical_qms
-python scripts/batch_fetch.py
-
-# 批量导入本地目录
-python scripts/ingest.py data/documents/
-
-# 更换 chunker 后重新索引所有文件
-python scripts/reingest_all.py
-```
+1. **配置公司信息** → 填写企业名称、产品、目标市场
+2. **查看体系地图** → 了解需要建立的所有 QMS 文件
+3. **生成文件模板** → 点击文件 → AI 生成定制化模板
+4. **上传法规文件** → 导入相关法规 PDF，开启问答功能
 
 ## API 文档
 
-启动后访问 **http://localhost:8003/docs** 查看 Swagger 文档。
+启动后访问 **http://localhost:8003/docs**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/query` | 问答（阻塞） |
-| POST | `/api/query/stream` | 问答（SSE 流式） |
-| POST | `/api/documents/upload` | 上传文档 |
-| GET | `/api/documents` | 列出文档 |
-| DELETE | `/api/documents/{id}` | 删除文档 |
+| GET/POST | `/api/company` | 公司信息读写 |
+| GET | `/api/generate/framework` | QMS 体系框架数据 |
+| POST | `/api/generate/stream` | 文件生成（SSE 流式）|
+| POST | `/api/query/stream` | 法规问答（SSE 流式）|
+| POST | `/api/documents/upload` | 上传法规文件 |
 | GET | `/api/health` | 健康检查 |
 
-## 推荐上传的文档
+## 注意事项
 
-### 法规文件
-- 《医疗器械监督管理条例》（国务院令第739号）
-- 《医疗器械注册与备案管理办法》
-- 《网络安全法》《数据安全法》《个人信息保护法》
-
-### 国家/行业标准
-- YY/T 0287 / ISO 13485 医疗器械质量管理体系
-- GB/T 42062 / ISO 14971 医疗器械风险管理
-- YY/T 0664 医疗器械软件文档
-- YY/T 1833.1 医疗器械网络安全
-
-### 指导原则
-- 医疗器械软件注册审查指导原则
-- 医疗器械临床评价技术指导原则
-- 医疗器械网络安全注册审查指导原则
-
-## 常见问题
-
-**Q: 支持哪些 API？**
-A: 任何 OpenAI 兼容接口，修改 `.env` 中的 `API_BASE_URL` 和 `CLAUDE_MODEL` 即可。
-
-**Q: 扫描版 PDF 支持吗？**
-A: 支持，需安装 tesseract-ocr。系统会自动检测并调用 OCR。
-
-**Q: 数据存在哪里？**
-A: 文档存于 `data/documents/`，索引存于 `qms.db`，均在项目根目录，不会上传到 GitHub。
+- 上传的法规文件和知识库数据（`qms.db`、`data/documents/`）不会同步到 GitHub
+- 另一台电脑克隆后需重新上传法规文件，或运行 `python scripts/batch_fetch.py` 自动抓取
+- 生成的文件模板为起点，需结合实际情况修改完善，不能直接作为注册提交材料
