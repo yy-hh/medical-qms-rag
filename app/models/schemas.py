@@ -2,10 +2,23 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 
+class Message(BaseModel):
+    role: str  # "user" | "assistant"
+    content: str
+
+
 class QueryRequest(BaseModel):
-    question: str = Field(..., min_length=1, max_length=2000, description="用户问题")
-    top_k: int = Field(default=5, ge=1, le=20, description="检索文档块数量")
-    collection: Optional[str] = Field(default=None, description="指定检索的文档集合，默认全局检索")
+    question: str = Field(..., min_length=1, max_length=2000)
+    top_k: int = Field(default=5, ge=1, le=20)
+    collection: Optional[str] = None
+    history: Optional[list[Message]] = None
+
+
+class StreamQueryRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+    top_k: int = Field(default=5, ge=1, le=20)
+    collection: Optional[str] = None
+    history: Optional[list[Message]] = None
 
 
 class SourceChunk(BaseModel):

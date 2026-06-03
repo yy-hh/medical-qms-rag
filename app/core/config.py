@@ -6,15 +6,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
-    # Claude API
+    # LLM API — supports "anthropic" or "openai_compatible"
+    api_mode: str = "openai_compatible"
+    api_key: str = ""
+    api_base_url: str = "https://api.poe.com/v1"
+    claude_model: str = "claude-opus-4-6"
+
+    # Legacy: kept for backward compat
     anthropic_api_key: str = ""
-    claude_model: str = "claude-sonnet-4-6"
 
-    # Embedding
-    embedding_model: str = "BAAI/bge-small-zh-v1.5"
-    embedding_device: str = "cpu"
-
-    # ChromaDB
+    # Storage (SQLite lives next to this dir)
     chroma_persist_dir: str = str(BASE_DIR / "vector_store")
     default_collection: str = "medical_qms"
 

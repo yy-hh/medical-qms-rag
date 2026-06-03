@@ -3,224 +3,249 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>医疗行业 QMS 智能问答</title>
+<title>医疗 QMS 法规问答</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f4f8; color: #1a202c; height: 100vh; display: flex; flex-direction: column; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f4f8;color:#1a202c;height:100vh;display:flex;flex-direction:column}
 
-  header { background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%); color: white; padding: 14px 24px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
-  header svg { width: 28px; height: 28px; }
-  header h1 { font-size: 18px; font-weight: 600; }
-  header .subtitle { font-size: 12px; opacity: 0.75; margin-top: 2px; }
-  .header-status { margin-left: auto; font-size: 12px; background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 20px; }
+/* Header */
+header{background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.2);flex-shrink:0}
+header h1{font-size:17px;font-weight:600}
+header .sub{font-size:11px;opacity:.7;margin-top:2px}
+#statusBadge{margin-left:auto;font-size:11px;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;white-space:nowrap}
 
-  .layout { display: flex; flex: 1; overflow: hidden; }
+/* Layout */
+.layout{display:flex;flex:1;overflow:hidden}
 
-  /* Sidebar */
-  .sidebar { width: 300px; background: white; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; }
-  .sidebar-header { padding: 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-  .sidebar-header h2 { font-size: 14px; font-weight: 600; color: #2d3748; }
-  .upload-area { margin: 12px; border: 2px dashed #bee3f8; border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
-  .upload-area:hover { border-color: #3182ce; background: #ebf8ff; }
-  .upload-area.drag-over { border-color: #3182ce; background: #ebf8ff; }
-  .upload-area input { display: none; }
-  .upload-area p { font-size: 13px; color: #718096; margin-top: 6px; }
-  .upload-area .upload-icon { font-size: 28px; }
-  .upload-btn { background: #3182ce; color: white; border: none; padding: 7px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; margin-top: 8px; }
-  .upload-btn:hover { background: #2b6cb0; }
-  .upload-btn:disabled { background: #a0aec0; cursor: not-allowed; }
+/* Sidebar */
+.sidebar{width:280px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
+.sb-head{padding:12px 14px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}
+.sb-head h2{font-size:13px;font-weight:600;color:#2d3748}
+.sb-head button{background:none;border:none;cursor:pointer;font-size:16px;color:#718096}
+.sb-head button:hover{color:#3182ce}
+.coll-sel{padding:8px 14px 4px}
+.coll-sel label{font-size:11px;color:#718096;display:block;margin-bottom:3px}
+.coll-sel select{width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px}
+.drop-zone{margin:8px 12px;border:2px dashed #bee3f8;border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:.2s}
+.drop-zone:hover,.drop-zone.over{border-color:#3182ce;background:#ebf8ff}
+.drop-zone input{display:none}
+.drop-zone .dz-icon{font-size:24px}
+.drop-zone p{font-size:11px;color:#718096;margin-top:4px}
+.up-btn{background:#3182ce;color:#fff;border:none;padding:5px 14px;border-radius:5px;font-size:12px;cursor:pointer;margin-top:6px}
+.up-btn:hover{background:#2b6cb0}
+.up-btn:disabled{background:#a0aec0;cursor:not-allowed}
+.doc-list{flex:1;overflow-y:auto;padding:6px 10px}
+.doc-item{background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:flex-start;gap:7px}
+.doc-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.doc-info{flex:1;min-width:0}
+.doc-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-meta{font-size:10px;color:#a0aec0;margin-top:2px}
+.doc-del{background:none;border:none;cursor:pointer;color:#fc8181;font-size:14px;padding:0 2px;flex-shrink:0}
+.doc-del:hover{color:#e53e3e}
+.empty-docs{text-align:center;color:#a0aec0;font-size:12px;padding:20px 0}
 
-  .collection-select { margin: 0 12px 10px; }
-  .collection-select label { font-size: 12px; color: #718096; display: block; margin-bottom: 4px; }
-  .collection-select select { width: 100%; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; }
+/* Chat */
+.chat{flex:1;display:flex;flex-direction:column;min-width:0}
+.messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px}
 
-  .doc-list { flex: 1; overflow-y: auto; padding: 8px 12px; }
-  .doc-item { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 8px; }
-  .doc-item .doc-icon { font-size: 20px; flex-shrink: 0; }
-  .doc-item .doc-info { flex: 1; min-width: 0; }
-  .doc-item .doc-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .doc-item .doc-meta { font-size: 11px; color: #a0aec0; margin-top: 2px; }
-  .doc-item .doc-del { background: none; border: none; cursor: pointer; color: #fc8181; font-size: 16px; padding: 0 2px; flex-shrink: 0; }
-  .doc-item .doc-del:hover { color: #e53e3e; }
-  .empty-docs { text-align: center; color: #a0aec0; font-size: 13px; padding: 24px 0; }
+/* Welcome */
+.welcome{text-align:center;padding:40px 20px;color:#718096}
+.welcome h2{font-size:18px;color:#2d3748;margin-bottom:8px}
+.suggestions{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:18px}
+.sug-btn{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;color:#4a5568;transition:.2s}
+.sug-btn:hover{border-color:#3182ce;color:#3182ce;background:#ebf8ff}
 
-  /* Chat area */
-  .chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+/* Messages */
+.msg{display:flex;gap:10px;max-width:100%}
+.msg.user{flex-direction:row-reverse}
+.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.msg.user .avatar{background:#3182ce;color:#fff}
+.msg.assistant .avatar{background:#1a365d;color:#fff}
+.msg-body{max-width:72%}
+.bubble{padding:10px 14px;border-radius:12px;line-height:1.65;font-size:14px}
+.msg.user .bubble{background:#3182ce;color:#fff;border-bottom-right-radius:3px}
+.msg.assistant .bubble{background:#fff;border:1px solid #e2e8f0;border-bottom-left-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 
-  .msg { display: flex; gap: 12px; max-width: 100%; }
-  .msg.user { flex-direction: row-reverse; }
-  .msg-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-  .msg.user .msg-avatar { background: #3182ce; color: white; }
-  .msg.assistant .msg-avatar { background: #1a365d; color: white; }
-  .msg-content { max-width: 70%; }
-  .msg-bubble { padding: 12px 16px; border-radius: 12px; line-height: 1.6; font-size: 14px; }
-  .msg.user .msg-bubble { background: #3182ce; color: white; border-bottom-right-radius: 4px; }
-  .msg.assistant .msg-bubble { background: white; border: 1px solid #e2e8f0; border-bottom-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); white-space: pre-wrap; }
+/* Markdown inside bubble */
+.bubble h1,.bubble h2,.bubble h3{margin:.8em 0 .4em;line-height:1.3}
+.bubble h1{font-size:1.15em}.bubble h2{font-size:1.05em}.bubble h3{font-size:1em}
+.bubble p{margin:.5em 0}
+.bubble ul,.bubble ol{padding-left:1.4em;margin:.5em 0}
+.bubble li{margin:.2em 0}
+.bubble code{background:#f0f4f8;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.9em}
+.bubble pre{background:#f0f4f8;padding:10px;border-radius:6px;overflow-x:auto;margin:.5em 0}
+.bubble pre code{background:none;padding:0}
+.bubble table{border-collapse:collapse;width:100%;margin:.5em 0;font-size:.9em}
+.bubble th,.bubble td{border:1px solid #e2e8f0;padding:5px 8px;text-align:left}
+.bubble th{background:#f7fafc;font-weight:600}
+.bubble hr{border:none;border-top:1px solid #e2e8f0;margin:.8em 0}
+.bubble strong{font-weight:600}
+.msg.user .bubble code,.msg.user .bubble pre{background:rgba(255,255,255,.2)}
 
-  .msg-sources { margin-top: 8px; }
-  .sources-toggle { background: none; border: 1px solid #bee3f8; color: #3182ce; font-size: 12px; padding: 3px 10px; border-radius: 4px; cursor: pointer; }
-  .sources-toggle:hover { background: #ebf8ff; }
-  .sources-list { margin-top: 6px; display: none; }
-  .sources-list.open { display: block; }
-  .source-item { background: #f7fafc; border-left: 3px solid #3182ce; padding: 6px 10px; margin-bottom: 4px; border-radius: 0 4px 4px 0; font-size: 12px; }
-  .source-item .source-title { font-weight: 600; color: #2b6cb0; }
-  .source-item .source-text { color: #4a5568; margin-top: 3px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .source-score { color: #a0aec0; margin-left: 6px; }
+/* Sources */
+.src-toggle{margin-top:7px}
+.src-btn{background:none;border:1px solid #bee3f8;color:#3182ce;font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer}
+.src-btn:hover{background:#ebf8ff}
+.src-list{display:none;margin-top:5px}
+.src-list.open{display:block}
+.src-item{background:#f7fafc;border-left:3px solid #3182ce;padding:6px 9px;margin-bottom:4px;border-radius:0 4px 4px 0}
+.src-title{font-size:11px;font-weight:600;color:#2b6cb0}
+.src-score{color:#a0aec0;margin-left:5px;font-weight:400}
+.src-text{font-size:11px;color:#4a5568;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 
-  .welcome { text-align: center; padding: 48px 24px; color: #718096; }
-  .welcome h2 { font-size: 20px; color: #2d3748; margin-bottom: 12px; }
-  .welcome .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 24px; }
-  .suggestion-btn { background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 8px 16px; font-size: 13px; cursor: pointer; color: #4a5568; transition: all 0.2s; }
-  .suggestion-btn:hover { border-color: #3182ce; color: #3182ce; background: #ebf8ff; }
+/* Thinking */
+.thinking-dots{display:flex;gap:4px;padding:10px 14px}
+.thinking-dots span{width:7px;height:7px;background:#a0aec0;border-radius:50%;animation:bounce 1.2s infinite}
+.thinking-dots span:nth-child(2){animation-delay:.2s}
+.thinking-dots span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-7px)}}
 
-  .thinking { display: flex; gap: 4px; padding: 12px 16px; }
-  .thinking span { width: 8px; height: 8px; background: #a0aec0; border-radius: 50%; animation: bounce 1.2s infinite; }
-  .thinking span:nth-child(2) { animation-delay: 0.2s; }
-  .thinking span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
+/* Input bar */
+.input-bar{padding:12px 16px;background:#fff;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+.input-bar textarea{flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;resize:none;outline:none;line-height:1.5;max-height:100px;font-family:inherit;transition:border-color .2s}
+.input-bar textarea:focus{border-color:#3182ce;box-shadow:0 0 0 3px rgba(49,130,206,.1)}
+.send-btn{background:#3182ce;color:#fff;border:none;border-radius:10px;width:42px;height:42px;font-size:18px;cursor:pointer;flex-shrink:0;transition:background .2s}
+.send-btn:hover:not(:disabled){background:#2b6cb0}
+.send-btn:disabled{background:#a0aec0;cursor:not-allowed}
+.new-chat-btn{background:none;border:1px solid #e2e8f0;color:#718096;border-radius:8px;padding:0 10px;height:42px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.new-chat-btn:hover{border-color:#3182ce;color:#3182ce}
 
-  .input-bar { padding: 16px 20px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; align-items: flex-end; }
-  .input-bar textarea { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; font-size: 14px; resize: none; outline: none; line-height: 1.5; max-height: 120px; font-family: inherit; transition: border-color 0.2s; }
-  .input-bar textarea:focus { border-color: #3182ce; box-shadow: 0 0 0 3px rgba(49,130,206,0.1); }
-  .send-btn { background: #3182ce; color: white; border: none; border-radius: 10px; width: 44px; height: 44px; font-size: 18px; cursor: pointer; flex-shrink: 0; transition: background 0.2s; }
-  .send-btn:hover { background: #2b6cb0; }
-  .send-btn:disabled { background: #a0aec0; cursor: not-allowed; }
-
-  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #2d3748; color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
-  .toast.show { opacity: 1; }
+/* Toast */
+.toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
 </style>
 </head>
 <body>
+
 <header>
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-  <div>
-    <h1>医疗行业 QMS 智能问答</h1>
-    <div class="subtitle">基于 RAG 的医疗器械法规与体系建设问答助手</div>
-  </div>
-  <div class="header-status" id="status">加载中...</div>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+  <div><h1>医疗行业 QMS 智能问答</h1><div class="sub">基于 RAG · 法规文件实时检索</div></div>
+  <div id="statusBadge">加载中...</div>
 </header>
 
 <div class="layout">
-  <!-- Sidebar: Document Management -->
+
+  <!-- Sidebar -->
   <div class="sidebar">
-    <div class="sidebar-header">
-      <h2>文档库</h2>
-      <button onclick="loadDocs()" style="background:none;border:none;cursor:pointer;font-size:16px;" title="刷新">&#x21BB;</button>
+    <div class="sb-head">
+      <h2>📂 文档库</h2>
+      <button onclick="loadDocs()" title="刷新">↻</button>
     </div>
-    <div class="collection-select">
-      <label>文档集合</label>
-      <select id="collectionSel" onchange="loadDocs()">
-        <option value="">默认集合 (medical_qms)</option>
+    <div class="coll-sel">
+      <label>集合</label>
+      <select id="collSel" onchange="loadDocs()">
+        <option value="">默认 (medical_qms)</option>
         <option value="regulations">法规文件</option>
         <option value="standards">标准文件</option>
         <option value="guidelines">指导原则</option>
       </select>
     </div>
-    <div class="upload-area" id="dropZone" ondragover="onDrag(event)" ondragleave="offDrag(event)" ondrop="onDrop(event)">
-      <div class="upload-icon">&#128196;</div>
-      <p>拖拽或点击上传文件</p>
-      <p>支持 PDF / DOCX / TXT / MD</p>
-      <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.md" multiple onchange="uploadFiles(this.files)">
-      <button class="upload-btn" onclick="document.getElementById('fileInput').click()" id="uploadBtn">选择文件</button>
+    <div class="drop-zone" id="dropZone"
+         ondragover="e=>{e.preventDefault();document.getElementById('dropZone').classList.add('over')}"
+         ondragleave="document.getElementById('dropZone').classList.remove('over')"
+         ondrop="e=>{e.preventDefault();document.getElementById('dropZone').classList.remove('over');uploadFiles(e.dataTransfer.files)}">
+      <input type="file" id="fileIn" accept=".pdf,.docx,.txt,.md" multiple onchange="uploadFiles(this.files)">
+      <div class="dz-icon">📄</div>
+      <p>拖拽或点击上传</p>
+      <p>PDF / DOCX / TXT / MD</p>
+      <button class="up-btn" id="upBtn" onclick="document.getElementById('fileIn').click()">选择文件</button>
     </div>
-    <div class="doc-list" id="docList"><div class="empty-docs">暂无文档，请上传法规文件</div></div>
+    <div class="doc-list" id="docList"><div class="empty-docs">暂无文档</div></div>
   </div>
 
-  <!-- Chat Area -->
-  <div class="chat-area">
+  <!-- Chat -->
+  <div class="chat">
     <div class="messages" id="messages">
       <div class="welcome" id="welcome">
-        <h2>&#x1F3E5; 医疗 QMS 法规问答助手</h2>
-        <p>上传医疗器械相关法规、标准和指导原则文件，然后提问</p>
+        <h2>🏥 医疗 QMS 法规问答助手</h2>
+        <p>上传法规、标准文件，然后直接提问</p>
         <div class="suggestions">
-          <button class="suggestion-btn" onclick="ask(this.textContent)">医疗器械注册需要哪些资料？</button>
-          <button class="suggestion-btn" onclick="ask(this.textContent)">ISO 13485 核心要求有哪些？</button>
-          <button class="suggestion-btn" onclick="ask(this.textContent)">医疗器械软件分类如何判定？</button>
-          <button class="suggestion-btn" onclick="ask(this.textContent)">二类医疗器械临床豁免条件？</button>
-          <button class="suggestion-btn" onclick="ask(this.textContent)">NMPA 技术审评一般流程？</button>
-          <button class="suggestion-btn" onclick="ask(this.textContent)">风险管理 ISO 14971 主要步骤？</button>
+          <button class="sug-btn" onclick="ask(this.textContent)">ISO 13485 文件控制要求？</button>
+          <button class="sug-btn" onclick="ask(this.textContent)">医疗器械注册申请需要什么资料？</button>
+          <button class="sug-btn" onclick="ask(this.textContent)">二类医疗器械临床豁免条件？</button>
+          <button class="sug-btn" onclick="ask(this.textContent)">风险管理 ISO 14971 主要流程？</button>
+          <button class="sug-btn" onclick="ask(this.textContent)">医疗器械软件如何分类？</button>
+          <button class="sug-btn" onclick="ask(this.textContent)">YY/T 1833.1 网络安全核心要求？</button>
         </div>
       </div>
     </div>
     <div class="input-bar">
-      <textarea id="inputBox" placeholder="输入医疗 QMS 相关问题，按 Enter 发送，Shift+Enter 换行..." rows="1" onkeydown="onKey(event)" oninput="autoResize(this)"></textarea>
-      <button class="send-btn" id="sendBtn" onclick="sendMsg()">&#10148;</button>
+      <button class="new-chat-btn" onclick="newChat()">新对话</button>
+      <textarea id="inputBox" placeholder="提问，Enter 发送，Shift+Enter 换行…" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMsg()">➤</button>
     </div>
   </div>
 </div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const API = '';
-let isLoading = false;
+// ── Marked config ──────────────────────────────────────────────────────
+marked.setOptions({breaks: true, gfm: true});
 
-// ── Health ──────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────
+let isLoading = false;
+let history = []; // [{role, content}]
+
+// ── Health ─────────────────────────────────────────────────────────────
 async function checkHealth() {
   try {
-    const r = await fetch(`${API}/api/health`);
-    const d = await r.json();
-    document.getElementById('status').textContent = `${d.total_documents} 篇文档 | ${d.total_chunks} 块`;
-  } catch { document.getElementById('status').textContent = '连接失败'; }
+    const d = await fetch('/api/health').then(r => r.json());
+    document.getElementById('statusBadge').textContent = `${d.total_documents} 篇文档 · ${d.total_chunks} 块`;
+  } catch { document.getElementById('statusBadge').textContent = '连接失败'; }
 }
 
 // ── Documents ──────────────────────────────────────────────────────────
 async function loadDocs() {
-  const col = document.getElementById('collectionSel').value;
-  const url = col ? `${API}/api/documents?collection=${col}` : `${API}/api/documents`;
+  const col = document.getElementById('collSel').value;
+  const url = col ? `/api/documents?collection=${col}` : '/api/documents';
   try {
-    const r = await fetch(url);
-    const docs = await r.json();
+    const docs = await fetch(url).then(r => r.json());
     renderDocs(docs);
   } catch { toast('加载文档列表失败'); }
 }
 
 function renderDocs(docs) {
   const el = document.getElementById('docList');
-  if (!docs.length) { el.innerHTML = '<div class="empty-docs">暂无文档，请上传法规文件</div>'; return; }
-  const icons = { pdf: '&#128196;', docx: '&#128209;', txt: '&#128221;', md: '&#128221;' };
+  if (!docs.length) { el.innerHTML = '<div class="empty-docs">暂无文档</div>'; return; }
+  const icon = {pdf:'📄',docx:'📝',txt:'📃',md:'📃'};
   el.innerHTML = docs.map(d => `
     <div class="doc-item">
-      <div class="doc-icon">${icons[d.file_type] || '&#128196;'}</div>
+      <div class="doc-icon">${icon[d.file_type]||'📄'}</div>
       <div class="doc-info">
-        <div class="doc-name" title="${d.name}">${d.name}</div>
+        <div class="doc-name" title="${esc(d.name)}">${esc(d.name)}</div>
         <div class="doc-meta">${d.chunk_count} 块 · ${d.collection}</div>
       </div>
-      <button class="doc-del" onclick="deleteDoc('${d.doc_id}','${d.name}')" title="删除">&#x2715;</button>
+      <button class="doc-del" onclick="delDoc('${d.doc_id}','${esc(d.name)}')" title="删除">✕</button>
     </div>`).join('');
 }
 
-async function deleteDoc(id, name) {
+async function delDoc(id, name) {
   if (!confirm(`确认删除「${name}」？`)) return;
-  const col = document.getElementById('collectionSel').value;
-  const url = col ? `${API}/api/documents/${id}?collection=${col}` : `${API}/api/documents/${id}`;
-  try {
-    await fetch(url, { method: 'DELETE' });
-    toast('删除成功');
-    loadDocs(); checkHealth();
-  } catch { toast('删除失败'); }
+  const col = document.getElementById('collSel').value;
+  const url = col ? `/api/documents/${id}?collection=${col}` : `/api/documents/${id}`;
+  await fetch(url, {method:'DELETE'});
+  toast('已删除'); loadDocs(); checkHealth();
 }
 
 // ── Upload ─────────────────────────────────────────────────────────────
-function onDrag(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
-function offDrag(e) { document.getElementById('dropZone').classList.remove('drag-over'); }
-function onDrop(e) { e.preventDefault(); offDrag(e); uploadFiles(e.dataTransfer.files); }
-
 async function uploadFiles(files) {
   if (!files.length) return;
-  const btn = document.getElementById('uploadBtn');
-  const col = document.getElementById('collectionSel').value;
+  const btn = document.getElementById('upBtn');
+  const col = document.getElementById('collSel').value;
   btn.disabled = true;
   for (const file of files) {
-    btn.textContent = `上传中 ${file.name.slice(0,12)}...`;
+    btn.textContent = `上传中…`;
     const fd = new FormData();
     fd.append('file', file);
     if (col) fd.append('collection', col);
     try {
-      const r = await fetch(`${API}/api/documents/upload`, { method: 'POST', body: fd });
+      const r = await fetch('/api/documents/upload', {method:'POST', body:fd});
       const d = await r.json();
-      if (r.ok) toast(`✓ ${file.name} 已导入 ${d.chunk_count} 块`);
-      else toast(`✗ ${file.name}: ${d.detail}`);
+      toast(r.ok ? `✓ ${file.name} 导入 ${d.chunk_count} 块` : `✗ ${d.detail}`);
     } catch { toast(`✗ ${file.name} 上传失败`); }
   }
   btn.disabled = false; btn.textContent = '选择文件';
@@ -230,107 +255,149 @@ async function uploadFiles(files) {
 // ── Chat ───────────────────────────────────────────────────────────────
 function ask(q) { document.getElementById('inputBox').value = q; sendMsg(); }
 
-function onKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
-}
-
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+function newChat() {
+  history = [];
+  document.getElementById('messages').innerHTML = `
+    <div class="welcome" id="welcome">
+      <h2>🏥 医疗 QMS 法规问答助手</h2>
+      <p>新对话已开始</p>
+    </div>`;
 }
 
 async function sendMsg() {
   const box = document.getElementById('inputBox');
   const q = box.value.trim();
   if (!q || isLoading) return;
+
   isLoading = true;
   document.getElementById('sendBtn').disabled = true;
   document.getElementById('welcome')?.remove();
 
-  addMsg('user', q);
-  box.value = ''; autoResize(box);
+  addUserMsg(q);
+  history.push({role:'user', content:q});
+  box.value = ''; box.style.height = 'auto';
 
   const thinkId = addThinking();
+  let answerEl = null;
+  let fullAnswer = '';
+  let sourcesRendered = false;
 
   try {
-    const r = await fetch(`${API}/api/query`, {
+    const resp = await fetch('/api/query/stream', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, top_k: 5 }),
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question: q, top_k: 5, history: history.slice(-6), collection: document.getElementById('collSel').value || null}),
     });
-    const d = await r.json();
-    removeThinking(thinkId);
-    if (r.ok) addAssistantMsg(d);
-    else addMsg('assistant', `错误：${d.detail}`);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, {stream: true});
+      const lines = buf.split('\n');
+      buf = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6);
+        if (raw === '[DONE]') break;
+        const ev = JSON.parse(raw);
+
+        if (ev.type === 'sources' && !sourcesRendered) {
+          removeThinking(thinkId);
+          answerEl = addAssistantBubble(ev.sources);
+          sourcesRendered = true;
+        } else if (ev.type === 'delta' && answerEl) {
+          fullAnswer += ev.content;
+          answerEl.innerHTML = marked.parse(fullAnswer);
+        } else if (ev.type === 'error') {
+          removeThinking(thinkId);
+          addUserMsg('错误：' + ev.message, 'assistant');
+        }
+      }
+    }
+
+    if (!sourcesRendered) removeThinking(thinkId);
+    if (fullAnswer) history.push({role:'assistant', content:fullAnswer});
+
   } catch (err) {
     removeThinking(thinkId);
-    addMsg('assistant', `请求失败：${err.message}`);
+    appendMsg('assistant', `请求失败：${err.message}`);
   }
+
   isLoading = false;
   document.getElementById('sendBtn').disabled = false;
 }
 
-function addMsg(role, text) {
+function addUserMsg(text) {
   const el = document.createElement('div');
-  el.className = `msg ${role}`;
-  const avatarChar = role === 'user' ? '&#x1F464;' : '&#x2695;';
-  el.innerHTML = `<div class="msg-avatar">${avatarChar}</div><div class="msg-content"><div class="msg-bubble">${escHtml(text)}</div></div>`;
+  el.className = 'msg user';
+  el.innerHTML = `<div class="avatar">👤</div><div class="msg-body"><div class="bubble">${esc(text)}</div></div>`;
   document.getElementById('messages').appendChild(el);
   scrollBottom();
-  return el;
 }
 
-function addAssistantMsg(data) {
-  const el = document.createElement('div');
-  el.className = 'msg assistant';
+function addAssistantBubble(sources) {
   const sid = 'src_' + Date.now();
-  const hasSource = data.sources && data.sources.length > 0;
-  const srcHtml = hasSource ? `
-    <div class="msg-sources">
-      <button class="sources-toggle" onclick="toggleSrc('${sid}')">&#128196; ${data.sources.length} 条引用来源</button>
-      <div class="sources-list" id="${sid}">
-        ${data.sources.map(s => `
-          <div class="source-item">
-            <div class="source-title">${escHtml(s.doc_name)} · 第${s.page || '?'}页 <span class="source-score">${(s.score*100).toFixed(1)}%</span></div>
-            <div class="source-text">${escHtml(s.content)}</div>
+  const srcHtml = sources.length ? `
+    <div class="src-toggle">
+      <button class="src-btn" onclick="toggleSrc('${sid}')">📎 ${sources.length} 条引用</button>
+      <div class="src-list" id="${sid}">
+        ${sources.map(s => `
+          <div class="src-item">
+            <div class="src-title">${esc(s.doc_name)} · 第${s.page||'?'}页 <span class="src-score">${(s.score*100).toFixed(1)}%</span></div>
+            <div class="src-text">${esc(s.content)}</div>
           </div>`).join('')}
       </div>
     </div>` : '';
 
-  el.innerHTML = `
-    <div class="msg-avatar">&#x2695;</div>
-    <div class="msg-content">
-      <div class="msg-bubble">${escHtml(data.answer)}</div>
-      ${srcHtml}
-    </div>`;
-  document.getElementById('messages').appendChild(el);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'msg assistant';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = '<span style="color:#a0aec0">思考中…</span>';
+
+  const body = document.createElement('div');
+  body.className = 'msg-body';
+  body.appendChild(bubble);
+  if (srcHtml) { const srcEl = document.createElement('div'); srcEl.innerHTML = srcHtml; body.appendChild(srcEl); }
+
+  wrapper.innerHTML = `<div class="avatar">⚕</div>`;
+  wrapper.appendChild(body);
+  document.getElementById('messages').appendChild(wrapper);
   scrollBottom();
+  return bubble;
 }
 
-function toggleSrc(id) {
-  const el = document.getElementById(id);
-  el.classList.toggle('open');
+function appendMsg(role, text) {
+  const el = document.createElement('div');
+  el.className = `msg ${role}`;
+  el.innerHTML = `<div class="avatar">${role==='user'?'👤':'⚕'}</div><div class="msg-body"><div class="bubble">${esc(text)}</div></div>`;
+  document.getElementById('messages').appendChild(el);
+  scrollBottom();
 }
 
 function addThinking() {
   const id = 'think_' + Date.now();
   const el = document.createElement('div');
-  el.className = 'msg assistant';
-  el.id = id;
-  el.innerHTML = `<div class="msg-avatar">&#x2695;</div><div class="msg-content"><div class="msg-bubble thinking"><span></span><span></span><span></span></div></div>`;
+  el.id = id; el.className = 'msg assistant';
+  el.innerHTML = `<div class="avatar">⚕</div><div class="msg-body"><div class="bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div></div>`;
   document.getElementById('messages').appendChild(el);
   scrollBottom();
   return id;
 }
 
 function removeThinking(id) { document.getElementById(id)?.remove(); }
+function toggleSrc(id) { document.getElementById(id)?.classList.toggle('open'); }
 function scrollBottom() { const m = document.getElementById('messages'); m.scrollTop = m.scrollHeight; }
-function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 3000);
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
 // Init

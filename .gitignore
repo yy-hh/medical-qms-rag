@@ -17,6 +17,7 @@ build/
 # Data & vector store
 vector_store/
 data/documents/
+qms.db
 
 # IDE
 .vscode/
