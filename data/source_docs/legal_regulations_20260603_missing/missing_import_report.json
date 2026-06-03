@@ -1,0 +1,8 @@
+{
+  "total_items": 7,
+  "downloaded": 7,
+  "uploaded": 7,
+  "failed": [],
+  "output_dir": "/home/ubuntu/Documents/trae_projects/medical-qms-rag/data/source_docs/legal_regulations_20260603_missing",
+  "base_url": "http://127.0.0.1:8003"
+}
