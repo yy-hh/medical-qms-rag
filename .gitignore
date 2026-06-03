@@ -30,3 +30,16 @@ Thumbs.db
 
 # Logs
 *.log
+# Runtime secrets
+.env.*
+# Local runtime database
+data/qms.db
+data/qms.db-*
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+# Keep source documents for reproducible knowledge base
+!data/source_docs/
+!data/source_docs/**
+# Python cache
+*.pyc
