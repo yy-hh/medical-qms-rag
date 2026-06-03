@@ -43,3 +43,6 @@ data/*.sqlite3
 !data/source_docs/**
 # Python cache
 *.pyc
+data/source_docs/industry_standards_yyt_20260603/
+data/company_profile.json
+医疗AI器械的QMS体系搭建.pdf
