@@ -32,6 +32,26 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .page-head p{font-size:12px;color:#718096;margin-top:3px}
 /* ── Roadmap ── */
 .roadmap-body{flex:1;overflow-y:auto;padding:16px 20px}
+/* 三层结构 */
+.layer-block{background:#fff;border-radius:12px;margin-bottom:18px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.layer-head{padding:12px 16px;color:#fff;display:flex;align-items:baseline;gap:10px}
+.layer-head h3{font-size:15px;font-weight:700}
+.layer-head span{font-size:12px;opacity:.85}
+.module-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:14px}
+.module-card{background:#f7fafc;border-radius:7px;padding:8px 10px}
+.module-card .m-name{font-size:13px;font-weight:600;color:#2d3748}
+.module-card .m-sub{font-size:10px;color:#718096;margin-top:2px;line-height:1.3}
+.reg-table{width:100%;border-collapse:collapse;font-size:12px}
+.reg-table th{background:#f7fafc;padding:8px 10px;text-align:left;font-weight:600;border-bottom:2px solid #e2e8f0;color:#2d3748}
+.reg-table td{padding:8px 10px;border-bottom:1px solid #edf2f7;vertical-align:top}
+.reg-table td b{color:#2b6cb0;font-weight:600}
+.reg-table td span{font-size:11px;color:#a0aec0}
+.reg-table .rt-cat{font-weight:600;color:#4a5568;background:#fafbfc;white-space:nowrap}
+.level-row{display:flex;border-top:1px solid #f0f4f8}
+.level-label{width:200px;flex-shrink:0;color:#fff;padding:12px 14px}
+.level-label .ll-name{font-size:13px;font-weight:700}
+.level-label .ll-en{font-size:10px;opacity:.85;margin-top:1px}
+.level-label .ll-desc{font-size:10px;opacity:.8;margin-top:5px;line-height:1.4}
 .phase-block{background:#fff;border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .phase-head{padding:12px 16px;background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;display:flex;align-items:center;gap:10px}
 .phase-num{background:rgba(255,255,255,.25);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
@@ -39,6 +59,7 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .phase-info p{font-size:11px;opacity:.8;margin-top:1px}
 .phase-badge{margin-left:auto;background:rgba(255,255,255,.2);border-radius:10px;padding:2px 8px;font-size:11px;white-space:nowrap}
 .doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1px;background:#f0f4f8}
+.level-row .doc-grid{flex:1}
 .doc-card{background:#fff;padding:12px 14px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:5px}
 .doc-card:hover{background:#ebf8ff}
 .doc-card-top{display:flex;align-items:flex-start;gap:8px}
@@ -479,45 +500,84 @@ async function loadFramework() {
   } catch { toast('加载体系框架失败'); }
 }
 
-const TYPE_TAG = {manual:'tag-manual',procedure:'tag-procedure',form:'tag-form'};
-const TYPE_LABEL = {manual:'质量手册',procedure:'程序文件',form:'记录表单'};
-const PRIO_TAG = {critical:'tag-critical',high:'tag-high',medium:'tag-medium'};
-const PRIO_LABEL = {critical:'必需',high:'重要',medium:'建议'};
+const TYPE_LABEL = {manual:'质量手册',procedure:'程序文件',wi:'作业指导书',record:'记录表单',ai:'AI特有'};
+const GROUP_LABEL = {base:'核心', ai:'AI专项', support:'支持', registration:'注册'};
+const GROUP_COLOR = {base:'#38a169', ai:'#dd6b20', support:'#718096', registration:'#e53e3e'};
 
 function renderRoadmap() {
   const body = document.getElementById('roadmapBody');
-  body.innerHTML = framework.phases.map((ph,i) => {
-    const total = ph.documents.length;
-    return `<div class="phase-block">
-      <div class="phase-head">
-        <div class="phase-num">${i+1}</div>
-        <div class="phase-info"><h3>${ph.name}</h3><p>${ph.description}</p></div>
-        <div class="phase-badge">${ph.duration} · ${total} 份文件</div>
-      </div>
-      <div class="doc-grid">
-        ${ph.documents.map(doc => `
-          <div class="doc-card" onclick="openDocModal('${doc.id}')">
-            <div class="doc-card-top">
-              <div class="doc-id">${doc.id}</div>
-              <div class="doc-name">${doc.name}</div>
-            </div>
-            <div class="doc-desc">${doc.description}</div>
-            <div class="doc-tags">
-              <span class="tag ${PRIO_TAG[doc.priority]}">${PRIO_LABEL[doc.priority]}</span>
-              <span class="tag ${TYPE_TAG[doc.type]}">${TYPE_LABEL[doc.type]}</span>
-              ${doc.markets.map(m=>`<span class="tag tag-market">${m}</span>`).join('')}
-            </div>
-          </div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
+  let html = '';
+
+  // ── 第一层：核心工作框架 ──
+  html += `<div class="layer-block">
+    <div class="layer-head" style="background:linear-gradient(135deg,#1a365d,#2b6cb0)">
+      <h3>① 核心工作框架</h3><span>法规与标准基础 · 9+ 大模块</span>
+    </div>
+    <div class="module-grid">
+      ${framework.core_modules.map(m=>`
+        <div class="module-card" style="border-left:3px solid ${GROUP_COLOR[m.group]||'#999'}">
+          <div class="m-name">${m.name}</div>
+          <div class="m-sub">${m.sub}</div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+
+  // ── 第二层：三国法规对照 ──
+  html += `<div class="layer-block">
+    <div class="layer-head" style="background:linear-gradient(135deg,#5a67d8,#7f9cf5)">
+      <h3>② 法规与标准基础（三国对照）</h3><span>NMPA · FDA · EU</span>
+    </div>
+    <table class="reg-table">
+      <thead><tr><th>类别</th><th>🇨🇳 中国 NMPA</th><th>🇺🇸 美国 FDA</th><th>🇪🇺 欧盟 MDR/AI Act</th></tr></thead>
+      <tbody>
+        ${framework.regulatory_matrix.map(r=>`
+          <tr>
+            <td class="rt-cat">${r.category}</td>
+            <td><b>${r.nmpa.name}</b><br><span>${r.nmpa.note}</span></td>
+            <td><b>${r.fda.name}</b><br><span>${r.fda.note}</span></td>
+            <td><b>${r.eu.name}</b><br><span>${r.eu.note}</span></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+
+  // ── 第三层：四级文件体系 ──
+  html += `<div class="layer-block">
+    <div class="layer-head" style="background:linear-gradient(135deg,#dd6b20,#f6ad55)">
+      <h3>③ 四级文件体系</h3><span>点击任意文件可生成模板（自动检索法规依据）</span>
+    </div>
+    ${framework.doc_levels.map(lvl=>`
+      <div class="level-row">
+        <div class="level-label" style="background:${lvl.color}">
+          <div class="ll-name">${lvl.name}</div>
+          <div class="ll-en">${lvl.en}</div>
+          <div class="ll-desc">${lvl.desc}</div>
+        </div>
+        <div class="doc-grid">
+          ${lvl.documents.map(doc=>`
+            <div class="doc-card" onclick="openDocModal('${doc.id}')">
+              <div class="doc-card-top">
+                <div class="doc-id">${doc.id}</div>
+                <div class="doc-name">${doc.name}</div>
+              </div>
+              <div class="doc-desc">${doc.desc}</div>
+              <div class="doc-tags">
+                <span class="tag tag-procedure">${TYPE_LABEL[doc.type]||doc.type}</span>
+                ${(doc.refs&&doc.refs.length)?`<span class="tag tag-market">📎 ${doc.refs.length} 法规依据</span>`:''}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('')}
+  </div>`;
+
+  body.innerHTML = html;
 }
 
 function renderGenSidebar() {
   const el = document.getElementById('genDocList');
-  el.innerHTML = framework.phases.map(ph => `
-    <div class="gen-phase-label">${ph.name.replace('第','').replace('：','：')}</div>
-    ${ph.documents.map(doc => `
+  el.innerHTML = framework.doc_levels.map(lvl => `
+    <div class="gen-phase-label">${lvl.name}</div>
+    ${lvl.documents.map(doc => `
       <div class="gen-doc-item" id="gdi-${doc.id}" onclick="selectGenDoc('${doc.id}')">
         <div class="gdi-id">${doc.id}</div>
         <div class="gdi-name">${doc.name}</div>
@@ -527,8 +587,8 @@ function renderGenSidebar() {
 
 // ── Doc Modal ──────────────────────────────────────────────────
 function findDoc(id) {
-  for (const ph of framework.phases)
-    for (const d of ph.documents)
+  for (const lvl of framework.doc_levels)
+    for (const d of lvl.documents)
       if (d.id===id) return d;
   return null;
 }
@@ -538,12 +598,12 @@ function openDocModal(docId) {
   if (!doc) return;
   selectedDocId = docId;
   document.getElementById('modalTitle').textContent = doc.name;
-  document.getElementById('modalMeta').textContent = doc.id+' · '+doc.standards.join('、');
-  document.getElementById('modalDesc').textContent = doc.description;
+  document.getElementById('modalMeta').textContent = doc.id+' · '+(doc.standards||[]).join('、');
+  document.getElementById('modalDesc').textContent = doc.desc||'';
+  const refsHtml = (doc.refs&&doc.refs.length)
+    ? `<span class="tag tag-market">📎 ${doc.refs.length} 条法规依据将自动检索</span>` : '';
   document.getElementById('modalTags').innerHTML = [
-    `<span class="tag ${PRIO_TAG[doc.priority]}">${PRIO_LABEL[doc.priority]}</span>`,
-    `<span class="tag ${TYPE_TAG[doc.type]}">${TYPE_LABEL[doc.type]}</span>`,
-    ...doc.markets.map(m=>`<span class="tag tag-market">${m}</span>`)
+    `<span class="tag tag-procedure">${TYPE_LABEL[doc.type]||doc.type}</span>`, refsHtml
   ].join('');
   document.getElementById('modalExtra').value='';
   document.getElementById('docModal').classList.add('open');

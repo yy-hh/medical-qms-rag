@@ -5,10 +5,38 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from app.core.qms_framework import get_document_by_id, QMS_PHASES, get_stats
+from app.core.qms_framework import get_document_by_id, get_framework as build_framework
 from app.api.company import load_profile
 from app.core.rag_engine import get_engine
 from app.core.config import settings
+
+
+def _retrieve_refs(engine, doc: dict, top_k: int = 4) -> tuple[str, list[dict]]:
+    """根据文件节点的 refs，从知识库检索真实法规条款，返回 (上下文文本, 来源列表)。"""
+    refs = doc.get("refs") or []
+    if not refs:
+        return "", []
+    query = doc["name"] + " " + doc.get("desc", "") + " " + "、".join(doc.get("standards", []))
+    parts, sources, seen = [], [], set()
+    for ref in refs:
+        collection = ref.get("collection")
+        try:
+            hits = engine.retrieve(query, top_k, collection)
+        except Exception:
+            hits = []
+        match = ref.get("match", "")
+        for s in hits:
+            if match and match not in s.doc_name:
+                continue
+            key = (s.doc_name, s.chunk_index)
+            if key in seen:
+                continue
+            seen.add(key)
+            parts.append(f"【{s.doc_name}】\n{s.content}")
+            sources.append({"doc_name": s.doc_name, "page": s.page, "score": s.score})
+            if len(parts) >= 6:
+                break
+    return "\n\n---\n\n".join(parts), sources
 
 router = APIRouter(prefix="/api/generate", tags=["generate"])
 
@@ -18,7 +46,7 @@ class GenerateRequest(BaseModel):
     extra_context: Optional[str] = None
 
 
-def _build_prompt(doc: dict, profile: dict, extra_context: str = "") -> str:
+def _build_prompt(doc: dict, profile: dict, extra_context: str = "", ref_context: str = "") -> str:
     company = profile.get("company_name") or "[公司名称]"
     product = profile.get("product_name") or "[产品名称]"
     classes = "、".join(profile.get("device_class") or ["二类", "三类"])
@@ -26,6 +54,7 @@ def _build_prompt(doc: dict, profile: dict, extra_context: str = "") -> str:
     intended_use = profile.get("intended_use") or "（待填写）"
     target_users = profile.get("target_users") or "（待填写）"
     standards = "、".join(doc.get("standards") or [])
+    description = doc.get("desc") or doc.get("description") or ""
 
     prompt = f"""请为以下企业生成「{doc['name']}」的完整文件模板。
 
@@ -42,9 +71,9 @@ def _build_prompt(doc: dict, profile: dict, extra_context: str = "") -> str:
 - 文件名称：{doc['name']}
 - 文件类型：{doc['type']}
 - 适用标准：{standards}
-- 文件说明：{doc['description']}
+- 文件说明：{description}
 
-{f"## 补充说明{chr(10)}{extra_context}" if extra_context else ""}
+{f"## 检索到的法规/标准依据（请据此生成，并在文中引用对应文件名）{chr(10)}{ref_context}{chr(10)}" if ref_context else ""}{f"## 补充说明{chr(10)}{extra_context}" if extra_context else ""}
 
 ## 生成要求
 1. 文件内容必须符合上述标准的具体条款要求
@@ -77,15 +106,16 @@ async def generate_document_stream(request: GenerateRequest):
         raise HTTPException(status_code=404, detail=f"文档 {request.doc_id} 不在框架中")
 
     profile = load_profile()
-    user_prompt = _build_prompt(doc, profile, request.extra_context or "")
-
     engine = get_engine()
+    ref_context, ref_sources = _retrieve_refs(engine, doc)
+    user_prompt = _build_prompt(doc, profile, request.extra_context or "", ref_context)
+
     extra_body = {}
     if "opus-4" in settings.claude_model:
         extra_body["thinking"] = {"type": "enabled", "budget_tokens": 1024}
 
     async def event_gen():
-        yield f"data: {json.dumps({'type': 'meta', 'doc_id': doc['id'], 'doc_name': doc['name']}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'type': 'meta', 'doc_id': doc['id'], 'doc_name': doc['name'], 'sources': ref_sources}, ensure_ascii=False)}\n\n"
 
         gen = engine.llm.chat.completions.create(
             model=settings.claude_model,
@@ -123,4 +153,4 @@ async def generate_document_stream(request: GenerateRequest):
 
 @router.get("/framework")
 async def get_framework():
-    return {"phases": QMS_PHASES, "stats": get_stats()}
+    return build_framework()
