@@ -9,6 +9,8 @@ from pathlib import Path
 
 from app.api.documents import router as doc_router
 from app.api.query import router as query_router
+from app.api.company import router as company_router
+from app.api.generate import router as generate_router
 from app.core.rag_engine import get_engine
 
 logging.basicConfig(
@@ -29,8 +31,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="医疗行业 QMS 智能问答系统",
-    description="基于 RAG 的医疗器械质量管理体系法规智能问答",
+    title="QMS 体系搭建助手",
+    description="医疗器械软件（SaMD）质量管理体系搭建平台",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -44,6 +46,8 @@ app.add_middleware(
 
 app.include_router(doc_router)
 app.include_router(query_router)
+app.include_router(company_router)
+app.include_router(generate_router)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

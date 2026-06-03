@@ -2,180 +2,392 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>医疗 QMS 法规问答</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QMS 体系搭建助手</title>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f4f8;color:#1a202c;height:100vh;display:flex;flex-direction:column}
-
-/* Header */
-header{background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.2);flex-shrink:0}
-header h1{font-size:17px;font-weight:600}
-header .sub{font-size:11px;opacity:.7;margin-top:2px}
-#statusBadge{margin-left:auto;font-size:11px;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;white-space:nowrap}
-
-/* Layout */
-.layout{display:flex;flex:1;overflow:hidden}
-
-/* Sidebar */
-.sidebar{width:280px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
-.sb-head{padding:12px 14px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}
-.sb-head h2{font-size:13px;font-weight:600;color:#2d3748}
-.sb-head button{background:none;border:none;cursor:pointer;font-size:16px;color:#718096}
-.sb-head button:hover{color:#3182ce}
-.coll-sel{padding:8px 14px 4px}
-.coll-sel label{font-size:11px;color:#718096;display:block;margin-bottom:3px}
-.coll-sel select{width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px}
-.drop-zone{margin:8px 12px;border:2px dashed #bee3f8;border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:.2s}
-.drop-zone:hover,.drop-zone.over{border-color:#3182ce;background:#ebf8ff}
-.drop-zone input{display:none}
-.drop-zone .dz-icon{font-size:24px}
-.drop-zone p{font-size:11px;color:#718096;margin-top:4px}
-.up-btn{background:#3182ce;color:#fff;border:none;padding:5px 14px;border-radius:5px;font-size:12px;cursor:pointer;margin-top:6px}
-.up-btn:hover{background:#2b6cb0}
-.up-btn:disabled{background:#a0aec0;cursor:not-allowed}
-.doc-list{flex:1;overflow-y:auto;padding:6px 10px}
-.doc-item{background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:flex-start;gap:7px}
-.doc-icon{font-size:18px;flex-shrink:0;margin-top:1px}
-.doc-info{flex:1;min-width:0}
-.doc-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.doc-meta{font-size:10px;color:#a0aec0;margin-top:2px}
-.doc-del{background:none;border:none;cursor:pointer;color:#fc8181;font-size:14px;padding:0 2px;flex-shrink:0}
-.doc-del:hover{color:#e53e3e}
-.empty-docs{text-align:center;color:#a0aec0;font-size:12px;padding:20px 0}
-
-/* Chat */
-.chat{flex:1;display:flex;flex-direction:column;min-width:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f4f8;color:#1a202c;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;padding:0 20px;height:52px;display:flex;align-items:center;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:16px;font-weight:700;white-space:nowrap}
+header .company-tag{background:rgba(255,255,255,.18);border-radius:12px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap}
+header .company-tag:hover{background:rgba(255,255,255,.28)}
+#headerStats{margin-left:auto;font-size:11px;opacity:.8;white-space:nowrap}
+/* ── Layout ── */
+.app{display:flex;flex:1;overflow:hidden}
+/* ── Sidebar nav ── */
+nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;flex-shrink:0}
+.nav-btn{width:48px;height:48px;border-radius:10px;border:none;background:none;color:#a0aec0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9px;transition:.2s;padding:4px}
+.nav-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.nav-btn.active{background:#3182ce;color:#fff}
+.nav-btn .icon{font-size:20px;line-height:1}
+/* ── Main content ── */
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.page{display:none;flex:1;overflow:hidden;flex-direction:column}
+.page.active{display:flex}
+/* ── Page header ── */
+.page-head{padding:16px 20px 12px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+.page-head h2{font-size:17px;font-weight:700;color:#1a365d}
+.page-head p{font-size:12px;color:#718096;margin-top:3px}
+/* ── Roadmap ── */
+.roadmap-body{flex:1;overflow-y:auto;padding:16px 20px}
+.phase-block{background:#fff;border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.phase-head{padding:12px 16px;background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;display:flex;align-items:center;gap:10px}
+.phase-num{background:rgba(255,255,255,.25);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.phase-info h3{font-size:14px;font-weight:600}
+.phase-info p{font-size:11px;opacity:.8;margin-top:1px}
+.phase-badge{margin-left:auto;background:rgba(255,255,255,.2);border-radius:10px;padding:2px 8px;font-size:11px;white-space:nowrap}
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1px;background:#f0f4f8}
+.doc-card{background:#fff;padding:12px 14px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:5px}
+.doc-card:hover{background:#ebf8ff}
+.doc-card-top{display:flex;align-items:flex-start;gap:8px}
+.doc-id{font-size:10px;font-family:monospace;color:#a0aec0;flex-shrink:0;margin-top:1px}
+.doc-name{font-size:13px;font-weight:600;color:#2d3748;line-height:1.3}
+.doc-desc{font-size:11px;color:#718096;line-height:1.4}
+.doc-tags{display:flex;gap:4px;flex-wrap:wrap}
+.tag{font-size:10px;padding:1px 6px;border-radius:10px;font-weight:500}
+.tag-critical{background:#fed7d7;color:#c53030}
+.tag-high{background:#feebc8;color:#c05621}
+.tag-medium{background:#e9d8fd;color:#6b46c1}
+.tag-manual{background:#c6f6d5;color:#276749}
+.tag-procedure{background:#bee3f8;color:#2b6cb0}
+.tag-form{background:#e2e8f0;color:#4a5568}
+.tag-market{background:#fef3c7;color:#92400e}
+/* ── Generator ── */
+.gen-layout{flex:1;display:flex;overflow:hidden}
+.gen-sidebar{width:260px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
+.gen-sidebar-head{padding:12px 14px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:600;color:#2d3748}
+.gen-doc-list{flex:1;overflow-y:auto;padding:8px}
+.gen-doc-item{padding:8px 10px;border-radius:7px;cursor:pointer;margin-bottom:3px;border:1px solid transparent}
+.gen-doc-item:hover{background:#f7fafc;border-color:#e2e8f0}
+.gen-doc-item.active{background:#ebf8ff;border-color:#90cdf4}
+.gen-doc-item .gdi-id{font-size:10px;font-family:monospace;color:#a0aec0}
+.gen-doc-item .gdi-name{font-size:12px;font-weight:500;color:#2d3748;margin-top:1px}
+.gen-phase-label{font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;padding:8px 10px 3px;letter-spacing:.5px}
+.gen-content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.gen-empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:#a0aec0;flex-direction:column;gap:10px}
+.gen-empty .icon{font-size:40px}
+.gen-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.gen-toolbar{padding:12px 16px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.gen-toolbar h3{font-size:14px;font-weight:600;color:#1a365d;flex:1}
+.gen-output{flex:1;overflow-y:auto;padding:20px;background:#fafbfc}
+.gen-output .doc-content{background:#fff;border-radius:10px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.06);min-height:200px;font-size:14px;line-height:1.7}
+.gen-output .doc-content.streaming{border-left:3px solid #3182ce}
+/* doc content markdown */
+.doc-content h1{font-size:1.3em;color:#1a365d;margin:1em 0 .5em;padding-bottom:.3em;border-bottom:2px solid #e2e8f0}
+.doc-content h2{font-size:1.1em;color:#2b6cb0;margin:.9em 0 .4em}
+.doc-content h3{font-size:1em;color:#2d3748;margin:.7em 0 .3em}
+.doc-content p{margin:.5em 0}
+.doc-content ul,.doc-content ol{padding-left:1.5em;margin:.5em 0}
+.doc-content li{margin:.2em 0}
+.doc-content table{border-collapse:collapse;width:100%;margin:.6em 0;font-size:.9em}
+.doc-content th,.doc-content td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
+.doc-content th{background:#f7fafc;font-weight:600}
+.doc-content code{background:#f0f4f8;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.9em}
+.doc-content pre{background:#f0f4f8;padding:12px;border-radius:7px;overflow-x:auto;margin:.5em 0}
+.doc-content pre code{background:none;padding:0}
+.doc-content strong{font-weight:600}
+.doc-content hr{border:none;border-top:1px solid #e2e8f0;margin:.8em 0}
+.gen-placeholder{color:#a0aec0;font-style:italic;text-align:center;padding:40px}
+/* ── Chat ── */
+.chat-wrap{flex:1;display:flex;overflow:hidden}
+.chat-sidebar{width:240px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
+.chat-sidebar-head{padding:12px 14px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}
+.chat-sidebar-head h3{font-size:13px;font-weight:600}
+.kb-coll-sel{padding:8px 12px}
+.kb-coll-sel label{font-size:11px;color:#718096;display:block;margin-bottom:3px}
+.kb-coll-sel select{width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px}
+.drop-z{margin:6px 10px;border:2px dashed #bee3f8;border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:.2s}
+.drop-z:hover,.drop-z.over{border-color:#3182ce;background:#ebf8ff}
+.drop-z input{display:none}
+.drop-z p{font-size:10px;color:#718096;margin-top:3px}
+.up-btn2{background:#3182ce;color:#fff;border:none;padding:4px 12px;border-radius:5px;font-size:11px;cursor:pointer;margin-top:5px}
+.up-btn2:hover{background:#2b6cb0}
+.up-btn2:disabled{background:#a0aec0;cursor:not-allowed}
+.kb-doc-list{flex:1;overflow-y:auto;padding:6px 8px}
+.kb-doc-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:11px;border:1px solid transparent}
+.kb-doc-item:hover{background:#f7fafc;border-color:#e2e8f0}
+.kb-doc-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#4a5568}
+.kb-doc-del{background:none;border:none;color:#fc8181;cursor:pointer;font-size:13px;flex-shrink:0}
+.chat-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px}
-
-/* Welcome */
-.welcome{text-align:center;padding:40px 20px;color:#718096}
-.welcome h2{font-size:18px;color:#2d3748;margin-bottom:8px}
-.suggestions{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:18px}
-.sug-btn{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;color:#4a5568;transition:.2s}
-.sug-btn:hover{border-color:#3182ce;color:#3182ce;background:#ebf8ff}
-
-/* Messages */
-.msg{display:flex;gap:10px;max-width:100%}
+.welcome-box{text-align:center;padding:32px 20px;color:#718096}
+.welcome-box h2{font-size:18px;color:#2d3748;margin-bottom:8px}
+.sugs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:14px}
+.sug{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:6px 13px;font-size:12px;cursor:pointer;color:#4a5568;transition:.2s}
+.sug:hover{border-color:#3182ce;color:#3182ce;background:#ebf8ff}
+.msg{display:flex;gap:10px}
 .msg.user{flex-direction:row-reverse}
-.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
-.msg.user .avatar{background:#3182ce;color:#fff}
-.msg.assistant .avatar{background:#1a365d;color:#fff}
-.msg-body{max-width:72%}
-.bubble{padding:10px 14px;border-radius:12px;line-height:1.65;font-size:14px}
-.msg.user .bubble{background:#3182ce;color:#fff;border-bottom-right-radius:3px}
-.msg.assistant .bubble{background:#fff;border:1px solid #e2e8f0;border-bottom-left-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-
-/* Markdown inside bubble */
-.bubble h1,.bubble h2,.bubble h3{margin:.8em 0 .4em;line-height:1.3}
-.bubble h1{font-size:1.15em}.bubble h2{font-size:1.05em}.bubble h3{font-size:1em}
-.bubble p{margin:.5em 0}
-.bubble ul,.bubble ol{padding-left:1.4em;margin:.5em 0}
-.bubble li{margin:.2em 0}
-.bubble code{background:#f0f4f8;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.9em}
-.bubble pre{background:#f0f4f8;padding:10px;border-radius:6px;overflow-x:auto;margin:.5em 0}
-.bubble pre code{background:none;padding:0}
-.bubble table{border-collapse:collapse;width:100%;margin:.5em 0;font-size:.9em}
-.bubble th,.bubble td{border:1px solid #e2e8f0;padding:5px 8px;text-align:left}
-.bubble th{background:#f7fafc;font-weight:600}
-.bubble hr{border:none;border-top:1px solid #e2e8f0;margin:.8em 0}
-.bubble strong{font-weight:600}
-.msg.user .bubble code,.msg.user .bubble pre{background:rgba(255,255,255,.2)}
-
-/* Sources */
-.src-toggle{margin-top:7px}
-.src-btn{background:none;border:1px solid #bee3f8;color:#3182ce;font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer}
-.src-btn:hover{background:#ebf8ff}
-.src-list{display:none;margin-top:5px}
+.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.msg.user .av{background:#3182ce;color:#fff}
+.msg.assistant .av{background:#1a365d;color:#fff}
+.mb{max-width:72%}
+.bbl{padding:10px 13px;border-radius:11px;line-height:1.65;font-size:13px}
+.msg.user .bbl{background:#3182ce;color:#fff;border-bottom-right-radius:3px}
+.msg.assistant .bbl{background:#fff;border:1px solid #e2e8f0;border-bottom-left-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.bbl h1,.bbl h2,.bbl h3{margin:.7em 0 .3em;line-height:1.3}
+.bbl h1{font-size:1.1em}.bbl h2{font-size:1em}.bbl h3{font-size:.95em}
+.bbl p{margin:.4em 0}.bbl ul,.bbl ol{padding-left:1.3em;margin:.4em 0}.bbl li{margin:.15em 0}
+.bbl code{background:#f0f4f8;padding:1px 4px;border-radius:3px;font-size:.9em}
+.bbl pre{background:#f0f4f8;padding:8px;border-radius:5px;overflow-x:auto;margin:.4em 0}
+.bbl table{border-collapse:collapse;width:100%;margin:.4em 0;font-size:.88em}
+.bbl th,.bbl td{border:1px solid #e2e8f0;padding:4px 8px}
+.bbl th{background:#f7fafc;font-weight:600}
+.bbl strong{font-weight:600}.bbl hr{border:none;border-top:1px solid #e2e8f0;margin:.6em 0}
+.src-area{margin-top:6px}
+.src-btn{background:none;border:1px solid #bee3f8;color:#3182ce;font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer}
+.src-list{display:none;margin-top:4px}
 .src-list.open{display:block}
-.src-item{background:#f7fafc;border-left:3px solid #3182ce;padding:6px 9px;margin-bottom:4px;border-radius:0 4px 4px 0}
-.src-title{font-size:11px;font-weight:600;color:#2b6cb0}
-.src-score{color:#a0aec0;margin-left:5px;font-weight:400}
-.src-text{font-size:11px;color:#4a5568;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-
-/* Thinking */
-.thinking-dots{display:flex;gap:4px;padding:10px 14px}
+.src-item{background:#f7fafc;border-left:3px solid #3182ce;padding:5px 8px;margin-bottom:3px;border-radius:0 4px 4px 0}
+.src-item .st{font-size:10px;font-weight:600;color:#2b6cb0}
+.src-item .sc{font-size:10px;color:#a0aec0;margin-left:4px}
+.src-item .sx{font-size:10px;color:#4a5568;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.thinking-dots{display:flex;gap:4px;padding:10px 13px}
 .thinking-dots span{width:7px;height:7px;background:#a0aec0;border-radius:50%;animation:bounce 1.2s infinite}
 .thinking-dots span:nth-child(2){animation-delay:.2s}
 .thinking-dots span:nth-child(3){animation-delay:.4s}
 @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-7px)}}
-
-/* Input bar */
-.input-bar{padding:12px 16px;background:#fff;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
-.input-bar textarea{flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;resize:none;outline:none;line-height:1.5;max-height:100px;font-family:inherit;transition:border-color .2s}
+.input-bar{padding:10px 14px;background:#fff;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+.input-bar textarea{flex:1;border:1px solid #e2e8f0;border-radius:9px;padding:8px 11px;font-size:13px;resize:none;outline:none;line-height:1.5;max-height:90px;font-family:inherit;transition:border-color .2s}
 .input-bar textarea:focus{border-color:#3182ce;box-shadow:0 0 0 3px rgba(49,130,206,.1)}
-.send-btn{background:#3182ce;color:#fff;border:none;border-radius:10px;width:42px;height:42px;font-size:18px;cursor:pointer;flex-shrink:0;transition:background .2s}
+.send-btn{background:#3182ce;color:#fff;border:none;border-radius:9px;width:40px;height:40px;font-size:17px;cursor:pointer;flex-shrink:0}
 .send-btn:hover:not(:disabled){background:#2b6cb0}
 .send-btn:disabled{background:#a0aec0;cursor:not-allowed}
-.new-chat-btn{background:none;border:1px solid #e2e8f0;color:#718096;border-radius:8px;padding:0 10px;height:42px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
-.new-chat-btn:hover{border-color:#3182ce;color:#3182ce}
-
-/* Toast */
-.toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.new-chat{background:none;border:1px solid #e2e8f0;color:#718096;border-radius:7px;padding:0 8px;height:40px;font-size:11px;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.new-chat:hover{border-color:#3182ce;color:#3182ce}
+/* ── Settings ── */
+.settings-body{flex:1;overflow-y:auto;padding:20px}
+.settings-card{background:#fff;border-radius:12px;padding:20px;max-width:640px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.settings-card h3{font-size:15px;font-weight:700;color:#1a365d;margin-bottom:16px}
+.form-row{margin-bottom:14px}
+.form-row label{display:block;font-size:12px;font-weight:600;color:#4a5568;margin-bottom:5px}
+.form-row input,.form-row textarea,.form-row select{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;font-family:inherit;outline:none;transition:border-color .2s}
+.form-row input:focus,.form-row textarea:focus{border-color:#3182ce;box-shadow:0 0 0 3px rgba(49,130,206,.1)}
+.form-row textarea{resize:vertical;min-height:70px}
+.checkbox-group{display:flex;gap:10px;flex-wrap:wrap}
+.cb-item{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#4a5568}
+.cb-item input{cursor:pointer}
+.save-btn{background:#3182ce;color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600}
+.save-btn:hover{background:#2b6cb0}
+.save-ok{display:none;color:#38a169;font-size:13px;margin-left:10px}
+/* ── Modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:14px;padding:24px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto}
+.modal h2{font-size:16px;font-weight:700;color:#1a365d;margin-bottom:4px}
+.modal .meta{font-size:12px;color:#718096;margin-bottom:16px}
+.modal-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px}
+.modal textarea{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12px;resize:vertical;min-height:60px;margin-bottom:12px}
+.modal-btns{display:flex;gap:8px}
+.btn-primary{background:#3182ce;color:#fff;border:none;padding:8px 18px;border-radius:7px;font-size:13px;cursor:pointer;font-weight:600}
+.btn-primary:hover{background:#2b6cb0}
+.btn-secondary{background:#f7fafc;color:#4a5568;border:1px solid #e2e8f0;padding:8px 18px;border-radius:7px;font-size:13px;cursor:pointer}
+.btn-secondary:hover{background:#e2e8f0}
+/* ── Buttons ── */
+.icon-btn{background:none;border:1px solid #e2e8f0;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;color:#4a5568;display:flex;align-items:center;gap:5px}
+.icon-btn:hover{border-color:#3182ce;color:#3182ce}
+/* ── Toast ── */
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#cbd5e0;border-radius:3px}
 </style>
 </head>
 <body>
 
 <header>
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-  <div><h1>医疗行业 QMS 智能问答</h1><div class="sub">基于 RAG · 法规文件实时检索</div></div>
-  <div id="statusBadge">加载中...</div>
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+  <h1>QMS 体系搭建助手</h1>
+  <div class="company-tag" onclick="showPage('settings')" id="companyTag">⚙ 配置公司信息</div>
+  <div id="headerStats"></div>
 </header>
 
-<div class="layout">
+<div class="app">
+  <!-- Nav -->
+  <nav>
+    <button class="nav-btn active" id="nav-roadmap" onclick="showPage('roadmap')" title="体系地图">
+      <span class="icon">🗺️</span>体系地图
+    </button>
+    <button class="nav-btn" id="nav-generator" onclick="showPage('generator')" title="文件生成">
+      <span class="icon">📝</span>文件生成
+    </button>
+    <button class="nav-btn" id="nav-chat" onclick="showPage('chat')" title="法规顾问">
+      <span class="icon">💬</span>法规顾问
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="showPage('settings')" title="公司信息">
+      <span class="icon">⚙️</span>公司信息
+    </button>
+  </nav>
 
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <div class="sb-head">
-      <h2>📂 文档库</h2>
-      <button onclick="loadDocs()" title="刷新">↻</button>
-    </div>
-    <div class="coll-sel">
-      <label>集合</label>
-      <select id="collSel" onchange="loadDocs()">
-        <option value="">默认 (medical_qms)</option>
-        <option value="regulations">法规文件</option>
-        <option value="standards">标准文件</option>
-        <option value="guidelines">指导原则</option>
-      </select>
-    </div>
-    <div class="drop-zone" id="dropZone"
-         ondragover="e=>{e.preventDefault();document.getElementById('dropZone').classList.add('over')}"
-         ondragleave="document.getElementById('dropZone').classList.remove('over')"
-         ondrop="e=>{e.preventDefault();document.getElementById('dropZone').classList.remove('over');uploadFiles(e.dataTransfer.files)}">
-      <input type="file" id="fileIn" accept=".pdf,.docx,.txt,.md" multiple onchange="uploadFiles(this.files)">
-      <div class="dz-icon">📄</div>
-      <p>拖拽或点击上传</p>
-      <p>PDF / DOCX / TXT / MD</p>
-      <button class="up-btn" id="upBtn" onclick="document.getElementById('fileIn').click()">选择文件</button>
-    </div>
-    <div class="doc-list" id="docList"><div class="empty-docs">暂无文档</div></div>
-  </div>
+  <div class="main">
 
-  <!-- Chat -->
-  <div class="chat">
-    <div class="messages" id="messages">
-      <div class="welcome" id="welcome">
-        <h2>🏥 医疗 QMS 法规问答助手</h2>
-        <p>上传法规、标准文件，然后直接提问</p>
-        <div class="suggestions">
-          <button class="sug-btn" onclick="ask(this.textContent)">ISO 13485 文件控制要求？</button>
-          <button class="sug-btn" onclick="ask(this.textContent)">医疗器械注册申请需要什么资料？</button>
-          <button class="sug-btn" onclick="ask(this.textContent)">二类医疗器械临床豁免条件？</button>
-          <button class="sug-btn" onclick="ask(this.textContent)">风险管理 ISO 14971 主要流程？</button>
-          <button class="sug-btn" onclick="ask(this.textContent)">医疗器械软件如何分类？</button>
-          <button class="sug-btn" onclick="ask(this.textContent)">YY/T 1833.1 网络安全核心要求？</button>
+    <!-- ══ Page: Roadmap ══ -->
+    <div class="page active" id="page-roadmap">
+      <div class="page-head">
+        <h2>🗺️ QMS 体系地图</h2>
+        <p>SaMD 医疗器械软件 · 二/三类 · 多市场（NMPA / CE / FDA）· 点击任意文件可生成模板</p>
+      </div>
+      <div class="roadmap-body" id="roadmapBody">
+        <div style="text-align:center;padding:40px;color:#a0aec0">加载中…</div>
+      </div>
+    </div>
+
+    <!-- ══ Page: Generator ══ -->
+    <div class="page" id="page-generator">
+      <div class="page-head">
+        <h2>📝 文件生成器</h2>
+        <p>选择文件类型，AI 根据公司信息生成定制化模板（流式输出）</p>
+      </div>
+      <div class="gen-layout">
+        <div class="gen-sidebar">
+          <div class="gen-sidebar-head">选择文件</div>
+          <div class="gen-doc-list" id="genDocList">加载中…</div>
+        </div>
+        <div class="gen-content">
+          <div class="gen-empty" id="genEmpty">
+            <div class="icon">📄</div>
+            <div style="font-size:14px;color:#718096">从左侧选择要生成的文件</div>
+            <div style="font-size:12px">AI 将根据公司信息生成定制化模板</div>
+          </div>
+          <div class="gen-panel" id="genPanel" style="display:none">
+            <div class="gen-toolbar">
+              <h3 id="genDocTitle">—</h3>
+              <button class="icon-btn" id="genBtn" onclick="startGenerate()">✨ 生成文件</button>
+              <button class="icon-btn" onclick="copyContent()">📋 复制</button>
+            </div>
+            <div class="gen-output">
+              <div class="doc-content" id="genOutput">
+                <div class="gen-placeholder">点击「生成文件」按钮开始生成</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="input-bar">
-      <button class="new-chat-btn" onclick="newChat()">新对话</button>
-      <textarea id="inputBox" placeholder="提问，Enter 发送，Shift+Enter 换行…" rows="1"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"
-        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
-      <button class="send-btn" id="sendBtn" onclick="sendMsg()">➤</button>
+
+    <!-- ══ Page: Chat ══ -->
+    <div class="page" id="page-chat">
+      <div class="chat-wrap">
+        <!-- KB sidebar -->
+        <div class="chat-sidebar">
+          <div class="chat-sidebar-head">
+            <h3>📚 法规知识库</h3>
+            <button onclick="loadKbDocs()" style="background:none;border:none;cursor:pointer;color:#718096;font-size:15px" title="刷新">↻</button>
+          </div>
+          <div class="kb-coll-sel">
+            <label>集合</label>
+            <select id="kbColl" onchange="loadKbDocs()">
+              <option value="">默认</option>
+              <option value="regulations">法规文件</option>
+              <option value="standards">标准文件</option>
+              <option value="guidelines">指导原则</option>
+            </select>
+          </div>
+          <div class="drop-z" id="kbDrop"
+               ondragover="e=>{e.preventDefault();document.getElementById('kbDrop').classList.add('over')}"
+               ondragleave="document.getElementById('kbDrop').classList.remove('over')"
+               ondrop="e=>{e.preventDefault();document.getElementById('kbDrop').classList.remove('over');kbUpload(e.dataTransfer.files)}">
+            <input type="file" id="kbFile" accept=".pdf,.docx,.txt,.md" multiple onchange="kbUpload(this.files)">
+            <div style="font-size:20px">📄</div>
+            <p>拖拽或点击上传法规文件</p>
+            <p>PDF / DOCX / TXT</p>
+            <button class="up-btn2" id="kbUpBtn" onclick="document.getElementById('kbFile').click()">上传</button>
+          </div>
+          <div class="kb-doc-list" id="kbDocList"></div>
+        </div>
+        <!-- Chat main -->
+        <div class="chat-main">
+          <div class="messages" id="messages">
+            <div class="welcome-box" id="welcome">
+              <h2>💬 医疗 QMS 法规顾问</h2>
+              <p>结合公司信息和上传的法规文件回答问题</p>
+              <div class="sugs">
+                <button class="sug" onclick="ask(this.textContent)">ISO 13485 文件控制要求？</button>
+                <button class="sug" onclick="ask(this.textContent)">二类 SaMD 注册需要哪些资料？</button>
+                <button class="sug" onclick="ask(this.textContent)">IEC 62304 软件安全分类标准？</button>
+                <button class="sug" onclick="ask(this.textContent)">风险管理档案需要包含什么？</button>
+                <button class="sug" onclick="ask(this.textContent)">CAPA 流程如何设计？</button>
+                <button class="sug" onclick="ask(this.textContent)">欧盟 MDR 技术文件要求？</button>
+              </div>
+            </div>
+          </div>
+          <div class="input-bar">
+            <button class="new-chat" onclick="newChat()">新对话</button>
+            <textarea id="inputBox" rows="1" placeholder="提问法规、体系、文件相关问题…  Enter 发送"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"
+              oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,90)+'px'"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="sendMsg()">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Page: Settings ══ -->
+    <div class="page" id="page-settings">
+      <div class="page-head">
+        <h2>⚙️ 公司信息配置</h2>
+        <p>配置企业和产品信息，文件生成和顾问回答将自动结合这些信息</p>
+      </div>
+      <div class="settings-body">
+        <div class="settings-card">
+          <h3>企业与产品信息</h3>
+          <div class="form-row">
+            <label>企业名称 *</label>
+            <input id="sCompany" type="text" placeholder="例：北京XX医疗科技有限公司">
+          </div>
+          <div class="form-row">
+            <label>产品名称 *</label>
+            <input id="sProduct" type="text" placeholder="例：XX辅助诊断软件">
+          </div>
+          <div class="form-row">
+            <label>预期用途</label>
+            <textarea id="sUse" placeholder="例：基于人工智能对X光片进行辅助分析，为临床医生提供诊断参考"></textarea>
+          </div>
+          <div class="form-row">
+            <label>目标用户</label>
+            <input id="sUsers" type="text" placeholder="例：三级甲等医院放射科医生">
+          </div>
+          <div class="form-row">
+            <label>注册类别</label>
+            <div class="checkbox-group">
+              <label class="cb-item"><input type="checkbox" id="cls2" value="II" checked> 二类</label>
+              <label class="cb-item"><input type="checkbox" id="cls3" value="III" checked> 三类</label>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>目标市场</label>
+            <div class="checkbox-group">
+              <label class="cb-item"><input type="checkbox" id="mktNMPA" value="NMPA" checked> 中国 NMPA</label>
+              <label class="cb-item"><input type="checkbox" id="mktCE" value="CE" checked> 欧盟 CE/MDR</label>
+              <label class="cb-item"><input type="checkbox" id="mktFDA" value="FDA" checked> 美国 FDA</label>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center">
+            <button class="save-btn" onclick="saveProfile()">保存配置</button>
+            <span class="save-ok" id="saveOk">✓ 已保存</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Doc detail modal -->
+<div class="modal-bg" id="docModal">
+  <div class="modal">
+    <h2 id="modalTitle">—</h2>
+    <div class="meta" id="modalMeta"></div>
+    <div class="modal-tags" id="modalTags"></div>
+    <div style="font-size:13px;color:#4a5568;margin-bottom:12px" id="modalDesc"></div>
+    <label style="font-size:12px;font-weight:600;color:#4a5568;display:block;margin-bottom:4px">补充说明（可选）</label>
+    <textarea id="modalExtra" placeholder="例：我们的产品采用云端SaaS模式部署，主要使用Python后端…"></textarea>
+    <div class="modal-btns">
+      <button class="btn-primary" onclick="confirmGenerate()">✨ 生成文件</button>
+      <button class="btn-secondary" onclick="closeModal()">取消</button>
     </div>
   </div>
 </div>
@@ -183,226 +395,402 @@ header .sub{font-size:11px;opacity:.7;margin-top:2px}
 <div class="toast" id="toast"></div>
 
 <script>
-// ── Marked config ──────────────────────────────────────────────────────
-marked.setOptions({breaks: true, gfm: true});
+marked.setOptions({breaks:true,gfm:true});
 
-// ── State ──────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────
+let profile = {};
+let framework = {phases:[]};
+let chatHistory = [];
 let isLoading = false;
-let history = []; // [{role, content}]
+let selectedDocId = null;
+let genStreaming = false;
 
-// ── Health ─────────────────────────────────────────────────────────────
+// ── Init ───────────────────────────────────────────────────────
+async function init() {
+  await Promise.all([loadProfile(), loadFramework(), loadKbDocs(), checkHealth()]);
+}
+
 async function checkHealth() {
   try {
-    const d = await fetch('/api/health').then(r => r.json());
-    document.getElementById('statusBadge').textContent = `${d.total_documents} 篇文档 · ${d.total_chunks} 块`;
-  } catch { document.getElementById('statusBadge').textContent = '连接失败'; }
+    const d = await fetch('/api/health').then(r=>r.json());
+    document.getElementById('headerStats').textContent = `${d.total_documents} 篇文档 · ${d.total_chunks} 块`;
+  } catch {}
 }
 
-// ── Documents ──────────────────────────────────────────────────────────
-async function loadDocs() {
-  const col = document.getElementById('collSel').value;
-  const url = col ? `/api/documents?collection=${col}` : '/api/documents';
+// ── Navigation ─────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  const nb = document.getElementById('nav-'+id);
+  if (nb) nb.classList.add('active');
+}
+
+// ── Profile ────────────────────────────────────────────────────
+async function loadProfile() {
   try {
-    const docs = await fetch(url).then(r => r.json());
-    renderDocs(docs);
-  } catch { toast('加载文档列表失败'); }
+    profile = await fetch('/api/company').then(r=>r.json());
+    applyProfileToUI();
+  } catch {}
 }
 
-function renderDocs(docs) {
-  const el = document.getElementById('docList');
-  if (!docs.length) { el.innerHTML = '<div class="empty-docs">暂无文档</div>'; return; }
-  const icon = {pdf:'📄',docx:'📝',txt:'📃',md:'📃'};
-  el.innerHTML = docs.map(d => `
-    <div class="doc-item">
-      <div class="doc-icon">${icon[d.file_type]||'📄'}</div>
-      <div class="doc-info">
-        <div class="doc-name" title="${esc(d.name)}">${esc(d.name)}</div>
-        <div class="doc-meta">${d.chunk_count} 块 · ${d.collection}</div>
-      </div>
-      <button class="doc-del" onclick="delDoc('${d.doc_id}','${esc(d.name)}')" title="删除">✕</button>
-    </div>`).join('');
-}
-
-async function delDoc(id, name) {
-  if (!confirm(`确认删除「${name}」？`)) return;
-  const col = document.getElementById('collSel').value;
-  const url = col ? `/api/documents/${id}?collection=${col}` : `/api/documents/${id}`;
-  await fetch(url, {method:'DELETE'});
-  toast('已删除'); loadDocs(); checkHealth();
-}
-
-// ── Upload ─────────────────────────────────────────────────────────────
-async function uploadFiles(files) {
-  if (!files.length) return;
-  const btn = document.getElementById('upBtn');
-  const col = document.getElementById('collSel').value;
-  btn.disabled = true;
-  for (const file of files) {
-    btn.textContent = `上传中…`;
-    const fd = new FormData();
-    fd.append('file', file);
-    if (col) fd.append('collection', col);
-    try {
-      const r = await fetch('/api/documents/upload', {method:'POST', body:fd});
-      const d = await r.json();
-      toast(r.ok ? `✓ ${file.name} 导入 ${d.chunk_count} 块` : `✗ ${d.detail}`);
-    } catch { toast(`✗ ${file.name} 上传失败`); }
+function applyProfileToUI() {
+  if (profile.company_name) {
+    document.getElementById('companyTag').textContent = '🏢 '+profile.company_name;
   }
-  btn.disabled = false; btn.textContent = '选择文件';
-  loadDocs(); checkHealth();
+  document.getElementById('sCompany').value = profile.company_name||'';
+  document.getElementById('sProduct').value = profile.product_name||'';
+  document.getElementById('sUse').value = profile.intended_use||'';
+  document.getElementById('sUsers').value = profile.target_users||'';
+  document.getElementById('cls2').checked = (profile.device_class||[]).includes('II');
+  document.getElementById('cls3').checked = (profile.device_class||[]).includes('III');
+  document.getElementById('mktNMPA').checked = (profile.markets||[]).includes('NMPA');
+  document.getElementById('mktCE').checked = (profile.markets||[]).includes('CE');
+  document.getElementById('mktFDA').checked = (profile.markets||[]).includes('FDA');
 }
 
-// ── Chat ───────────────────────────────────────────────────────────────
-function ask(q) { document.getElementById('inputBox').value = q; sendMsg(); }
-
-function newChat() {
-  history = [];
-  document.getElementById('messages').innerHTML = `
-    <div class="welcome" id="welcome">
-      <h2>🏥 医疗 QMS 法规问答助手</h2>
-      <p>新对话已开始</p>
-    </div>`;
-}
-
-async function sendMsg() {
-  const box = document.getElementById('inputBox');
-  const q = box.value.trim();
-  if (!q || isLoading) return;
-
-  isLoading = true;
-  document.getElementById('sendBtn').disabled = true;
-  document.getElementById('welcome')?.remove();
-
-  addUserMsg(q);
-  history.push({role:'user', content:q});
-  box.value = ''; box.style.height = 'auto';
-
-  const thinkId = addThinking();
-  let answerEl = null;
-  let fullAnswer = '';
-  let sourcesRendered = false;
-
+async function saveProfile() {
+  const classes = ['cls2','cls3'].filter(id=>document.getElementById(id).checked).map(id=>document.getElementById(id).value);
+  const markets = ['mktNMPA','mktCE','mktFDA'].filter(id=>document.getElementById(id).checked).map(id=>document.getElementById(id).value);
+  const data = {
+    company_name: document.getElementById('sCompany').value.trim(),
+    product_name: document.getElementById('sProduct').value.trim(),
+    intended_use: document.getElementById('sUse').value.trim(),
+    target_users: document.getElementById('sUsers').value.trim(),
+    device_class: classes,
+    markets,
+  };
   try {
-    const resp = await fetch('/api/query/stream', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({question: q, top_k: 5, history: history.slice(-6), collection: document.getElementById('collSel').value || null}),
+    profile = await fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json());
+    applyProfileToUI();
+    const ok = document.getElementById('saveOk');
+    ok.style.display='inline';
+    setTimeout(()=>ok.style.display='none',2000);
+  } catch { toast('保存失败'); }
+}
+
+// ── Framework / Roadmap ────────────────────────────────────────
+async function loadFramework() {
+  try {
+    const d = await fetch('/api/generate/framework').then(r=>r.json());
+    framework = d;
+    renderRoadmap();
+    renderGenSidebar();
+  } catch { toast('加载体系框架失败'); }
+}
+
+const TYPE_TAG = {manual:'tag-manual',procedure:'tag-procedure',form:'tag-form'};
+const TYPE_LABEL = {manual:'质量手册',procedure:'程序文件',form:'记录表单'};
+const PRIO_TAG = {critical:'tag-critical',high:'tag-high',medium:'tag-medium'};
+const PRIO_LABEL = {critical:'必需',high:'重要',medium:'建议'};
+
+function renderRoadmap() {
+  const body = document.getElementById('roadmapBody');
+  body.innerHTML = framework.phases.map((ph,i) => {
+    const total = ph.documents.length;
+    return `<div class="phase-block">
+      <div class="phase-head">
+        <div class="phase-num">${i+1}</div>
+        <div class="phase-info"><h3>${ph.name}</h3><p>${ph.description}</p></div>
+        <div class="phase-badge">${ph.duration} · ${total} 份文件</div>
+      </div>
+      <div class="doc-grid">
+        ${ph.documents.map(doc => `
+          <div class="doc-card" onclick="openDocModal('${doc.id}')">
+            <div class="doc-card-top">
+              <div class="doc-id">${doc.id}</div>
+              <div class="doc-name">${doc.name}</div>
+            </div>
+            <div class="doc-desc">${doc.description}</div>
+            <div class="doc-tags">
+              <span class="tag ${PRIO_TAG[doc.priority]}">${PRIO_LABEL[doc.priority]}</span>
+              <span class="tag ${TYPE_TAG[doc.type]}">${TYPE_LABEL[doc.type]}</span>
+              ${doc.markets.map(m=>`<span class="tag tag-market">${m}</span>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderGenSidebar() {
+  const el = document.getElementById('genDocList');
+  el.innerHTML = framework.phases.map(ph => `
+    <div class="gen-phase-label">${ph.name.replace('第','').replace('：','：')}</div>
+    ${ph.documents.map(doc => `
+      <div class="gen-doc-item" id="gdi-${doc.id}" onclick="selectGenDoc('${doc.id}')">
+        <div class="gdi-id">${doc.id}</div>
+        <div class="gdi-name">${doc.name}</div>
+      </div>`).join('')}
+  `).join('');
+}
+
+// ── Doc Modal ──────────────────────────────────────────────────
+function findDoc(id) {
+  for (const ph of framework.phases)
+    for (const d of ph.documents)
+      if (d.id===id) return d;
+  return null;
+}
+
+function openDocModal(docId) {
+  const doc = findDoc(docId);
+  if (!doc) return;
+  selectedDocId = docId;
+  document.getElementById('modalTitle').textContent = doc.name;
+  document.getElementById('modalMeta').textContent = doc.id+' · '+doc.standards.join('、');
+  document.getElementById('modalDesc').textContent = doc.description;
+  document.getElementById('modalTags').innerHTML = [
+    `<span class="tag ${PRIO_TAG[doc.priority]}">${PRIO_LABEL[doc.priority]}</span>`,
+    `<span class="tag ${TYPE_TAG[doc.type]}">${TYPE_LABEL[doc.type]}</span>`,
+    ...doc.markets.map(m=>`<span class="tag tag-market">${m}</span>`)
+  ].join('');
+  document.getElementById('modalExtra').value='';
+  document.getElementById('docModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('docModal').classList.remove('open');
+}
+
+function confirmGenerate() {
+  const extra = document.getElementById('modalExtra').value.trim();
+  closeModal();
+  showPage('generator');
+  selectGenDoc(selectedDocId, extra);
+}
+
+// ── Generator ─────────────────────────────────────────────────
+let pendingExtra = '';
+
+function selectGenDoc(docId, extra='') {
+  selectedDocId = docId;
+  pendingExtra = extra;
+  document.querySelectorAll('.gen-doc-item').forEach(el=>el.classList.remove('active'));
+  const el = document.getElementById('gdi-'+docId);
+  if (el) { el.classList.add('active'); el.scrollIntoView({block:'nearest'}); }
+  const doc = findDoc(docId);
+  if (!doc) return;
+  document.getElementById('genEmpty').style.display='none';
+  document.getElementById('genPanel').style.display='flex';
+  document.getElementById('genDocTitle').textContent = doc.name;
+  document.getElementById('genOutput').innerHTML = `<div class="gen-placeholder">点击「生成文件」按钮开始生成</div>`;
+}
+
+async function startGenerate() {
+  if (!selectedDocId || genStreaming) return;
+  genStreaming = true;
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true; btn.textContent = '⏳ 生成中…';
+  const out = document.getElementById('genOutput');
+  out.innerHTML = '';
+  out.classList.add('streaming');
+
+  let fullText = '';
+  try {
+    const resp = await fetch('/api/generate/stream',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({doc_id:selectedDocId, extra_context:pendingExtra||undefined}),
     });
-
     const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
-
-    while (true) {
-      const {value, done} = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, {stream: true});
-      const lines = buf.split('\n');
-      buf = lines.pop();
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const raw = line.slice(6);
-        if (raw === '[DONE]') break;
-        const ev = JSON.parse(raw);
-
-        if (ev.type === 'sources' && !sourcesRendered) {
-          removeThinking(thinkId);
-          answerEl = addAssistantBubble(ev.sources);
-          sourcesRendered = true;
-        } else if (ev.type === 'delta' && answerEl) {
-          fullAnswer += ev.content;
-          answerEl.innerHTML = marked.parse(fullAnswer);
-        } else if (ev.type === 'error') {
-          removeThinking(thinkId);
-          addUserMsg('错误：' + ev.message, 'assistant');
+    const dec = new TextDecoder();
+    let buf='';
+    while(true) {
+      const {value,done}=await reader.read();
+      if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n');
+      buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        const raw=line.slice(6);
+        if(raw==='[DONE]') break;
+        const ev=JSON.parse(raw);
+        if(ev.type==='delta'){
+          fullText+=ev.content;
+          out.innerHTML=marked.parse(fullText);
+        } else if(ev.type==='error'){
+          toast('生成失败：'+ev.message);
         }
       }
     }
+  } catch(e){ toast('请求失败：'+e.message); }
 
-    if (!sourcesRendered) removeThinking(thinkId);
-    if (fullAnswer) history.push({role:'assistant', content:fullAnswer});
-
-  } catch (err) {
-    removeThinking(thinkId);
-    appendMsg('assistant', `请求失败：${err.message}`);
-  }
-
-  isLoading = false;
-  document.getElementById('sendBtn').disabled = false;
+  out.classList.remove('streaming');
+  genStreaming=false;
+  btn.disabled=false; btn.textContent='✨ 重新生成';
 }
 
-function addUserMsg(text) {
-  const el = document.createElement('div');
-  el.className = 'msg user';
-  el.innerHTML = `<div class="avatar">👤</div><div class="msg-body"><div class="bubble">${esc(text)}</div></div>`;
+function copyContent() {
+  const doc = findDoc(selectedDocId);
+  const out = document.getElementById('genOutput');
+  navigator.clipboard.writeText(out.innerText).then(()=>toast('✓ 已复制到剪贴板'));
+}
+
+// ── KB / Chat ──────────────────────────────────────────────────
+async function loadKbDocs() {
+  const col = document.getElementById('kbColl').value;
+  const url = col ? `/api/documents?collection=${col}` : '/api/documents';
+  try {
+    const docs = await fetch(url).then(r=>r.json());
+    const el = document.getElementById('kbDocList');
+    if (!docs.length) { el.innerHTML='<div style="text-align:center;padding:16px;font-size:11px;color:#a0aec0">暂无文档</div>'; return; }
+    el.innerHTML = docs.map(d=>`
+      <div class="kb-doc-item">
+        <span style="font-size:14px">📄</span>
+        <span class="kb-doc-name" title="${esc(d.name)}">${esc(d.name)}</span>
+        <button class="kb-doc-del" onclick="kbDel('${d.doc_id}','${esc(d.name)}')" title="删除">✕</button>
+      </div>`).join('');
+    checkHealth();
+  } catch {}
+}
+
+async function kbUpload(files) {
+  if (!files.length) return;
+  const btn=document.getElementById('kbUpBtn');
+  const col=document.getElementById('kbColl').value;
+  btn.disabled=true;
+  for(const f of files){
+    btn.textContent='上传中…';
+    const fd=new FormData(); fd.append('file',f); if(col) fd.append('collection',col);
+    try{
+      const r=await fetch('/api/documents/upload',{method:'POST',body:fd});
+      const d=await r.json();
+      toast(r.ok?`✓ ${f.name} 导入 ${d.chunk_count} 块`:`✗ ${d.detail}`);
+    }catch{toast(`✗ ${f.name} 失败`);}
+  }
+  btn.disabled=false; btn.textContent='上传'; loadKbDocs();
+}
+
+async function kbDel(id,name){
+  if(!confirm(`确认删除「${name}」？`)) return;
+  const col=document.getElementById('kbColl').value;
+  await fetch(`/api/documents/${id}${col?'?collection='+col:''}`,{method:'DELETE'});
+  toast('已删除'); loadKbDocs();
+}
+
+function ask(q){ document.getElementById('inputBox').value=q; sendMsg(); }
+function newChat(){ chatHistory=[]; document.getElementById('messages').innerHTML='<div class="welcome-box"><h2>💬 新对话</h2><p>可以开始提问</p></div>'; }
+
+async function sendMsg(){
+  const box=document.getElementById('inputBox');
+  const q=box.value.trim();
+  if(!q||isLoading) return;
+  isLoading=true;
+  document.getElementById('sendBtn').disabled=true;
+  document.getElementById('welcome')?.remove();
+
+  addUserBubble(q);
+  chatHistory.push({role:'user',content:q});
+  box.value=''; box.style.height='auto';
+
+  const thinkId=addThinking();
+  let ansEl=null, fullAns='', srcDone=false;
+
+  try{
+    const resp=await fetch('/api/query/stream',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        question:q, top_k:5,
+        history:chatHistory.slice(-6),
+        collection:document.getElementById('kbColl').value||null,
+      }),
+    });
+    const reader=resp.body.getReader();
+    const dec=new TextDecoder();
+    let buf='';
+    while(true){
+      const {value,done}=await reader.read();
+      if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n'); buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        const raw=line.slice(6);
+        if(raw==='[DONE]') break;
+        const ev=JSON.parse(raw);
+        if(ev.type==='sources'&&!srcDone){
+          removeThinking(thinkId);
+          ansEl=addAssistantBubble(ev.sources);
+          srcDone=true;
+        } else if(ev.type==='delta'&&ansEl){
+          fullAns+=ev.content;
+          ansEl.innerHTML=marked.parse(fullAns);
+          scrollBottom();
+        }
+      }
+    }
+    if(!srcDone) removeThinking(thinkId);
+    if(fullAns) chatHistory.push({role:'assistant',content:fullAns});
+  }catch(e){
+    removeThinking(thinkId);
+    appendAssist('请求失败：'+e.message);
+  }
+  isLoading=false;
+  document.getElementById('sendBtn').disabled=false;
+}
+
+function addUserBubble(text){
+  const el=document.createElement('div');
+  el.className='msg user';
+  el.innerHTML=`<div class="av">👤</div><div class="mb"><div class="bbl">${esc(text)}</div></div>`;
   document.getElementById('messages').appendChild(el);
   scrollBottom();
 }
 
-function addAssistantBubble(sources) {
-  const sid = 'src_' + Date.now();
-  const srcHtml = sources.length ? `
-    <div class="src-toggle">
-      <button class="src-btn" onclick="toggleSrc('${sid}')">📎 ${sources.length} 条引用</button>
+function addAssistantBubble(sources){
+  const sid='src_'+Date.now();
+  const srcHtml=sources.length?`
+    <div class="src-area">
+      <button class="src-btn" onclick="document.getElementById('${sid}').classList.toggle('open')">📎 ${sources.length} 条引用</button>
       <div class="src-list" id="${sid}">
-        ${sources.map(s => `
-          <div class="src-item">
-            <div class="src-title">${esc(s.doc_name)} · 第${s.page||'?'}页 <span class="src-score">${(s.score*100).toFixed(1)}%</span></div>
-            <div class="src-text">${esc(s.content)}</div>
-          </div>`).join('')}
+        ${sources.map(s=>`<div class="src-item"><div class="st">${esc(s.doc_name)} · 第${s.page||'?'}页<span class="sc">${(s.score*100).toFixed(1)}%</span></div><div class="sx">${esc(s.content)}</div></div>`).join('')}
       </div>
-    </div>` : '';
-
-  const wrapper = document.createElement('div');
-  wrapper.className = 'msg assistant';
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  bubble.innerHTML = '<span style="color:#a0aec0">思考中…</span>';
-
-  const body = document.createElement('div');
-  body.className = 'msg-body';
+    </div>`:'';
+  const wrapper=document.createElement('div');
+  wrapper.className='msg assistant';
+  const bubble=document.createElement('div'); bubble.className='bbl';
+  bubble.innerHTML='<span style="color:#a0aec0">思考中…</span>';
+  const body=document.createElement('div'); body.className='mb';
   body.appendChild(bubble);
-  if (srcHtml) { const srcEl = document.createElement('div'); srcEl.innerHTML = srcHtml; body.appendChild(srcEl); }
-
-  wrapper.innerHTML = `<div class="avatar">⚕</div>`;
-  wrapper.appendChild(body);
+  if(srcHtml){const sd=document.createElement('div');sd.innerHTML=srcHtml;body.appendChild(sd);}
+  wrapper.innerHTML=`<div class="av">⚕</div>`; wrapper.appendChild(body);
   document.getElementById('messages').appendChild(wrapper);
   scrollBottom();
   return bubble;
 }
 
-function appendMsg(role, text) {
-  const el = document.createElement('div');
-  el.className = `msg ${role}`;
-  el.innerHTML = `<div class="avatar">${role==='user'?'👤':'⚕'}</div><div class="msg-body"><div class="bubble">${esc(text)}</div></div>`;
+function appendAssist(text){
+  const el=document.createElement('div');
+  el.className='msg assistant';
+  el.innerHTML=`<div class="av">⚕</div><div class="mb"><div class="bbl">${esc(text)}</div></div>`;
   document.getElementById('messages').appendChild(el);
   scrollBottom();
 }
 
-function addThinking() {
-  const id = 'think_' + Date.now();
-  const el = document.createElement('div');
-  el.id = id; el.className = 'msg assistant';
-  el.innerHTML = `<div class="avatar">⚕</div><div class="msg-body"><div class="bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div></div>`;
+function addThinking(){
+  const id='think_'+Date.now();
+  const el=document.createElement('div');
+  el.id=id; el.className='msg assistant';
+  el.innerHTML=`<div class="av">⚕</div><div class="mb"><div class="bbl"><div class="thinking-dots"><span></span><span></span><span></span></div></div></div>`;
   document.getElementById('messages').appendChild(el);
-  scrollBottom();
-  return id;
+  scrollBottom(); return id;
 }
+function removeThinking(id){document.getElementById(id)?.remove();}
+function scrollBottom(){const m=document.getElementById('messages');m.scrollTop=m.scrollHeight;}
 
-function removeThinking(id) { document.getElementById(id)?.remove(); }
-function toggleSrc(id) { document.getElementById(id)?.classList.toggle('open'); }
-function scrollBottom() { const m = document.getElementById('messages'); m.scrollTop = m.scrollHeight; }
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000);
+// ── Util ───────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),3000);
 }
+document.getElementById('docModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 
-// Init
-checkHealth();
-loadDocs();
+init();
 </script>
 </body>
 </html>
