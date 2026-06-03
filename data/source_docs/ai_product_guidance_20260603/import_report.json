@@ -1,0 +1,34 @@
+{
+  "total": 3,
+  "downloaded": 0,
+  "uploaded": 0,
+  "failed": [
+    [
+      "肺结节CT图像辅助检测软件注册审查指导原则_2022年第21号",
+      [
+        "https://www.cmde.org.cn/directory/web/cmde/images/8Zyf18a0vbHzz9LkmcaY0w.doc",
+        "https://www.gov.cn/zhengce/zhengceku/2022-04/13/content_5685076.htm",
+        "https://www.ccfdie.org/cn/yjxx/ylqx/webinfo/2022/04/1649296800000067.htm"
+      ],
+      ".doc 提取过短：/home/ubuntu/Documents/trae_projects/medical-qms-rag/data/source_docs/ai_product_guidance_20260603/guidance-ai-product__肺结节CT图像辅助检测软件注册审查指导原则_2022年第21号.doc，建议安装 libreoffice/antiword 后重试"
+    ],
+    [
+      "乳腺X射线图像辅助检测软件注册审查指导原则_2022年第22号",
+      [
+        "https://www.cmde.org.cn/directory/web/cmde/images/k3FNz7HkxOvqz7C1mca0vw.doc",
+        "https://www.ccfdie.org/cn/yjxx/ylqx/webinfo/2022/04/1649296800000068.htm"
+      ],
+      ".doc 提取过短：/home/ubuntu/Documents/trae_projects/medical-qms-rag/data/source_docs/ai_product_guidance_20260603/guidance-ai-product__乳腺X射线图像辅助检测软件注册审查指导原则_2022年第22号.doc，建议安装 libreoffice/antiword 后重试"
+    ],
+    [
+      "糖尿病视网膜病变眼底图像辅助诊断软件注册审查指导原则_2022年第26号",
+      [
+        "https://www.cmde.org.cn/directory/web/cmde/images/vsHUz7HkxOvqz7C1mca0vw.doc",
+        "https://www.ccfdie.org/cn/yjxx/ylqx/webinfo/2022/05/1651795200000069.htm"
+      ],
+      ".doc 提取过短：/home/ubuntu/Documents/trae_projects/medical-qms-rag/data/source_docs/ai_product_guidance_20260603/guidance-ai-product__糖尿病视网膜病变眼底图像辅助诊断软件注册审查指导原则_2022年第26号.doc，建议安装 libreoffice/antiword 后重试"
+    ]
+  ],
+  "output_dir": "/home/ubuntu/Documents/trae_projects/medical-qms-rag/data/source_docs/ai_product_guidance_20260603",
+  "base_url": "http://127.0.0.1:8003"
+}
