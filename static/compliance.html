@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>合规知识图谱 · 法规×文档×阶段</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f4f8;color:#1a202c;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;padding:0 20px;height:52px;display:flex;align-items:center;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:16px;font-weight:700;white-space:nowrap}
+header .back{background:rgba(255,255,255,.18);border-radius:12px;padding:4px 12px;font-size:12px;cursor:pointer;color:#fff;text-decoration:none;white-space:nowrap}
+header .back:hover{background:rgba(255,255,255,.28)}
+#hstats{margin-left:auto;font-size:11px;opacity:.85;white-space:nowrap}
+.tabs{display:flex;gap:0;background:#fff;border-bottom:1px solid #e2e8f0;padding:0 20px;flex-shrink:0}
+.tab{padding:12px 18px;font-size:13px;font-weight:600;color:#718096;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.active{color:#2b6cb0;border-bottom-color:#2b6cb0}
+.tab:hover:not(.active){color:#4a5568}
+.toolbar{padding:10px 20px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0;display:flex;align-items:center;gap:10px}
+.toolbar input{flex:1;max-width:420px;border:1px solid #cbd5e0;border-radius:8px;padding:7px 12px;font-size:13px;outline:none}
+.toolbar input:focus{border-color:#3182ce}
+.toolbar .hint{font-size:11px;color:#a0aec0}
+.body{flex:1;overflow-y:auto;padding:16px 20px}
+/* 阶段视图 */
+.stage-block{background:#fff;border-radius:12px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden}
+.stage-hd{padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;border-left:4px solid #ccc}
+.stage-hd .no{width:26px;height:26px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.stage-hd h3{font-size:14px;font-weight:700;color:#1a365d}
+.stage-hd .meta{font-size:11px;color:#a0aec0;margin-left:auto}
+.stage-body{padding:0 16px 12px;display:none}
+.stage-body.open{display:block}
+.row{display:grid;grid-template-columns:1.4fr 1fr 1.4fr auto;gap:10px;padding:9px 10px;border-top:1px solid #edf2f7;font-size:12px;align-items:center}
+.row:hover{background:#f7fafc}
+.row .col-lab{font-size:10px;color:#a0aec0;display:block;margin-bottom:2px}
+.row .doc{font-weight:600;color:#2c5282}
+.row .act{color:#4a5568}
+.row .basis{color:#718096;line-height:1.4}
+.row .clause{color:#a0aec0;font-size:11px}
+.gen-btn{background:#3182ce;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;white-space:nowrap}
+.gen-btn:hover{background:#2b6cb0}
+.gen-btn.none{background:#edf2f7;color:#a0aec0;cursor:default}
+.rowhead{font-size:10px;color:#a0aec0;font-weight:600;padding:6px 10px;display:grid;grid-template-columns:1.4fr 1fr 1.4fr auto;gap:10px;border-bottom:1px solid #e2e8f0}
+/* 法规/文档列表卡片 */
+.card{background:#fff;border-radius:10px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden}
+.card-hd{padding:11px 14px;cursor:pointer;display:flex;align-items:flex-start;gap:10px}
+.card-hd:hover{background:#f7fafc}
+.card-hd .ic{font-size:16px;flex-shrink:0}
+.card-hd .main{flex:1;min-width:0}
+.card-hd .t{font-size:13px;font-weight:700;color:#2d3748;line-height:1.35}
+.card-hd .s{font-size:11px;color:#a0aec0;margin-top:2px}
+.card-hd .badge{font-size:10px;background:#bee3f8;color:#2b6cb0;border-radius:10px;padding:1px 8px;flex-shrink:0;white-space:nowrap}
+.card-body{display:none;padding:0 14px 12px 40px}
+.card-body.open{display:block}
+.link-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px dashed #edf2f7;font-size:12px}
+.link-item .stage-pill{font-size:10px;border-radius:8px;padding:1px 7px;color:#fff;flex-shrink:0}
+.link-item .lname{flex:1;color:#4a5568}
+.link-item .lname b{color:#2c5282}
+.empty{text-align:center;color:#a0aec0;font-size:13px;padding:40px}
+/* modal 生成 */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:14px;width:92%;max-width:760px;height:86vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.modal-head h2{font-size:15px;font-weight:700;color:#1a365d;flex:1}
+.modal-out{flex:1;overflow-y:auto;padding:18px 20px;background:#fafbfc}
+.doc-content{background:#fff;border-radius:10px;padding:22px;box-shadow:0 1px 4px rgba(0,0,0,.06);min-height:120px;font-size:13px;line-height:1.7}
+.doc-content.streaming{border-left:3px solid #3182ce}
+.doc-content h1{font-size:1.3em;color:#1a365d;margin:1em 0 .5em;padding-bottom:.3em;border-bottom:2px solid #e2e8f0}
+.doc-content h2{font-size:1.1em;color:#2b6cb0;margin:.9em 0 .4em}
+.doc-content h3{font-size:1em;color:#2d3748;margin:.7em 0 .3em}
+.doc-content p{margin:.5em 0}.doc-content ul,.doc-content ol{padding-left:1.5em;margin:.5em 0}
+.doc-content table{border-collapse:collapse;width:100%;margin:.6em 0;font-size:.9em}
+.doc-content th,.doc-content td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
+.doc-content th{background:#f7fafc;font-weight:600}
+.icon-btn{background:none;border:1px solid #e2e8f0;border-radius:7px;padding:6px 14px;font-size:12px;cursor:pointer;color:#4a5568}
+.icon-btn:hover{border-color:#3182ce;color:#3182ce}
+.icon-btn:disabled{opacity:.5;cursor:not-allowed}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+::-webkit-scrollbar{width:14px;height:14px}::-webkit-scrollbar-track{background:#f0f4f8}::-webkit-scrollbar-thumb{background:#a0aec0;border-radius:7px;border:3px solid #f0f4f8;background-clip:padding-box;min-height:40px}::-webkit-scrollbar-thumb:hover{background:#718096}*{scrollbar-width:auto;scrollbar-color:#a0aec0 #f0f4f8}
+</style>
+</head>
+<body>
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+  <h1>合规知识图谱</h1>
+  <a class="back" href="/">← 返回主页</a>
+  <span id="hstats"></span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-view="stage" onclick="switchView('stage')">按注册阶段</div>
+  <div class="tab" data-view="requirement" onclick="switchView('requirement')">按法规要求</div>
+  <div class="tab" data-view="document" onclick="switchView('document')">按文档/证据</div>
+</div>
+
+<div class="toolbar">
+  <input id="searchBox" placeholder="搜索法规名 / 条款 / 文档关键词…" oninput="onSearch()">
+  <span class="hint" id="viewHint"></span>
+</div>
+
+<div class="body" id="body"><div class="empty">加载中…</div></div>
+
+<!-- 生成 modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modalTitle">生成文档</h2>
+      <button class="icon-btn" id="mDownload" onclick="downloadDoc()" style="display:none">⬇️ 下载 Word</button>
+      <button class="icon-btn" onclick="closeModal()">✕ 关闭</button>
+    </div>
+    <div class="modal-out"><div class="doc-content" id="modalOut"></div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let GRAPH=null, CHECKLIST=null, curView='stage', curDocId=null, streaming=false;
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+const stageColor={};
+
+async function init(){
+  try{
+    const [ov,cl]=await Promise.all([
+      fetch('/api/compliance/overview').then(r=>r.json()),
+      fetch('/api/compliance/checklist').then(r=>r.json()),
+    ]);
+    GRAPH=ov; CHECKLIST=cl;
+    ov.stages.forEach(s=>stageColor[s.key]=s.color);
+    document.getElementById('hstats').textContent=
+      `${ov.stats.requirements} 条法规要求 · ${ov.stats.documents} 份文档 · ${ov.stats.generatable_docs} 可生成`;
+    render();
+  }catch(e){ document.getElementById('body').innerHTML=`<div class="empty">加载失败：${esc(e.message)}</div>`; }
+}
+
+function switchView(v){
+  curView=v;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.view===v));
+  document.getElementById('searchBox').value='';
+  render();
+}
+
+const HINTS={stage:'点击阶段展开该阶段要产出的文档与对应法规要求',
+  requirement:'点击法规要求，查看由哪些文档在哪些阶段满足',
+  document:'点击文档，查看它满足哪些法规要求、属于哪些阶段'};
+
+function render(){
+  document.getElementById('viewHint').textContent=HINTS[curView]||'';
+  if(curView==='stage') renderStage();
+  else if(curView==='requirement') renderRequirement();
+  else renderDocument();
+}
+
+function genBtnHtml(docId, label){
+  if(docId) return `<button class="gen-btn" onclick="genDoc('${docId}',event)">✨ 生成</button>`;
+  return `<span class="gen-btn none" title="暂无模板">清单项</span>`;
+}
+
+// ── 按阶段 ──
+function renderStage(){
+  const kw=(document.getElementById('searchBox').value||'').trim();
+  const body=document.getElementById('body');
+  body.innerHTML=CHECKLIST.stages.map(s=>{
+    let items=s.items;
+    if(kw) items=items.filter(i=>(i.activity+i.output+i.basis+i.clause+i.sub).includes(kw));
+    if(!items.length) return '';
+    const rows=items.map(i=>`
+      <div class="row">
+        <div><span class="col-lab">${esc(i.sub)} · 输出文档</span><span class="doc">${esc(i.output)}</span></div>
+        <div><span class="col-lab">活动</span><span class="act">${esc(i.activity)}</span></div>
+        <div><span class="col-lab">满足法规要求</span><span class="basis">${esc(i.basis)}</span><br><span class="clause">${esc(i.clause)}</span></div>
+        <div>${genBtnHtml(i.doc_id)}</div>
+      </div>`).join('');
+    return `<div class="stage-block">
+      <div class="stage-hd" style="border-left-color:${s.color}" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="no" style="background:${s.color}">${s.no}</span>
+        <h3>${esc(s.name)}</h3>
+        <span class="meta">${items.length} 项</span>
+      </div>
+      <div class="stage-body ${kw?'open':''}">
+        <div class="rowhead"><span>输出文档</span><span>活动</span><span>满足法规要求</span><span></span></div>
+        ${rows}
+      </div></div>`;
+  }).join('')||'<div class="empty">无匹配项</div>';
+}
+
+// ── 按法规要求 ──
+async function renderRequirement(){
+  const kw=(document.getElementById('searchBox').value||'').trim();
+  const body=document.getElementById('body');
+  // 用 search 接口（空关键词时本地汇总所有 requirement）
+  let results;
+  if(kw){
+    results=(await fetch('/api/compliance/search?q='+encodeURIComponent(kw)).then(r=>r.json())).results;
+  }else{
+    results=(await fetch('/api/compliance/search?q='+encodeURIComponent('')).then(r=>r.json())).results||[];
+    if(!results.length) results=allRequirementsFromChecklist();
+  }
+  if(!results.length){ body.innerHTML='<div class="empty">无匹配法规要求</div>'; return; }
+  body.innerHTML=results.map(r=>`
+    <div class="card">
+      <div class="card-hd" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="ic">📋</span>
+        <div class="main"><div class="t">${esc(r.basis)}</div><div class="s">${esc(r.clause)}</div></div>
+        <span class="badge">${r.docs.length} 份文档满足</span>
+      </div>
+      <div class="card-body">
+        ${r.docs.map(d=>`<div class="link-item">
+          <span class="stage-pill" style="background:${stageColor[d.stage]||'#888'}">${stageNo(d.stage)}</span>
+          <span class="lname"><b>${esc(d.doc_name)}</b></span>
+          ${d.doc_id?`<button class="gen-btn" onclick="genDoc('${d.doc_id}',event)">✨ 生成</button>`:'<span class="gen-btn none">清单项</span>'}
+        </div>`).join('')}
+      </div></div>`).join('');
+}
+
+// 本地从 checklist 汇总法规要求（search 空查询兜底）
+function allRequirementsFromChecklist(){
+  const map={};
+  CHECKLIST.stages.forEach(s=>s.items.forEach(i=>{
+    const k=i.basis+'|'+i.clause;
+    if(!map[k]) map[k]={basis:i.basis,clause:i.clause,docs:[]};
+    map[k].docs.push({doc_name:i.output,doc_id:i.doc_id,stage:i.stage});
+  }));
+  return Object.values(map);
+}
+
+// ── 按文档 ──
+function renderDocument(){
+  const kw=(document.getElementById('searchBox').value||'').trim();
+  const body=document.getElementById('body');
+  // 汇总所有文档（按 output 名聚合，记录其满足的法规与阶段）
+  const map={};
+  CHECKLIST.stages.forEach(s=>s.items.forEach(i=>{
+    const k=i.doc_id||('item-'+i.seq);
+    if(!map[k]) map[k]={name:i.output,doc_id:i.doc_id,reqs:[],stages:new Set()};
+    map[k].reqs.push({basis:i.basis,clause:i.clause});
+    map[k].stages.add(i.stage);
+  }));
+  let docs=Object.values(map);
+  if(kw) docs=docs.filter(d=>(d.name+d.reqs.map(r=>r.basis+r.clause).join('')).includes(kw));
+  if(!docs.length){ body.innerHTML='<div class="empty">无匹配文档</div>'; return; }
+  body.innerHTML=docs.map(d=>`
+    <div class="card">
+      <div class="card-hd" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="ic">📄</span>
+        <div class="main"><div class="t">${esc(d.name)}</div>
+          <div class="s">${[...d.stages].map(stageNo).join(' / ')} 阶段 · 满足 ${d.reqs.length} 条法规要求</div></div>
+        ${d.doc_id?`<button class="gen-btn" onclick="genDoc('${d.doc_id}',event)">✨ 生成</button>`:'<span class="badge">清单项</span>'}
+      </div>
+      <div class="card-body">
+        ${d.reqs.map(r=>`<div class="link-item">
+          <span class="ic">📋</span><span class="lname"><b>${esc(r.basis)}</b> — ${esc(r.clause)}</span>
+        </div>`).join('')}
+      </div></div>`).join('');
+}
+
+function stageNo(key){const s=(GRAPH.stages||[]).find(x=>x.key===key);return s?s.no:key;}
+
+let searchTimer=null;
+function onSearch(){ clearTimeout(searchTimer); searchTimer=setTimeout(render,250); }
+
+// ── 生成文档（复用 outline + stream，分章生成）──
+async function genDoc(docId,ev){
+  if(ev) ev.stopPropagation();
+  if(streaming){ toast('正在生成，请稍候'); return; }
+  curDocId=docId;
+  document.getElementById('modalBg').classList.add('open');
+  const out=document.getElementById('modalOut');
+  document.getElementById('mDownload').style.display='none';
+  out.innerHTML='<div style="color:#718096">正在规划章节…</div>';
+  document.getElementById('modalTitle').textContent='生成文档 · '+docId;
+  streaming=true;
+  let outline=[];
+  try{
+    const r=await fetch('/api/generate/outline',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doc_id:docId})});
+    if(r.ok){ outline=(await r.json()).sections||[]; }
+  }catch{}
+  out.innerHTML='';
+  try{
+    if(outline.length){
+      for(let i=0;i<outline.length;i++){
+        const sec=document.createElement('div'); sec.className='doc-section'; out.appendChild(sec);
+        await streamSection(docId,outline[i],outline,sec,`第${i+1}章`);
+      }
+    }else{
+      const sec=document.createElement('div'); out.appendChild(sec);
+      await streamSection(docId,null,null,sec,'文档');
+    }
+    document.getElementById('mDownload').style.display='';
+    toast('✓ 生成完成');
+  }catch(e){ toast('生成失败：'+e.message); }
+  finally{ streaming=false; }
+}
+
+async function streamSection(docId,section,outline,el,label){
+  el.classList.add('streaming');
+  let full=''; let done=false;
+  const resp=await fetch('/api/generate/stream',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({doc_id:docId,section:section||undefined,outline:outline||undefined})});
+  if(!resp.ok||!resp.body) throw new Error('HTTP '+resp.status);
+  const reader=resp.body.getReader(); const dec=new TextDecoder(); let buf='';
+  while(!done){
+    const {value,done:rd}=await reader.read(); if(rd) break;
+    buf+=dec.decode(value,{stream:true});
+    const lines=buf.split('\n'); buf=lines.pop();
+    for(const line of lines){
+      if(!line.startsWith('data: ')) continue;
+      const raw=line.slice(6);
+      if(raw==='[DONE]'){ done=true; break; }
+      let ev; try{ ev=JSON.parse(raw); }catch{ continue; }
+      if(ev.type==='delta'){ full+=ev.content; el.innerHTML=marked.parse(full); el.dataset.md=full; el.scrollIntoView({block:'nearest'}); }
+      else if(ev.type==='error'){ done=true; el.innerHTML=marked.parse(full)+`<div style="color:#e53e3e">⚠️ ${esc(ev.message||'')}</div>`; }
+    }
+  }
+  el.classList.remove('streaming');
+}
+
+function collectMd(){
+  const secs=document.querySelectorAll('#modalOut .doc-section, #modalOut > div');
+  const parts=[];
+  document.querySelectorAll('#modalOut [data-md]').forEach(e=>{ if(e.dataset.md) parts.push(e.dataset.md); });
+  return parts.join('\n\n')||document.getElementById('modalOut').innerText;
+}
+
+async function downloadDoc(){
+  const md=collectMd(); if(!md.trim()){ toast('暂无内容'); return; }
+  const btn=document.getElementById('mDownload'); btn.disabled=true; const old=btn.textContent; btn.textContent='⏳…';
+  try{
+    const resp=await fetch('/api/generate/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doc_id:curDocId,content:md})});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const blob=await resp.blob(); const cd=resp.headers.get('Content-Disposition')||'';
+    let fn=(curDocId||'文档')+'.docx'; const m=cd.match(/filename\*=UTF-8''([^;]+)/); if(m){try{fn=decodeURIComponent(m[1]);}catch{}}
+    const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=fn; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u);
+    toast('✓ 已下载');
+  }catch(e){ toast('下载失败：'+e.message); }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+
+function closeModal(){ if(streaming){ if(!confirm('正在生成，确定关闭？')) return; } document.getElementById('modalBg').classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>
