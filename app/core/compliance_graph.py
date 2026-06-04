@@ -1,214 +1,296 @@
-"""合规知识图谱：把「法规要求 × 文档/证据 × 注册阶段」三个维度关联起来。
+"""合规知识图谱：用 networkx 真图引擎建模「法规 × 文档 × 阶段」。
 
-核心三元关系：一条关联 = "在某【阶段】，用某【文档/证据】，满足某【法规要求】"。
+这是一张带类型的多重有向图（MultiDiGraph）：
 
-数据以 registration_checklist.CHECKLIST（73 项全流程对照表）为种子派生：
-  - 每条 checklist item 天然就是一个 (stage, 文档output, 法规basis+clause) 三元组
-  - 法规要求(Requirement) 由 (basis, clause) 去重派生为独立实体，分配稳定 req_id
-  - 文档(Document) 优先关联 qms_framework 中可生成的模板(doc_id)，否则以 output 名称作为"清单文档"
+节点类型（node attr: type）
+  Stage        注册阶段（S1~S6）          属性: no, name, en, color, goal
+  Document     文档/证据                  属性: name, doc_id, generatable, sub
+  Requirement  法规要求（具体条款）       属性: basis, clause, summary
+  Regulation   法规/标准文件（去掉条款）  属性: name        ← 比扁平表多出的一层，支撑多跳
 
-提供三个方向的互查：
-  - by_requirement: 这条法规要求 → 哪些文档在哪些阶段满足
-  - by_document:    这份文档 → 满足哪些法规要求、属于哪些阶段
-  - by_stage:       这个阶段 → 要产出哪些文档、覆盖哪些法规要求
+边类型（edge attr: rel）
+  Stage      --PRODUCES-->   Document      在该阶段产出该文档（attr: seq, activity）
+  Document   --SATISFIES-->  Requirement   该文档满足该法规要求（attr: seq, extra）
+  Requirement--CITES-->      Regulation    该要求出自某法规文件
+  Document   --BELONGS_TO--> Stage         （反向便捷边，便于按文档查阶段）
 
-模型扩充的「一份文档满足多条法规要求」的额外关联存在 EXTRA_LINKS 中，与种子关联合并。
+种子数据来自 registration_checklist.CHECKLIST（73 项）；模型扩充的额外
+「文档→法规要求」关系放在 EXTRA_LINKS。真图能力（多跳/路径/子图）建立在此图上。
 """
 import re
 
+import networkx as nx
+
 from app.core.registration_checklist import CHECKLIST, STAGES, get_checklist_item
 
-# 模型扩充的额外关联（审核后填入）。每条：
+# 模型扩充的额外「文档满足法规要求」关系（审核后填入）。每条：
 #   {"seq": 对应 checklist 序号, "basis": 法规名, "clause": 条款, "requirement": 要求简述}
-# 表示该 checklist 条目对应的文档，除自带的 basis/clause 外，还满足这条法规要求。
 EXTRA_LINKS: list[dict] = []
 
 
-def _req_id(basis: str, clause: str) -> str:
-    """由 (法规名, 条款) 生成稳定的 requirement id。"""
-    key = f"{basis}|{clause}"
+def _hash(s: str) -> str:
     h = 0
-    for ch in key:
+    for ch in s:
         h = (h * 131 + ord(ch)) & 0xFFFFFFFF
-    return f"REQ-{h:08x}"
+    return f"{h:08x}"
+
+
+def req_node_id(basis: str, clause: str) -> str:
+    return f"REQ-{_hash(basis + '|' + clause)}"
+
+
+def reg_node_id(name: str) -> str:
+    return f"REG-{_hash(name)}"
+
+
+def doc_node_id(doc_id, seq: int) -> str:
+    return f"DOC-{doc_id}" if doc_id else f"DOC-item-{seq}"
 
 
 def _norm(s: str) -> str:
     return re.sub(r"\s+", "", s or "")
 
 
-def build_graph() -> dict:
-    """构建合规图谱：requirements / documents / stages / links。"""
+def _split_regulations(basis: str) -> list[str]:
+    """一个 basis 字段可能写了多部法规（用 ；/ 分隔），拆成单独的法规名。"""
+    parts = re.split(r"[；;]\s*", basis or "")
+    return [p.strip() for p in parts if p.strip()]
+
+
+def build_graph() -> nx.MultiDiGraph:
+    G = nx.MultiDiGraph()
     stages_by_key = {s["key"]: s for s in STAGES}
 
-    requirements: dict[str, dict] = {}
-    documents: dict[str, dict] = {}
-    links: list[dict] = []
+    # 1) 阶段节点
+    for s in STAGES:
+        G.add_node(s["key"], type="Stage", no=s["no"], name=s["name"],
+                   en=s["en"], color=s["color"], goal=s["goal"])
 
-    def ensure_req(basis: str, clause: str, summary: str = "") -> str:
-        rid = _req_id(basis, clause)
-        if rid not in requirements:
-            requirements[rid] = {
-                "req_id": rid,
-                "basis": basis,
-                "clause": clause,
-                "summary": summary,
-                "doc_seqs": [],     # 哪些 checklist 条目（文档）满足它
-            }
-        return rid
+    def add_links(seq, stage, sub, activity, output, doc_id, basis, clause, note, extra=False):
+        # 文档节点
+        dnode = doc_node_id(doc_id, seq)
+        if not G.has_node(dnode):
+            G.add_node(dnode, type="Document", name=output, doc_id=doc_id,
+                       generatable=bool(doc_id), sub=sub)
+        # 阶段 --PRODUCES--> 文档
+        if not G.has_edge(stage, dnode, key="PRODUCES"):
+            G.add_edge(stage, dnode, key="PRODUCES", rel="PRODUCES", seq=seq, activity=activity)
+        # 文档 --BELONGS_TO--> 阶段（反向便捷）
+        if not G.has_edge(dnode, stage, key="BELONGS_TO"):
+            G.add_edge(dnode, stage, key="BELONGS_TO", rel="BELONGS_TO")
+        # 法规要求节点
+        rnode = req_node_id(basis, clause)
+        if not G.has_node(rnode):
+            G.add_node(rnode, type="Requirement", basis=basis, clause=clause, summary=note)
+        # 文档 --SATISFIES--> 要求
+        G.add_edge(dnode, rnode, key=f"SAT-{seq}-{int(extra)}", rel="SATISFIES",
+                   seq=seq, extra=extra)
+        # 要求 --CITES--> 法规文件（拆多部）
+        for reg_name in _split_regulations(basis):
+            gnode = reg_node_id(reg_name)
+            if not G.has_node(gnode):
+                G.add_node(gnode, type="Regulation", name=reg_name)
+            if not G.has_edge(rnode, gnode, key="CITES"):
+                G.add_edge(rnode, gnode, key="CITES", rel="CITES")
 
-    def ensure_doc(seq: int, name: str, doc_id, stage: str) -> str:
-        # 文档 key：有 doc_id 用 doc_id，否则用 seq（清单文档，暂无模板）
-        key = doc_id if doc_id else f"item-{seq}"
-        if key not in documents:
-            documents[key] = {
-                "key": key,
-                "name": name,
-                "doc_id": doc_id,            # 可生成模板的 id（可为 None）
-                "generatable": bool(doc_id),
-                "seqs": [],                  # 关联的 checklist 序号
-                "stages": set(),
-                "req_ids": set(),
-            }
-        documents[key]["seqs"].append(seq)
-        documents[key]["stages"].add(stage)
-        return key
+    # 2) 种子：73 项
+    for it in CHECKLIST:
+        add_links(it["seq"], it["stage"], it["sub"], it["activity"], it["output"],
+                  it.get("doc_id"), it["basis"], it["clause"], it.get("note", ""))
 
-    for item in CHECKLIST:
-        seq = item["seq"]
-        stage = item["stage"]
-        # 法规要求实体（种子：每条的 basis+clause）
-        rid = ensure_req(item["basis"], item["clause"], item.get("note", ""))
-        # 文档实体
-        dkey = ensure_doc(seq, item["output"], item.get("doc_id"), stage)
-        # 关联
-        documents[dkey]["req_ids"].add(rid)
-        requirements[rid]["doc_seqs"].append(seq)
-        links.append({
-            "seq": seq,
-            "stage": stage,
-            "stage_name": stages_by_key.get(stage, {}).get("name", stage),
-            "doc_key": dkey,
-            "doc_name": item["output"],
-            "doc_id": item.get("doc_id"),
-            "req_id": rid,
-            "basis": item["basis"],
-            "clause": item["clause"],
-            "activity": item["activity"],
-            "sub": item["sub"],
-            "note": item.get("note", ""),
-        })
-
-    # 合并模型扩充的额外关联
+    # 3) 模型扩充的额外关系
     for ex in EXTRA_LINKS:
         base = get_checklist_item(ex["seq"])
         if not base:
             continue
-        rid = ensure_req(ex["basis"], ex["clause"], ex.get("requirement", ""))
-        dkey = ex.get("doc_id") or f"item-{ex['seq']}"
-        if dkey in documents:
-            documents[dkey]["req_ids"].add(rid)
-            requirements[rid]["doc_seqs"].append(ex["seq"])
-        links.append({
-            "seq": ex["seq"], "stage": base["stage"],
-            "stage_name": stages_by_key.get(base["stage"], {}).get("name", base["stage"]),
-            "doc_key": dkey, "doc_name": base["output"], "doc_id": base.get("doc_id"),
-            "req_id": rid, "basis": ex["basis"], "clause": ex["clause"],
-            "activity": base["activity"], "sub": base["sub"],
-            "note": ex.get("requirement", ""), "extra": True,
-        })
+        add_links(ex["seq"], base["stage"], base["sub"], base["activity"], base["output"],
+                  base.get("doc_id"), ex["basis"], ex["clause"], ex.get("requirement", ""),
+                  extra=True)
 
-    # set → list 便于 JSON 序列化
-    for d in documents.values():
-        d["stages"] = sorted(d["stages"])
-        d["req_ids"] = sorted(d["req_ids"])
-
-    return {"requirements": requirements, "documents": documents, "links": links,
-            "stages": STAGES}
+    return G
 
 
-# 进程内缓存（数据是静态的）
-_GRAPH = None
+# 进程内缓存
+_G = None
 
 
-def graph() -> dict:
-    global _GRAPH
-    if _GRAPH is None:
-        _GRAPH = build_graph()
-    return _GRAPH
+def graph() -> nx.MultiDiGraph:
+    global _G
+    if _G is None:
+        _G = build_graph()
+    return _G
 
 
-# ── 三维互查 ──────────────────────────────────────────────────────────────
+# ── 基础查询（与旧接口兼容，界面不破）──────────────────────────────────────
 
 def by_stage(stage_key: str) -> dict:
-    """某阶段 → 该阶段的文档与法规覆盖。"""
-    g = graph()
-    items = [l for l in g["links"] if l["stage"] == stage_key]
-    docs = {}
-    reqs = {}
-    for l in items:
-        docs.setdefault(l["doc_key"], {"name": l["doc_name"], "doc_id": l["doc_id"], "reqs": []})
-        docs[l["doc_key"]]["reqs"].append({"basis": l["basis"], "clause": l["clause"]})
-        reqs[l["req_id"]] = {"basis": l["basis"], "clause": l["clause"]}
+    G = graph()
+    if stage_key not in G:
+        return {"stage": stage_key, "documents": [], "requirements": [], "count": 0}
+    docs, reqs, count = {}, {}, 0
+    for _, dnode, k, d in G.out_edges(stage_key, keys=True, data=True):
+        if d.get("rel") != "PRODUCES":
+            continue
+        count += 1
+        dn = G.nodes[dnode]
+        entry = docs.setdefault(dnode, {"name": dn["name"], "doc_id": dn.get("doc_id"), "reqs": []})
+        for _, rnode, ed in G.out_edges(dnode, data=True):
+            if ed.get("rel") == "SATISFIES":
+                rn = G.nodes[rnode]
+                entry["reqs"].append({"basis": rn["basis"], "clause": rn["clause"]})
+                reqs[rnode] = {"basis": rn["basis"], "clause": rn["clause"]}
     return {"stage": stage_key, "documents": list(docs.values()),
-            "requirements": list(reqs.values()), "count": len(items)}
+            "requirements": list(reqs.values()), "count": count}
 
 
 def by_document(key_or_doc_id: str) -> dict:
-    """某文档 → 满足哪些法规要求、属于哪些阶段。"""
-    g = graph()
-    items = [l for l in g["links"]
-             if l["doc_key"] == key_or_doc_id or l["doc_id"] == key_or_doc_id]
-    if not items:
+    G = graph()
+    dnode = key_or_doc_id if key_or_doc_id in G else f"DOC-{key_or_doc_id}"
+    if dnode not in G or G.nodes[dnode].get("type") != "Document":
         return {}
-    return {
-        "doc_key": items[0]["doc_key"],
-        "doc_name": items[0]["doc_name"],
-        "doc_id": items[0]["doc_id"],
-        "stages": sorted({l["stage"] for l in items}),
-        "requirements": [{"basis": l["basis"], "clause": l["clause"], "note": l["note"]}
-                         for l in items],
-    }
+    dn = G.nodes[dnode]
+    stages, reqs = set(), []
+    for _, tgt, d in G.out_edges(dnode, data=True):
+        if d.get("rel") == "BELONGS_TO":
+            stages.add(tgt)
+        elif d.get("rel") == "SATISFIES":
+            rn = G.nodes[tgt]
+            reqs.append({"basis": rn["basis"], "clause": rn["clause"], "note": rn.get("summary", "")})
+    return {"doc_key": dnode, "doc_name": dn["name"], "doc_id": dn.get("doc_id"),
+            "stages": sorted(stages), "requirements": reqs}
 
 
 def by_requirement(req_id: str) -> dict:
-    """某法规要求 → 哪些文档在哪些阶段满足它。"""
-    g = graph()
-    req = g["requirements"].get(req_id)
-    if not req:
+    G = graph()
+    if req_id not in G or G.nodes[req_id].get("type") != "Requirement":
         return {}
-    items = [l for l in g["links"] if l["req_id"] == req_id]
-    return {
-        "req_id": req_id,
-        "basis": req["basis"],
-        "clause": req["clause"],
-        "satisfied_by": [{"doc_name": l["doc_name"], "doc_id": l["doc_id"],
-                          "stage": l["stage"], "activity": l["activity"]}
-                         for l in items],
-    }
+    rn = G.nodes[req_id]
+    satisfied = []
+    for dnode, _, d in G.in_edges(req_id, data=True):
+        if d.get("rel") != "SATISFIES":
+            continue
+        dn = G.nodes[dnode]
+        # 找该文档所属阶段
+        for _, st, ed in G.out_edges(dnode, data=True):
+            if ed.get("rel") == "BELONGS_TO":
+                satisfied.append({"doc_name": dn["name"], "doc_id": dn.get("doc_id"),
+                                  "stage": st, "activity": ""})
+    return {"req_id": req_id, "basis": rn["basis"], "clause": rn["clause"],
+            "satisfied_by": satisfied}
 
 
 def search_requirements(keyword: str) -> list[dict]:
-    """按法规名/条款关键词搜法规要求（供问答与界面检索）。"""
-    g = graph()
+    G = graph()
     kw = _norm(keyword)
     out = []
-    for rid, r in g["requirements"].items():
-        if kw in _norm(r["basis"]) or kw in _norm(r["clause"]):
-            items = [l for l in g["links"] if l["req_id"] == rid]
-            out.append({
-                "req_id": rid, "basis": r["basis"], "clause": r["clause"],
-                "docs": [{"doc_name": l["doc_name"], "doc_id": l["doc_id"], "stage": l["stage"]}
-                         for l in items],
-            })
+    for n, attr in G.nodes(data=True):
+        if attr.get("type") != "Requirement":
+            continue
+        if kw and kw not in _norm(attr["basis"]) and kw not in _norm(attr["clause"]):
+            continue
+        docs = []
+        for dnode, _, d in G.in_edges(n, data=True):
+            if d.get("rel") != "SATISFIES":
+                continue
+            dn = G.nodes[dnode]
+            stage = next((st for _, st, ed in G.out_edges(dnode, data=True)
+                          if ed.get("rel") == "BELONGS_TO"), None)
+            docs.append({"doc_name": dn["name"], "doc_id": dn.get("doc_id"), "stage": stage})
+        out.append({"req_id": n, "basis": attr["basis"], "clause": attr["clause"], "docs": docs})
     return out
 
 
+# ── 真图能力：多跳 / 路径 / 邻居子图 ───────────────────────────────────────
+
+def neighbors_subgraph(node_id: str, hops: int = 1) -> dict:
+    """以某节点为中心、半径 hops 的邻居子图（无向意义上的可达），返回节点+边，供可视化。"""
+    G = graph()
+    if node_id not in G:
+        return {}
+    und = G.to_undirected(as_view=True)
+    nodes = set(nx.ego_graph(und, node_id, radius=hops).nodes())
+    sub = G.subgraph(nodes)
+    return _serialize(sub, center=node_id)
+
+
+def related_requirements(req_id: str, hops: int = 2) -> dict:
+    """多跳：与某法规要求"相关"的其它要求 —— 经由"共同文档"或"同一法规文件"连过去。
+    回答："满足这条要求的文档，还满足了哪些其它法规要求"。"""
+    G = graph()
+    if req_id not in G or G.nodes[req_id].get("type") != "Requirement":
+        return {}
+    # 1 跳：satisfies 该要求的文档
+    docs = [d for d, _, e in G.in_edges(req_id, data=True) if e.get("rel") == "SATISFIES"]
+    related = {}
+    for dnode in docs:
+        for _, rnode, e in G.out_edges(dnode, data=True):
+            if e.get("rel") == "SATISFIES" and rnode != req_id:
+                rn = G.nodes[rnode]
+                related.setdefault(rnode, {"req_id": rnode, "basis": rn["basis"],
+                                           "clause": rn["clause"], "via_docs": []})
+                related[rnode]["via_docs"].append(G.nodes[dnode]["name"])
+    rn = G.nodes[req_id]
+    return {"req_id": req_id, "basis": rn["basis"], "clause": rn["clause"],
+            "related": list(related.values())}
+
+
+def path_between(src: str, dst: str) -> dict:
+    """两节点间最短路径（在无向视图上），用于解释"X 如何关联到 Y"。"""
+    G = graph()
+    if src not in G or dst not in G:
+        return {}
+    und = G.to_undirected(as_view=True)
+    try:
+        path = nx.shortest_path(und, src, dst)
+    except nx.NetworkXNoPath:
+        return {"path": []}
+    steps = []
+    for n in path:
+        a = G.nodes[n]
+        t = a.get("type")
+        if t == "Requirement":
+            label = a.get("clause") or a.get("basis") or n
+        else:
+            label = a.get("name") or n
+        steps.append({"id": n, "type": t, "label": label})
+    return {"path": steps, "hops": len(path) - 1}
+
+
+def _serialize(sub, center=None) -> dict:
+    nodes = []
+    for n, a in sub.nodes(data=True):
+        nodes.append({"id": n, "type": a.get("type"),
+                      "label": a.get("name") or a.get("basis") or a.get("clause") or n,
+                      "clause": a.get("clause"), "doc_id": a.get("doc_id"),
+                      "color": a.get("color"), "center": n == center})
+    edges = []
+    seen = set()
+    for u, v, d in sub.edges(data=True):
+        rel = d.get("rel")
+        sig = (u, v, rel)
+        if sig in seen:
+            continue
+        seen.add(sig)
+        edges.append({"source": u, "target": v, "rel": rel})
+    return {"nodes": nodes, "edges": edges}
+
+
 def stats() -> dict:
-    g = graph()
+    G = graph()
+    types = {}
+    for _, a in G.nodes(data=True):
+        types[a.get("type")] = types.get(a.get("type"), 0) + 1
+    rels = {}
+    for _, _, d in G.edges(data=True):
+        rels[d.get("rel")] = rels.get(d.get("rel"), 0) + 1
     return {
-        "requirements": len(g["requirements"]),
-        "documents": len(g["documents"]),
-        "links": len(g["links"]),
-        "generatable_docs": sum(1 for d in g["documents"].values() if d["generatable"]),
+        "nodes": G.number_of_nodes(),
+        "edges": G.number_of_edges(),
+        "node_types": types,
+        "edge_types": rels,
+        # 兼容旧界面字段
+        "requirements": types.get("Requirement", 0),
+        "documents": types.get("Document", 0),
+        "generatable_docs": sum(1 for _, a in G.nodes(data=True)
+                                if a.get("type") == "Document" and a.get("generatable")),
     }
