@@ -52,6 +52,15 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .level-label .ll-name{font-size:13px;font-weight:700}
 .level-label .ll-en{font-size:10px;opacity:.85;margin-top:1px}
 .level-label .ll-desc{font-size:10px;opacity:.8;margin-top:5px;line-height:1.4}
+.dossier-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;padding:14px}
+.dossier-card{background:#f7fafc;border:1px solid #e2e8f0;border-radius:9px;padding:12px 14px;cursor:pointer;transition:.15s}
+.dossier-card:hover{border-color:#4299e1;background:#ebf8ff;box-shadow:0 2px 8px rgba(66,153,225,.15)}
+.dossier-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dossier-name{font-size:14px;font-weight:700;color:#2c5282}
+.dossier-en{font-size:10px;color:#a0aec0;margin-top:3px}
+.dossier-desc{font-size:11px;color:#4a5568;margin-top:7px;line-height:1.5}
+.dossier-compiles{font-size:10px;color:#718096;margin-top:7px;line-height:1.5;border-top:1px dashed #e2e8f0;padding-top:6px}
+.dossier-compiles b{color:#2b6cb0}
 .phase-block{background:#fff;border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .phase-head{padding:12px 16px;background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;display:flex;align-items:center;gap:10px}
 .phase-num{background:rgba(255,255,255,.25);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
@@ -570,6 +579,27 @@ function renderRoadmap() {
       </div>`).join('')}
   </div>`;
 
+  // ── 第四层：档案汇编（DHF/DMR/DHR/技术文档/注册资料）──
+  if (framework.dossiers && framework.dossiers.length) {
+    html += `<div class="layer-block">
+      <div class="layer-head" style="background:linear-gradient(135deg,#2c5282,#4299e1)">
+        <h3>④ 档案汇编（按法规要求归档）</h3><span>DHF · DMR · DHR · 技术文档 · 注册资料 — 把已有文件汇编成审计/注册档案</span>
+      </div>
+      <div class="dossier-grid">
+        ${framework.dossiers.map(d=>`
+          <div class="dossier-card" onclick="openDocModal('${d.id}')">
+            <div class="dossier-top">
+              <div class="dossier-name">${d.name}</div>
+              <span class="tag tag-market">${d.market}</span>
+            </div>
+            <div class="dossier-en">${d.en} · ${(d.standards||[]).join(' / ')}</div>
+            <div class="dossier-desc">${d.desc}</div>
+            <div class="dossier-compiles"><b>汇编：</b>${d.compiles_note||''}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
   body.innerHTML = html;
 }
 
@@ -590,6 +620,8 @@ function findDoc(id) {
   for (const lvl of framework.doc_levels)
     for (const d of lvl.documents)
       if (d.id===id) return d;
+  for (const d of (framework.dossiers||[]))
+    if (d.id===id) return d;
   return null;
 }
 
@@ -603,7 +635,7 @@ function openDocModal(docId) {
   const refsHtml = (doc.refs&&doc.refs.length)
     ? `<span class="tag tag-market">📎 ${doc.refs.length} 条法规依据将自动检索</span>` : '';
   document.getElementById('modalTags').innerHTML = [
-    `<span class="tag tag-procedure">${TYPE_LABEL[doc.type]||doc.type}</span>`, refsHtml
+    `<span class="tag tag-procedure">${TYPE_LABEL[doc.type]||'档案汇编'}</span>`, refsHtml
   ].join('');
   document.getElementById('modalExtra').value='';
   document.getElementById('docModal').classList.add('open');

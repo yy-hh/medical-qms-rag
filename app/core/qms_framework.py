@@ -286,6 +286,77 @@ DOC_LEVELS = [
     },
 ]
 
+# ── 档案汇编层（DHF / DMR / DHR / 技术文档）─────────────────────────────────
+# 这些不是"新写的文件"，而是把已有文件按法规要求汇编归档的档案集合。
+# compiles 列出该档案汇编了体系里哪些文件（引用 DOC_LEVELS 的 id）。
+DOSSIERS = [
+    {
+        "id": "DOSSIER-DHF",
+        "name": "DHF · 设计历史文档",
+        "en": "Design History File",
+        "market": "FDA / 通用",
+        "standards": ["21 CFR 820.30(j)", "ISO 13485 §7.3.10"],
+        "desc": "汇编设计开发全过程的记录，证明产品按设计控制程序开发。SaMD 软件应覆盖软件全生命周期各阶段。",
+        "compiles": ["L2-003", "L4-002", "L4-003", "L2-006", "L4-001", "AI-001", "L4-004"],
+        "compiles_note": "软件开发计划、SRS、架构/详细设计、测试报告、风险管理档案、算法验证报告、设计评审记录、验证确认报告、设计变更记录",
+        "refs": [
+            {"collection": "guidance-software", "match": "医疗器械软件注册审查"},
+            {"collection": "standards", "match": "YY_T0664"},
+        ],
+    },
+    {
+        "id": "DOSSIER-DMR",
+        "name": "DMR · 器械主记录",
+        "en": "Device Master Record",
+        "market": "FDA / 通用",
+        "standards": ["21 CFR 820.181", "ISO 13485 §4.2.3 医疗器械文档"],
+        "desc": "一个产品型号的完整规格\"配方\"。SaMD 应包含软件规格、源代码标识、构建/发布规范、标签、安装与使用说明、质控规程。",
+        "compiles": ["L4-002", "L2-004", "L2-003", "L2-012", "AI-001"],
+        "compiles_note": "软件规格(SRS)、配置管理与版本规范、构建/发布规程、产品技术要求、标签与说明书、算法/模型规格",
+        "refs": [
+            {"collection": "guidance-registration", "match": "产品技术要求编写"},
+            {"collection": "standards", "match": "YY_T0664"},
+        ],
+    },
+    {
+        "id": "DOSSIER-DHR",
+        "name": "DHR · 器械历史记录",
+        "en": "Device History Record",
+        "market": "FDA / 通用",
+        "standards": ["21 CFR 820.184", "ISO 13485 §7.5.1"],
+        "desc": "证明每一次生产/发布都按 DMR 执行的实际记录。SaMD 对应每个软件版本的构建记录、发布清单、版本验证与放行记录。",
+        "compiles": ["L4-003", "AI-003", "L2-004"],
+        "compiles_note": "版本构建记录、发布清单、版本测试/验证记录、放行批准记录、变更控制记录",
+        "refs": [{"collection": "standards", "match": "YY_T0664"}],
+    },
+    {
+        "id": "DOSSIER-TF",
+        "name": "技术文档（Technical Documentation）",
+        "en": "EU MDR Annex II/III",
+        "market": "EU MDR",
+        "standards": ["EU MDR Annex II", "Annex III", "GSPR Annex I"],
+        "desc": "欧盟 CE 认证要求的技术文档，汇编设计、风险、临床评价、PMS 等，证明符合通用安全与性能要求(GSPR)。",
+        "compiles": ["L1-001", "L2-006", "L4-001", "L4-004", "L2-013", "AI-001", "AI-002"],
+        "compiles_note": "器械描述、GSPR符合性、设计与制造信息、风险管理档案、临床评价报告、PMS/PMCF计划、算法与数据治理文档",
+        "refs": [{"collection": "guidance-clinical", "match": "临床评价技术指导原则"}],
+    },
+    {
+        "id": "DOSSIER-NMPA",
+        "name": "注册申报资料（NMPA）",
+        "en": "NMPA Registration Dossier",
+        "market": "NMPA",
+        "standards": ["医疗器械注册与备案管理办法", "注册申报资料要求"],
+        "desc": "中国注册申报的完整资料，汇编综述、研究资料、软件研究、临床评价、产品技术要求等。",
+        "compiles": ["L2-012", "L4-002", "L4-003", "L2-006", "L4-004", "AI-001", "AI-002"],
+        "compiles_note": "申报综述、产品技术要求、软件研究资料、算法研究资料、风险管理资料、临床评价资料、说明书样稿",
+        "refs": [
+            {"collection": "regulations", "match": "注册与备案管理办法"},
+            {"collection": "guidance-software", "match": "医疗器械软件注册审查"},
+        ],
+    },
+]
+
+
 # ── 第一层：核心工作框架（9 大模块，用于地图顶部展示）─────────────────────────
 CORE_MODULES = [
     {"id": "M1", "name": "文件体系", "sub": "四级文件架构", "group": "base"},
@@ -321,6 +392,9 @@ def get_document_by_id(doc_id: str) -> dict | None:
     for doc in get_all_documents():
         if doc["id"] == doc_id:
             return doc
+    for d in DOSSIERS:
+        if d["id"] == doc_id:
+            return d
     return None
 
 
@@ -330,6 +404,7 @@ def get_stats() -> dict:
         "total": len(all_docs),
         "levels": len([l for l in DOC_LEVELS if l["level"] > 0]),
         "core_modules": len(CORE_MODULES),
+        "dossiers": len(DOSSIERS),
         "markets": ["NMPA", "FDA", "EU"],
         "by_type": {t: sum(1 for d in all_docs if d["type"] == t) for t in DOC_TYPE_LABELS},
     }
@@ -340,5 +415,6 @@ def get_framework() -> dict:
         "core_modules": CORE_MODULES,
         "regulatory_matrix": REGULATORY_MATRIX,
         "doc_levels": DOC_LEVELS,
+        "dossiers": DOSSIERS,
         "stats": get_stats(),
     }

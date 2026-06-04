@@ -69,7 +69,7 @@ def _build_prompt(doc: dict, profile: dict, extra_context: str = "", ref_context
 
 ## 文件要求
 - 文件名称：{doc['name']}
-- 文件类型：{doc['type']}
+- 文件类型：{doc.get('type', '档案汇编')}
 - 适用标准：{standards}
 - 文件说明：{description}
 
