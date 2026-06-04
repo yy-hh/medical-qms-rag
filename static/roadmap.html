@@ -267,6 +267,8 @@ async function runGenerate(){
         if(raw==='[DONE]'){done=true;break;}
         let ev; try{ ev=JSON.parse(raw); }catch{ continue; }
         if(ev.type==='delta'){full+=ev.content;out.innerHTML=marked.parse(full);out.scrollIntoView({block:'nearest'});lastDelta=Date.now();}
+        else if(ev.type==='meta'&&ev.continuing){btn.textContent=`📝 续写中(第${ev.round}段)…`;lastDelta=Date.now();}
+        else if(ev.type==='meta'&&ev.truncated){toast(ev.message||'文档可能仍不完整');}
         else if(ev.type==='error'){done=true;out.innerHTML=marked.parse(full)+`<div style="color:#e53e3e;padding:8px">⚠️ 生成失败：${(ev.message||'').replace(/</g,'&lt;')}</div>`;toast('生成失败：'+(ev.message||''));break;}
       }
     }

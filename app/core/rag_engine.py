@@ -221,7 +221,7 @@ class RAGEngine:
         """Yield plain text deltas (filters out thinking tokens)."""
         stream = self.llm.chat.completions.create(
             model=settings.claude_model,
-            max_tokens=2048,
+            max_tokens=4096,
             messages=self._messages(question, context, history),
             stream=True,
             extra_body=self._extra_body(),
@@ -237,7 +237,7 @@ class RAGEngine:
         context = self.build_context(sources)
         response = self.llm.chat.completions.create(
             model=settings.claude_model,
-            max_tokens=2048,
+            max_tokens=4096,
             messages=self._messages(question, context, history),
             extra_body=self._extra_body(),
         )
