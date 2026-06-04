@@ -130,14 +130,18 @@ async def generate_document_stream(request: GenerateRequest):
 
         loop = asyncio.get_event_loop()
         it = iter(gen)
+        _END = object()
         while True:
             try:
-                chunk = await loop.run_in_executor(None, next, it)
+                # 用 sentinel 避免 StopIteration 跨 run_in_executor 边界——
+                # asyncio 无法把 StopIteration 设入 Future，否则 await 会永久挂起，
+                # 导致流末尾发不出 [DONE]。
+                chunk = await loop.run_in_executor(None, next, it, _END)
+                if chunk is _END:
+                    break
                 delta = chunk.choices[0].delta
                 if getattr(delta, "content", None):
                     yield f"data: {json.dumps({'type': 'delta', 'content': delta.content}, ensure_ascii=False)}\n\n"
-            except StopIteration:
-                break
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
                 break

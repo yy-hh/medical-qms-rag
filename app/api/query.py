@@ -46,12 +46,14 @@ async def stream_query(request: StreamQueryRequest):
         # 2. Stream LLM response (sync iterator → async via executor)
         loop = asyncio.get_event_loop()
         gen = engine.generate_stream(request.question, context, history)
+        _END = object()
         while True:
             try:
-                delta = await loop.run_in_executor(None, next, gen)
+                # sentinel 避免 StopIteration 跨 run_in_executor 边界导致挂起（见 generate.py）
+                delta = await loop.run_in_executor(None, next, gen, _END)
+                if delta is _END:
+                    break
                 yield f"data: {json.dumps({'type':'delta','content':delta}, ensure_ascii=False)}\n\n"
-            except StopIteration:
-                break
             except Exception as e:
                 yield f"data: {json.dumps({'type':'error','message':str(e)}, ensure_ascii=False)}\n\n"
                 break
