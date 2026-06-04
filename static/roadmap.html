@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QMS 实施路线图</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f4f8;color:#1a202c;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;padding:0 20px;height:52px;display:flex;align-items:center;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:16px;font-weight:700;white-space:nowrap}
+header .back{background:rgba(255,255,255,.18);border-radius:12px;padding:4px 12px;font-size:12px;cursor:pointer;color:#fff;text-decoration:none;white-space:nowrap}
+header .back:hover{background:rgba(255,255,255,.28)}
+#headerStats{margin-left:auto;font-size:11px;opacity:.8;white-space:nowrap}
+.page-head{padding:16px 20px 12px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+.page-head h2{font-size:17px;font-weight:700;color:#1a365d}
+.page-head p{font-size:12px;color:#718096;margin-top:3px}
+.rm-body{flex:1;overflow-y:auto;padding:16px 20px}
+/* timeline phase */
+.phase{position:relative;margin-bottom:18px;padding-left:34px}
+.phase::before{content:"";position:absolute;left:13px;top:30px;bottom:-18px;width:2px;background:#cbd5e0}
+.phase:last-child::before{display:none}
+.phase-dot{position:absolute;left:0;top:2px;width:28px;height:28px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.phase-head{margin-bottom:10px}
+.phase-head h3{font-size:15px;font-weight:700;color:#1a365d;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.phase-head .en{font-size:11px;color:#a0aec0;font-weight:500}
+.phase-head .dur{font-size:11px;background:#edf2f7;color:#4a5568;border-radius:10px;padding:1px 9px;margin-left:auto}
+.phase-head .goal{font-size:12px;color:#718096;margin-top:3px}
+.task-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.task-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:7px}
+.task-card:hover{border-color:#4299e1;box-shadow:0 3px 10px rgba(66,153,225,.15);transform:translateY(-1px)}
+.tc-top{display:flex;align-items:flex-start;gap:8px}
+.tc-id{font-size:10px;font-family:monospace;color:#a0aec0;flex-shrink:0;margin-top:2px}
+.tc-title{font-size:14px;font-weight:700;color:#2d3748;line-height:1.3}
+.tc-what{font-size:12px;color:#4a5568;line-height:1.5}
+.tc-io{display:flex;gap:6px;font-size:11px;color:#718096}
+.tc-io .io-box{flex:1;background:#f7fafc;border-radius:6px;padding:5px 8px;line-height:1.4}
+.tc-io .io-box b{display:block;font-size:10px;color:#a0aec0;font-weight:600;margin-bottom:1px}
+.tc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:1px}
+.tag{font-size:10px;padding:1px 7px;border-radius:10px;font-weight:500}
+.tag-doc{background:#bee3f8;color:#2b6cb0}
+.tag-dossier{background:#fef3c7;color:#92400e}
+.tag-none{background:#edf2f7;color:#a0aec0}
+.tc-foot{font-size:11px;color:#3182ce;font-weight:600;margin-top:2px}
+/* modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:14px;width:92%;max-width:680px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{padding:18px 22px 14px;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+.modal-head h2{font-size:17px;font-weight:700;color:#1a365d}
+.modal-head .mh-meta{font-size:11px;color:#a0aec0;margin-top:3px}
+.modal-scroll{overflow-y:auto;padding:18px 22px}
+.m-section{margin-bottom:14px}
+.m-section .lab{font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.m-section .val{font-size:13px;color:#2d3748;line-height:1.6}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.m-box{background:#f7fafc;border-radius:8px;padding:10px 12px}
+.m-box .lab{margin-bottom:3px}
+.m-tags{display:flex;gap:5px;flex-wrap:wrap}
+.doc-pick{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.doc-pick-item{display:flex;align-items:center;gap:8px;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;cursor:pointer;transition:.15s}
+.doc-pick-item:hover{border-color:#4299e1;background:#ebf8ff}
+.doc-pick-item .dp-name{font-size:13px;font-weight:600;color:#2c5282;flex:1}
+.doc-pick-item .dp-id{font-size:10px;font-family:monospace;color:#a0aec0}
+.doc-pick-item .dp-go{font-size:11px;color:#3182ce;font-weight:600}
+.no-doc{font-size:12px;color:#a0aec0;background:#f7fafc;border-radius:8px;padding:10px 12px;line-height:1.5}
+/* generation output */
+.gen-wrap{display:none;flex-direction:column;flex:1;overflow:hidden}
+.gen-wrap.show{display:flex}
+.gen-bar{padding:10px 22px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;background:#fafbfc}
+.gen-bar h4{font-size:13px;font-weight:600;color:#1a365d;flex:1}
+.gen-out{flex:1;overflow-y:auto;padding:18px 22px;background:#fafbfc}
+.doc-content{background:#fff;border-radius:10px;padding:22px;box-shadow:0 1px 4px rgba(0,0,0,.06);min-height:120px;font-size:13px;line-height:1.7}
+.doc-content.streaming{border-left:3px solid #3182ce}
+.doc-content h1{font-size:1.3em;color:#1a365d;margin:1em 0 .5em;padding-bottom:.3em;border-bottom:2px solid #e2e8f0}
+.doc-content h2{font-size:1.1em;color:#2b6cb0;margin:.9em 0 .4em}
+.doc-content h3{font-size:1em;color:#2d3748;margin:.7em 0 .3em}
+.doc-content p{margin:.5em 0}.doc-content ul,.doc-content ol{padding-left:1.5em;margin:.5em 0}.doc-content li{margin:.2em 0}
+.doc-content table{border-collapse:collapse;width:100%;margin:.6em 0;font-size:.9em}
+.doc-content th,.doc-content td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
+.doc-content th{background:#f7fafc;font-weight:600}
+.doc-content code{background:#f0f4f8;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.9em}
+.doc-content strong{font-weight:600}
+.modal-btns{display:flex;gap:8px}
+.btn-primary{background:#3182ce;color:#fff;border:none;padding:8px 18px;border-radius:7px;font-size:13px;cursor:pointer;font-weight:600}
+.btn-primary:hover:not(:disabled){background:#2b6cb0}.btn-primary:disabled{background:#a0aec0;cursor:not-allowed}
+.btn-secondary{background:#f7fafc;color:#4a5568;border:1px solid #e2e8f0;padding:8px 18px;border-radius:7px;font-size:13px;cursor:pointer}
+.btn-secondary:hover{background:#e2e8f0}
+.icon-btn{background:none;border:1px solid #e2e8f0;border-radius:7px;padding:5px 12px;font-size:12px;cursor:pointer;color:#4a5568}
+.icon-btn:hover{border-color:#3182ce;color:#3182ce}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#cbd5e0;border-radius:3px}
+</style>
+</head>
+<body>
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+  <h1>QMS 实施路线图</h1>
+  <a class="back" href="/">← 返回体系地图</a>
+  <div id="headerStats"></div>
+</header>
+
+<div class="page-head">
+  <h2>🚀 QMS 落地路线图（8 阶段）</h2>
+  <p>SaMD 医疗器械软件 · 从产品定义到上市后监督的可执行时间线 · 点击任务卡片查看详情并一键生成对应文件模板</p>
+</div>
+
+<div class="rm-body" id="rmBody">
+  <div style="text-align:center;padding:40px;color:#a0aec0">加载中…</div>
+</div>
+
+<!-- Task detail modal -->
+<div class="modal-bg" id="taskModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="mTitle">—</h2>
+      <div class="mh-meta" id="mMeta"></div>
+    </div>
+    <div class="modal-scroll" id="mScroll"></div>
+    <div class="gen-wrap" id="genWrap">
+      <div class="gen-bar">
+        <h4 id="genTitle">—</h4>
+        <button class="icon-btn" id="genRegen" onclick="runGenerate()">↻ 重新生成</button>
+        <button class="icon-btn" onclick="copyGen()">📋 复制</button>
+        <button class="icon-btn" onclick="closeGen()">✕ 关闭</button>
+      </div>
+      <div class="gen-out"><div class="doc-content" id="genOut"></div></div>
+    </div>
+    <div style="padding:14px 22px;border-top:1px solid #e2e8f0;flex-shrink:0" id="modalFoot">
+      <div class="modal-btns"><button class="btn-secondary" onclick="closeModal()">关闭</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+marked.setOptions({breaks:true,gfm:true});
+let roadmap={phases:[]};
+let curTask=null, genStreaming=false, genDocId=null;
+
+async function init(){
+  await Promise.all([loadRoadmap(), checkHealth()]);
+}
+async function checkHealth(){
+  try{const d=await fetch('/api/health').then(r=>r.json());
+    document.getElementById('headerStats').textContent=`${d.total_documents} 篇文档 · ${d.total_chunks} 块`;}catch{}
+}
+async function loadRoadmap(){
+  try{
+    roadmap=await fetch('/api/roadmap').then(r=>r.json());
+    render();
+  }catch(e){toast('加载路线图失败');}
+}
+
+function render(){
+  const body=document.getElementById('rmBody');
+  body.innerHTML=roadmap.phases.map(p=>`
+    <div class="phase">
+      <div class="phase-dot" style="background:${p.color}">${p.phase}</div>
+      <div class="phase-head">
+        <h3>${esc(p.name)} <span class="en">${esc(p.en)}</span><span class="dur">${esc(p.duration)}</span></h3>
+        <div class="goal">🎯 ${esc(p.goal)}</div>
+      </div>
+      <div class="task-grid">
+        ${p.tasks.map(t=>taskCard(t)).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function taskCard(t){
+  const docTags=(t.docs&&t.docs.length)
+    ? t.docs.map(d=>`<span class="tag tag-doc">📄 ${esc(d.name)}</span>`).join('')
+    : `<span class="tag tag-none">无直接生成文件</span>`;
+  const dossTags=(t.dossier_labels||[]).map(d=>`<span class="tag tag-dossier">🗂 ${esc(d.key)}</span>`).join('');
+  return `<div class="task-card" onclick="openTask('${t.id}')">
+    <div class="tc-top"><div class="tc-id">${t.id}</div><div class="tc-title">${esc(t.title)}</div></div>
+    <div class="tc-what">${esc(t.what)}</div>
+    <div class="tc-io">
+      <div class="io-box"><b>输入</b>${esc(t.input)}</div>
+      <div class="io-box"><b>输出</b>${esc(t.output)}</div>
+    </div>
+    <div class="tc-tags">${docTags}</div>
+    <div class="tc-tags">${dossTags}</div>
+    <div class="tc-foot">点击查看详情并生成模板 →</div>
+  </div>`;
+}
+
+function findTask(id){
+  for(const p of roadmap.phases) for(const t of p.tasks) if(t.id===id) return t;
+  return null;
+}
+
+function openTask(id){
+  const t=findTask(id);
+  if(!t) return;
+  curTask=t;
+  document.getElementById('mTitle').textContent=t.title;
+  document.getElementById('mMeta').textContent=`${t.id} · 阶段 ${(roadmap.phases.find(p=>p.tasks.some(x=>x.id===id))||{}).phase||''}`;
+  const docPick=(t.docs&&t.docs.length)
+    ? `<div class="doc-pick">${t.docs.map(d=>`
+        <div class="doc-pick-item" onclick="startGen('${d.id}','${esc(d.name)}')">
+          <span class="dp-name">${esc(d.name)}</span><span class="dp-id">${d.id}</span><span class="dp-go">✨ 生成模板</span>
+        </div>`).join('')}</div>`
+    : `<div class="no-doc">本任务为策划/管理类活动，无单一可生成文件；其产出将归入对应档案。</div>`;
+  const dossier=(t.dossier_labels||[]).map(d=>`<span class="tag tag-dossier">🗂 ${esc(d.label)}</span>`).join('') || '<span class="tag tag-none">—</span>';
+  document.getElementById('mScroll').innerHTML=`
+    <div class="m-section"><div class="lab">📌 要做什么</div><div class="val">${esc(t.what)}</div></div>
+    <div class="m-section"><div class="lab">❓ 为什么做</div><div class="val">${esc(t.why)}</div></div>
+    <div class="m-grid">
+      <div class="m-box"><div class="lab">⬇ 输入</div><div class="val">${esc(t.input)}</div></div>
+      <div class="m-box"><div class="lab">⬆ 输出</div><div class="val">${esc(t.output)}</div></div>
+    </div>
+    <div class="m-section" style="margin-top:14px"><div class="lab">📖 法规依据</div>
+      <div class="m-tags">${(t.standards||[]).map(s=>`<span class="tag tag-doc">${esc(s)}</span>`).join('')}</div></div>
+    <div class="m-section"><div class="lab">🗂 DHF / DMR / DHR 归档</div><div class="m-tags">${dossier}</div></div>
+    <div class="m-section"><div class="lab">📄 对应文件（点击生成模板，自动检索法规依据）</div>${docPick}</div>`;
+  closeGen();
+  document.getElementById('taskModal').classList.add('open');
+}
+
+function closeModal(){
+  if(genStreaming) return;
+  document.getElementById('taskModal').classList.remove('open');
+}
+
+// ── Generation (reuses /api/generate/stream) ──
+function startGen(docId,docName){
+  genDocId=docId;
+  document.getElementById('genTitle').textContent='生成：'+docName;
+  document.getElementById('genWrap').classList.add('show');
+  document.getElementById('modalFoot').style.display='none';
+  runGenerate();
+}
+function closeGen(){
+  document.getElementById('genWrap').classList.remove('show');
+  document.getElementById('modalFoot').style.display='block';
+}
+async function runGenerate(){
+  if(!genDocId||genStreaming) return;
+  genStreaming=true;
+  const btn=document.getElementById('genRegen');
+  btn.disabled=true; btn.textContent='⏳ 生成中…';
+  const out=document.getElementById('genOut');
+  out.innerHTML=''; out.classList.add('streaming');
+  let full='';
+  try{
+    const resp=await fetch('/api/generate/stream',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({doc_id:genDocId}),
+    });
+    const reader=resp.body.getReader();const dec=new TextDecoder();let buf='';
+    while(true){
+      const {value,done}=await reader.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n');buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: '))continue;
+        const raw=line.slice(6);
+        if(raw==='[DONE]')break;
+        const ev=JSON.parse(raw);
+        if(ev.type==='delta'){full+=ev.content;out.innerHTML=marked.parse(full);out.scrollIntoView({block:'nearest'});}
+        else if(ev.type==='error'){toast('生成失败：'+ev.message);}
+      }
+    }
+  }catch(e){toast('请求失败：'+e.message);}
+  out.classList.remove('streaming');
+  genStreaming=false; btn.disabled=false; btn.textContent='↻ 重新生成';
+}
+function copyGen(){
+  navigator.clipboard.writeText(document.getElementById('genOut').innerText).then(()=>toast('✓ 已复制'));
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3000);}
+document.getElementById('taskModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+init();
+</script>
+</body>
+</html>

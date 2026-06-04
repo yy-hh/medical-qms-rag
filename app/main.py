@@ -11,6 +11,7 @@ from app.api.documents import router as doc_router
 from app.api.query import router as query_router
 from app.api.company import router as company_router
 from app.api.generate import router as generate_router
+from app.api.roadmap import router as roadmap_router
 from app.core.rag_engine import get_engine
 
 logging.basicConfig(
@@ -48,6 +49,7 @@ app.include_router(doc_router)
 app.include_router(query_router)
 app.include_router(company_router)
 app.include_router(generate_router)
+app.include_router(roadmap_router)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

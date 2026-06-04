@@ -241,6 +241,9 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     <button class="nav-btn active" id="nav-roadmap" onclick="showPage('roadmap')" title="体系地图">
       <span class="icon">🗺️</span>体系地图
     </button>
+    <button class="nav-btn" id="nav-roadmapPage" onclick="location.href='/static/roadmap.html'" title="实施路线图">
+      <span class="icon">🚀</span>实施路线图
+    </button>
     <button class="nav-btn" id="nav-generator" onclick="showPage('generator')" title="文件生成">
       <span class="icon">📝</span>文件生成
     </button>
@@ -256,9 +259,12 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 
     <!-- ══ Page: Roadmap ══ -->
     <div class="page active" id="page-roadmap">
-      <div class="page-head">
-        <h2>🗺️ QMS 体系地图</h2>
-        <p>SaMD 医疗器械软件 · 二/三类 · 多市场（NMPA / CE / FDA）· 点击任意文件可生成模板</p>
+      <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <h2>🗺️ QMS 体系地图</h2>
+          <p>SaMD 医疗器械软件 · 二/三类 · 多市场（NMPA / CE / FDA）· 点击任意文件可生成模板</p>
+        </div>
+        <a class="icon-btn" href="/static/roadmap.html" style="white-space:nowrap;border-color:#3182ce;color:#3182ce;font-weight:600">🚀 查看实施路线图 →</a>
       </div>
       <div class="roadmap-body" id="roadmapBody">
         <div style="text-align:center;padding:40px;color:#a0aec0">加载中…</div>
