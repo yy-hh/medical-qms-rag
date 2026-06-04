@@ -293,7 +293,8 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
               <h3 id="genDocTitle">—</h3>
               <button class="icon-btn" id="genBtn" onclick="startGenerate()">✨ 生成文件</button>
               <button class="icon-btn" id="genAllBtn" onclick="generateAll()" style="display:none">📖 生成全部章节</button>
-              <button class="icon-btn" onclick="copyContent()">📋 复制</button>
+              <button class="icon-btn" id="copyBtn" onclick="copyContent()" style="display:none">📋 复制</button>
+              <button class="icon-btn" id="downloadBtn" onclick="downloadDoc()" style="display:none">⬇️ 下载 Word</button>
             </div>
             <div id="genSections" style="display:none;flex-wrap:wrap;gap:6px;padding:8px 0;border-bottom:1px solid #e2e8f0;margin-bottom:8px"></div>
             <div id="genStatus" style="display:none;font-size:12px;color:#3182ce;padding:4px 0"></div>
@@ -675,24 +676,92 @@ function selectGenDoc(docId, extra='') {
   document.getElementById('genEmpty').style.display='none';
   document.getElementById('genPanel').style.display='flex';
   document.getElementById('genDocTitle').textContent = doc.name;
-  document.getElementById('genOutput').innerHTML = `<div class="gen-placeholder">点击「生成文件」按钮开始生成</div>`;
+  const outEl=document.getElementById('genOutput');
+  outEl.innerHTML = `<div class="gen-placeholder">点击「生成文件」按钮开始生成</div>`;
+  delete outEl.dataset.md;
   // 重置分章节状态
   genOutline=[];
   const secWrap=document.getElementById('genSections'); secWrap.style.display='none'; secWrap.innerHTML='';
-  document.getElementById('genAllBtn').style.display='none';
-  const gb=document.getElementById('genBtn'); gb.disabled=false; gb.textContent='✨ 生成文件';
+  setGenUI('idle');
 }
 
 let genOutline = [];        // 当前文件章节大纲
 const genStatusEl = ()=>document.getElementById('genStatus');
 function setGenStatus(msg){ const e=genStatusEl(); if(e){ e.textContent=msg||''; e.style.display=msg?'block':'none'; } }
 
+// 统一控制生成区按钮可见性：idle（未生成）/ generating（生成中）/ done（已完成）
+function setGenUI(state){
+  const genBtn=document.getElementById('genBtn');
+  const allBtn=document.getElementById('genAllBtn');
+  const copyBtn=document.getElementById('copyBtn');
+  const dlBtn=document.getElementById('downloadBtn');
+  const hasOutline=genOutline.length>0;
+  if(state==='generating'){
+    genBtn.style.display='';   genBtn.disabled=true;
+    allBtn.style.display='none';
+    copyBtn.style.display='none';
+    dlBtn.style.display='none';
+  } else if(state==='done'){
+    genBtn.style.display='';   genBtn.disabled=false;
+    genBtn.textContent = hasOutline ? '✨ 重新规划' : '✨ 重新生成';
+    allBtn.style.display = hasOutline ? '' : 'none';
+    allBtn.disabled=false;
+    copyBtn.style.display='';
+    dlBtn.style.display='';
+  } else { // idle
+    genBtn.style.display='';   genBtn.disabled=false; genBtn.textContent='✨ 生成文件';
+    allBtn.style.display='none';
+    copyBtn.style.display='none';
+    dlBtn.style.display='none';
+  }
+}
+
+// 下载为 Word：把当前输出区的完整 Markdown 全文发给后端转 docx
+async function downloadDoc(){
+  const md=collectFullMarkdown();
+  if(!md.trim()){ toast('暂无内容可下载'); return; }
+  const dlBtn=document.getElementById('downloadBtn');
+  const old=dlBtn.textContent; dlBtn.disabled=true; dlBtn.textContent='⏳ 生成 Word…';
+  try{
+    const doc=findDoc(selectedDocId);
+    const resp=await fetch('/api/generate/export',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({doc_id:selectedDocId, doc_name:doc?doc.name:undefined, content:md}),
+    });
+    if(!resp.ok){ let msg='HTTP '+resp.status; try{ msg=(await resp.json()).detail||msg; }catch{} throw new Error(msg); }
+    const blob=await resp.blob();
+    const cd=resp.headers.get('Content-Disposition')||'';
+    let fname=(doc?doc.name:'生成文档')+'.docx';
+    const m=cd.match(/filename\*=UTF-8''([^;]+)/); if(m){ try{ fname=decodeURIComponent(m[1]); }catch{} }
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=fname; document.body.appendChild(a); a.click();
+    a.remove(); URL.revokeObjectURL(url);
+    toast('✓ 已下载 '+fname);
+  }catch(e){ toast('下载失败：'+e.message); }
+  finally{ dlBtn.disabled=false; dlBtn.textContent=old; }
+}
+
+// 收集输出区全文 Markdown：分章模式按章节顺序拼接，否则取整个输出区
+function collectFullMarkdown(){
+  if(genOutline.length){
+    const parts=[];
+    for(let i=0;i<genOutline.length;i++){
+      const el=document.getElementById(`sec-body-${i}`);
+      if(el){ const t=(el.dataset.md||el.innerText||'').trim(); if(t) parts.push(t); }
+    }
+    return parts.join('\n\n');
+  }
+  const out=document.getElementById('genOutput');
+  return (out.dataset.md||out.innerText||'').trim();
+}
+
 // 点击「生成文件」：先拉大纲 → 渲染章节 → 逐章生成全部
 async function startGenerate(){
   if(!selectedDocId || genStreaming) return;
   const btn=document.getElementById('genBtn');
   const out=document.getElementById('genOutput');
-  btn.disabled=true; btn.textContent='⏳ 规划章节…';
+  setGenUI('generating');
+  btn.textContent='⏳ 规划章节…';
   out.innerHTML='<div class="gen-placeholder">正在规划文档章节…</div>';
   try{
     const resp=await fetch('/api/generate/outline',{
@@ -705,17 +774,15 @@ async function startGenerate(){
     if(!genOutline.length) throw new Error('未获取到章节');
     renderSections();
     out.innerHTML='';  // 清空，逐章追加
-    btn.disabled=false; btn.textContent='✨ 重新规划';
-    // 自动逐章生成全部
+    // 自动逐章生成全部（generateAll 完成后会置 done）
     await generateAll();
   }catch(e){
     // 大纲失败 → 降级为整篇生成（不分章）
     toast('章节规划失败，改为整篇生成');
-    btn.disabled=false; btn.textContent='✨ 重新生成';
     genOutline=[];
     document.getElementById('genSections').style.display='none';
-    document.getElementById('genAllBtn').style.display='none';
     await streamOneSection(null, null);
+    setGenUI('done');
   }
 }
 
@@ -739,8 +806,7 @@ function secChipState(i, state){
 // 顺序生成全部章节
 async function generateAll(){
   if(genStreaming || !genOutline.length) return;
-  const allBtn=document.getElementById('genAllBtn');
-  allBtn.disabled=true;
+  setGenUI('generating');
   const out=document.getElementById('genOutput');
   out.innerHTML='';
   // 为每章建一个容器，保证顺序
@@ -755,7 +821,7 @@ async function generateAll(){
     await streamOneSection(genOutline[i], genOutline, `sec-body-${i}`, i);
     secChipState(i,'done');
   }
-  allBtn.disabled=false;
+  setGenUI('done');
   toast('✓ 全部章节生成完成');
 }
 
@@ -764,9 +830,11 @@ async function regenSection(i){
   if(genStreaming) { toast('请等待当前生成完成'); return; }
   let body=document.getElementById(`sec-body-${i}`);
   if(!body){ body=document.createElement('div'); body.id=`sec-body-${i}`; body.className='doc-section'; document.getElementById('genOutput').appendChild(body); }
+  setGenUI('generating');
   secChipState(i,'active');
   await streamOneSection(genOutline[i], genOutline, `sec-body-${i}`, i);
   secChipState(i,'done');
+  setGenUI('done');
 }
 
 // 底层：流式生成一个章节（section=null 时整篇生成）。targetId 指定输出容器。
@@ -805,6 +873,7 @@ async function streamOneSection(section, outline, targetId, idx){
         let ev; try{ ev=JSON.parse(raw); }catch{ continue; }
         if(ev.type==='delta'){
           fullText+=ev.content; out.innerHTML=marked.parse(fullText);
+          out.dataset.md=fullText;   // 保留原始 Markdown 供下载用
           lastDelta=Date.now(); setGenStatus('');
         } else if(ev.type==='meta'&&ev.continuing){
           setGenStatus(`📝 ${label}内容较长，自动续写（第 ${ev.round} 段）…`); lastDelta=Date.now();

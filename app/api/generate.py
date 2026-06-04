@@ -1,8 +1,9 @@
 import asyncio
 import json
 import re
+from urllib.parse import quote
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Optional
 
@@ -10,6 +11,7 @@ from app.core.qms_framework import get_document_by_id, get_framework as build_fr
 from app.api.company import load_profile
 from app.core.rag_engine import get_engine
 from app.core.config import settings
+from app.core.docx_export import markdown_to_docx
 
 
 def _retrieve_refs(engine, doc: dict, top_k: int = 4) -> tuple[str, list[dict]]:
@@ -351,6 +353,39 @@ def _parse_outline(text: str) -> list[str]:
     # 3) 兜底：按行提取看起来像标题的行
     lines = [l.strip().lstrip("-*0123456789.、 ").strip() for l in text.splitlines()]
     return [l for l in lines if l][:15]
+
+
+class ExportRequest(BaseModel):
+    doc_id: Optional[str] = None
+    doc_name: Optional[str] = None
+    content: str          # 前端已渲染的完整 Markdown 全文
+
+
+@router.post("/export")
+async def export_document(request: ExportRequest):
+    """把生成的 Markdown 全文导出为 .docx 下载。"""
+    if not (request.content or "").strip():
+        raise HTTPException(status_code=400, detail="内容为空，无法导出")
+
+    name = request.doc_name or "生成文档"
+    if not request.doc_name and request.doc_id:
+        doc = get_document_by_id(request.doc_id)
+        if doc:
+            name = doc["name"]
+
+    try:
+        data = markdown_to_docx(request.content, title=name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"导出失败：{e}")
+
+    filename = f"{name}.docx"
+    # RFC 5987：中文文件名用 filename* 编码，避免 latin-1 报错
+    disposition = f"attachment; filename=\"document.docx\"; filename*=UTF-8''{quote(filename)}"
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": disposition},
+    )
 
 
 @router.get("/framework")
