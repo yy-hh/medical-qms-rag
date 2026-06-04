@@ -22,6 +22,7 @@ import re
 import networkx as nx
 
 from app.core.registration_checklist import CHECKLIST, STAGES, get_checklist_item
+from app.core.qms_framework import get_document_by_id
 
 # 模型扩充的额外「文档满足法规要求」关系（审核后填入）。每条：
 #   {"seq": 对应 checklist 序号, "basis": 法规名, "clause": 条款, "requirement": 要求简述}
@@ -67,10 +68,17 @@ def build_graph() -> nx.MultiDiGraph:
                    en=s["en"], color=s["color"], goal=s["goal"])
 
     def add_links(seq, stage, sub, activity, output, doc_id, basis, clause, note, extra=False):
-        # 文档节点
+        # 文档节点。有 doc_id 时用 qms_framework 的正式文档名（如"质量手册"），
+        # 这样节点名准确且可被搜索；output（对照表里的交付物描述）存为别名。
         dnode = doc_node_id(doc_id, seq)
         if not G.has_node(dnode):
-            G.add_node(dnode, type="Document", name=output, doc_id=doc_id,
+            name = output
+            alias = output
+            if doc_id:
+                fw = get_document_by_id(doc_id)
+                if fw and fw.get("name"):
+                    name = fw["name"]
+            G.add_node(dnode, type="Document", name=name, alias=alias, doc_id=doc_id,
                        generatable=bool(doc_id), sub=sub)
         # 阶段 --PRODUCES--> 文档
         if not G.has_edge(stage, dnode, key="PRODUCES"):
@@ -261,7 +269,8 @@ def _serialize(sub, center=None) -> dict:
     for n, a in sub.nodes(data=True):
         nodes.append({"id": n, "type": a.get("type"),
                       "label": a.get("name") or a.get("basis") or a.get("clause") or n,
-                      "clause": a.get("clause"), "doc_id": a.get("doc_id"),
+                      "alias": a.get("alias"), "clause": a.get("clause"),
+                      "doc_id": a.get("doc_id"),
                       "color": a.get("color"), "center": n == center})
     edges = []
     seen = set()
