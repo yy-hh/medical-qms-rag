@@ -297,8 +297,8 @@ async def generate_outline(request: OutlineRequest):
 适用标准：{standards}
 
 要求：
-- 输出该文件应包含的全部一级章节标题（如"第一章 ××"或"1. ××"），覆盖标准要求的关键要素
-- 章节数量适中（通常 5-12 章），顺序合理
+- 输出该文件应包含的一级章节标题（如"第一章 ××"或"1. ××"），覆盖标准要求的关键要素
+- 章节数量控制在 8-12 章，每章可包含多个小节，不要拆得过细（不要超过 12 章）
 - 严格只输出一个 JSON 数组，元素是字符串章节标题，不要任何额外文字、不要 markdown 代码块
 示例：["第一章 目的与范围", "第二章 ……"]"""
 
@@ -308,7 +308,7 @@ async def generate_outline(request: OutlineRequest):
     def _call():
         return engine.llm.chat.completions.create(
             model=settings.claude_model,
-            max_tokens=1024,
+            max_tokens=2048,
             messages=[
                 {"role": "system", "content": OUTLINE_SYSTEM},
                 {"role": "user", "content": prompt},
@@ -331,15 +331,24 @@ async def generate_outline(request: OutlineRequest):
 
 def _parse_outline(text: str) -> list[str]:
     text = text.strip()
-    # 去掉可能的 ```json ... ``` 包裹
+    # 1) 正常情况：完整 JSON 数组（可能被 ```json 包裹）
     m = re.search(r"\[.*\]", text, re.S)
     if m:
         try:
             arr = json.loads(m.group(0))
-            return [str(x).strip() for x in arr if str(x).strip()]
+            out = [str(x).strip() for x in arr if str(x).strip()]
+            if out:
+                return out
         except Exception:
             pass
-    # 兜底：按行提取看起来像标题的行
+    # 2) JSON 被 max_tokens 截断（缺尾部 ]）：直接抽取所有双引号字符串元素，丢弃最后可能不完整的一个
+    quoted = re.findall(r'"((?:[^"\\]|\\.)*)"', text)
+    if quoted:
+        items = [q.strip() for q in quoted if q.strip()]
+        # 若原文末尾不是引号闭合（被截断），最后一个元素可能不完整，但 findall 只匹配成对引号，安全
+        if items:
+            return items
+    # 3) 兜底：按行提取看起来像标题的行
     lines = [l.strip().lstrip("-*0123456789.、 ").strip() for l in text.splitlines()]
     return [l for l in lines if l][:15]
 
