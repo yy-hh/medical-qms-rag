@@ -148,6 +148,7 @@ header .back:hover{background:rgba(255,255,255,.28)}
     <div class="lg"><span class="dot" style="background:#4fd1c5;color:#4fd1c5"></span>文档/证据 Document</div>
     <div class="lg"><span class="dot" style="background:#90cdf4;color:#90cdf4"></span>法规要求 Requirement</div>
     <div class="lg"><span class="dot" style="background:#f687b3;color:#f687b3"></span>法规文件 Regulation</div>
+    <div class="lg"><span class="dot" style="background:#b794f4;color:#b794f4"></span>归档档案 Dossier</div>
   </div>
   <div class="graph-hint">单击节点查看详情并高亮关联 · 双击聚焦 · 滚轮缩放 · 拖拽平移</div>
   <div class="node-panel" id="nodePanel">
@@ -415,8 +416,9 @@ const TYPE_STYLE={
   Document:   {color:'#4fd1c5', size:18, shape:'dot'},
   Requirement:{color:'#90cdf4', size:14, shape:'dot'},
   Regulation: {color:'#f687b3', size:22, shape:'diamond'},
+  Dossier:    {color:'#b794f4', size:26, shape:'square'},
 };
-const REL_COLOR={PRODUCES:'#f6ad55',SATISFIES:'#63b3ed',CITES:'#f687b3',BELONGS_TO:'rgba(255,255,255,0.06)'};
+const REL_COLOR={PRODUCES:'#f6ad55',SATISFIES:'#63b3ed',CITES:'#f687b3',BELONGS_TO:'rgba(255,255,255,0.06)',ARCHIVED_IN:'#b794f4'};
 
 async function initGraph(){
   const data=await fetch('/api/compliance/graph').then(r=>r.json());
@@ -433,18 +435,33 @@ async function initGraph(){
   });
   const edges=data.edges
     .filter(e=>e.rel!=='BELONGS_TO')  // 反向便捷边不画，避免重叠
-    .map(e=>({from:e.source,to:e.target,color:{color:REL_COLOR[e.rel]||'#555',highlight:'#fff',opacity:0.5},
-      width:e.rel==='SATISFIES'?1:1.5, arrows:{to:{enabled:true,scaleFactor:0.4}},
-      smooth:{type:'continuous'}, _rel:e.rel}));
+    .map(e=>({from:e.source,to:e.target,color:{color:REL_COLOR[e.rel]||'#555',highlight:'#fff',opacity:0.45},
+      width:e.rel==='SATISFIES'?0.6:1.2, arrows:{to:{enabled:true,scaleFactor:0.35}},
+      smooth:false, _rel:e.rel}));   // 直线边，省渲染
   visNodes=new vis.DataSet(nodes);
   visEdges=new vis.DataSet(edges);
   const container=document.getElementById('graphCanvas');
+  // 稳定中提示
+  const hint=document.querySelector('.graph-hint');
+  if(hint) hint.textContent='⏳ 正在布局图谱（500+ 节点，请稍候）…';
   network=new vis.Network(container,{nodes:visNodes,edges:visEdges},{
-    physics:{barnesHut:{gravitationalConstant:-8000,springLength:130,springConstant:0.035,damping:0.5,avoidOverlap:0.3},
-      stabilization:{iterations:220},minVelocity:0.5},
-    interaction:{hover:true,tooltipDelay:120,navigationButtons:false,keyboard:false},
-    nodes:{shadow:{enabled:true,color:'rgba(0,0,0,0.5)',size:8}},
+    physics:{
+      solver:'forceAtlas2Based',
+      forceAtlas2Based:{gravitationalConstant:-55,centralGravity:0.012,springLength:110,springConstant:0.06,damping:0.7,avoidOverlap:0.1},
+      stabilization:{enabled:true,iterations:160,updateInterval:30,fit:true},
+      minVelocity:1, maxVelocity:30,
+    },
+    layout:{improvedLayout:false},   // 跳过昂贵的初始 kamada-kawai 布局
+    interaction:{hover:false,tooltipDelay:150,navigationButtons:false,keyboard:false,
+      hideEdgesOnDrag:true,hideEdgesOnZoom:true},   // 拖拽/缩放时隐藏边，流畅
+    nodes:{shadow:false},
     edges:{shadow:false},
+  });
+  // 稳定完成后冻结物理引擎，彻底停止 CPU 占用
+  network.once('stabilizationIterationsDone',()=>{
+    network.setOptions({physics:false});
+    if(hint) hint.textContent='单击节点查看详情并高亮关联 · 双击聚焦 · 滚轮缩放 · 拖拽平移';
+    network.fit({animation:false});
   });
   network.on('click',params=>{
     if(params.nodes.length){ selectNode(params.nodes[0]); }
@@ -479,14 +496,15 @@ async function showNodePanel(nodeId){
   const d=await fetch('/api/compliance/node/'+encodeURIComponent(nodeId)).then(r=>r.json()).catch(()=>null);
   if(!d){ return; }
   const n=d.node;
-  const typeLabel={Stage:'注册阶段',Document:'文档/证据',Requirement:'法规要求',Regulation:'法规文件'}[n.type]||n.type;
+  const typeLabel={Stage:'注册阶段',Document:'文档/证据',Requirement:'审查要点',Regulation:'法规/标准',Dossier:'归档档案'}[n.type]||n.type;
   document.getElementById('npType').textContent=typeLabel;
   document.getElementById('npTitle').textContent=n.name||n.clause||n.basis||n.id;
   let sub='';
-  if(n.type==='Requirement'){ sub=`<b style="color:#90cdf4">出自：</b>${esc(n.basis||'')}<br><b style="color:#90cdf4">条款：</b>${esc(n.clause||'')}`; if(n.summary) sub+=`<br><span style="color:#64748b">${esc(n.summary)}</span>`; }
+  if(n.type==='Requirement'){ sub=`<b style="color:#90cdf4">出自：</b>${esc(n.basis||'')}<br><b style="color:#90cdf4">条款：</b>${esc(n.clause||'')}`; if(n.detail||n.summary) sub+=`<br><span style="color:#64748b">${esc(n.detail||n.summary)}</span>`; }
   else if(n.type==='Stage'){ sub=esc(n.goal||''); }
   else if(n.type==='Document'){ sub=n.sub?('工作包：'+esc(n.sub)):''; }
-  else if(n.type==='Regulation'){ sub='法规/标准文件'; }
+  else if(n.type==='Regulation'){ sub='法规 / 行业标准 / 指导原则'; }
+  else if(n.type==='Dossier'){ sub=esc(n.desc||'归档汇编（DHF/DMR/DHR/技术文档/NMPA）'); }
   document.getElementById('npSub').innerHTML=sub;
   // 可生成文档 → 生成按钮
   const gw=document.getElementById('npGenWrap');
@@ -495,7 +513,7 @@ async function showNodePanel(nodeId){
   // 邻居列表
   const nbHtml=d.neighbors.map(nb=>{
     const c=(TYPE_STYLE[nb.type]||{}).color||'#888';
-    const relLab={PRODUCES:'产出',SATISFIES:'满足',CITES:'引用',BELONGS_TO:'属于'}[nb.rel]||nb.rel;
+    const relLab={PRODUCES:'产出',SATISFIES:'满足',CITES:'引用',BELONGS_TO:'属于',ARCHIVED_IN:'归入'}[nb.rel]||nb.rel;
     return `<div class="np-nb" onclick="jumpNode('${nb.id.replace(/'/g,"\\'")}')">
       <span class="nb-dot" style="background:${c}"></span>
       <span class="nb-lab">${esc(nb.label)}</span>

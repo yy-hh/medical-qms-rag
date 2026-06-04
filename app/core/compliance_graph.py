@@ -22,7 +22,7 @@ import re
 import networkx as nx
 
 from app.core.registration_checklist import CHECKLIST, STAGES, get_checklist_item, get_basis_split
-from app.core.qms_framework import get_document_by_id
+from app.core.qms_framework import get_document_by_id, DOSSIERS
 
 # 模型扩充的额外「文档满足法规要求」关系（审核后填入）。每条：
 #   {"seq": 对应 checklist 序号, "basis": 法规名, "clause": 条款, "requirement": 要求简述}
@@ -125,7 +125,29 @@ def build_graph() -> nx.MultiDiGraph:
     # 4) 从法规原文抽取的审查要求（审核员视角倒推：法规 → 要求 → 文档）
     _add_extracted_requirements(G)
 
+    # 5) 档案归档层：文档 --归入--> 档案（DHF/DMR/DHR/技术文档/NMPA）
+    _add_dossiers(G)
+
     return G
+
+
+def _add_dossiers(G: nx.MultiDiGraph):
+    """据 qms_framework.DOSSIERS 的 compiles 字段，连 文档 --ARCHIVED_IN--> 档案。"""
+    for d in DOSSIERS:
+        dossier_node = d["id"]   # 如 DOSSIER-DHF
+        if not G.has_node(dossier_node):
+            G.add_node(dossier_node, type="Dossier", name=d["name"],
+                       en=d.get("en", ""), desc=d.get("desc", ""))
+        for did in d.get("compiles", []):
+            dnode = f"DOC-{did}"
+            if not G.has_node(dnode):
+                fw = get_document_by_id(did)
+                if not fw:
+                    continue
+                G.add_node(dnode, type="Document", name=fw["name"], alias=fw["name"],
+                           doc_id=did, generatable=True, sub="")
+            if not G.has_edge(dnode, dossier_node, key="ARCHIVED_IN"):
+                G.add_edge(dnode, dossier_node, key="ARCHIVED_IN", rel="ARCHIVED_IN")
 
 
 def _add_extracted_requirements(G: nx.MultiDiGraph):
