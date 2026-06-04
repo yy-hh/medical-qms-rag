@@ -21,7 +21,7 @@ import re
 
 import networkx as nx
 
-from app.core.registration_checklist import CHECKLIST, STAGES, get_checklist_item
+from app.core.registration_checklist import CHECKLIST, STAGES, get_checklist_item, get_basis_split
 from app.core.qms_framework import get_document_by_id
 
 # 模型扩充的额外「文档满足法规要求」关系（审核后填入）。每条：
@@ -86,15 +86,22 @@ def build_graph() -> nx.MultiDiGraph:
         # 文档 --BELONGS_TO--> 阶段（反向便捷）
         if not G.has_edge(dnode, stage, key="BELONGS_TO"):
             G.add_edge(dnode, stage, key="BELONGS_TO", rel="BELONGS_TO")
-        # 法规要求节点
-        rnode = req_node_id(basis, clause)
-        if not G.has_node(rnode):
-            G.add_node(rnode, type="Requirement", basis=basis, clause=clause, summary=note)
-        # 文档 --SATISFIES--> 要求
-        G.add_edge(dnode, rnode, key=f"SAT-{seq}-{int(extra)}", rel="SATISFIES",
-                   seq=seq, extra=extra)
-        # 要求 --CITES--> 法规文件（拆多部）
-        for reg_name in _split_regulations(basis):
+        # 法规要求节点：若该条目有"多法规拆分"，为每部法规建独立要求（各配自己的条款）；
+        # 否则按整条 (basis, clause) 建一条要求。每条要求只 CITES 它自己那一部法规文件。
+        split = get_basis_split(seq) if not extra else None
+        if split:
+            pairs = [(p["regulation"], p["clause"]) for p in split]
+        else:
+            pairs = [(basis, clause)]
+
+        for reg_name, req_clause in pairs:
+            rnode = req_node_id(reg_name, req_clause)
+            if not G.has_node(rnode):
+                G.add_node(rnode, type="Requirement", basis=reg_name, clause=req_clause, summary=note)
+            # 文档 --SATISFIES--> 要求
+            G.add_edge(dnode, rnode, key=f"SAT-{seq}-{int(extra)}-{reg_node_id(reg_name)}",
+                       rel="SATISFIES", seq=seq, extra=extra)
+            # 要求 --CITES--> 它自己那一部法规文件
             gnode = reg_node_id(reg_name)
             if not G.has_node(gnode):
                 G.add_node(gnode, type="Regulation", name=reg_name)

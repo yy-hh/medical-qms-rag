@@ -330,6 +330,48 @@ CHECKLIST = [
 ]
 
 
+# 「一格多法规」条目的按法规拆分（模型拆分 + 审核）。key=seq(str)，
+# value=[{regulation, clause}]。建图时据此为每部法规建独立的法规要求节点，
+# 避免一条要求误连多部法规（如 1843 的条款被挂到 1858 上）。
+BASIS_SPLIT = {
+    "25": [
+        {"regulation": "YY/T 1833.2-2022", "clause": "第4~7节：数据集设计/采集/清洗/增广要求"},
+        {"regulation": "人工智能医疗器械注册审查指导原则§三", "clause": "（全文/未指明具体条款）"},
+    ],
+    "30": [
+        {"regulation": "YY/T 1858-2022", "clause": "（全文/未指明具体条款）"},
+        {"regulation": "YY/T 1843-2022", "clause": "第4~5节：测试数据集和性能指标"},
+        {"regulation": "对应适应症专项指导原则", "clause": "（全文/未指明具体条款）"},
+    ],
+    "33": [
+        {"regulation": "医疗器械网络安全注册审查指导原则（2022修订）", "clause": "第三章第二节：安全能力要求"},
+        {"regulation": "网络安全法", "clause": "（全文/未指明具体条款）"},
+    ],
+    "36": [
+        {"regulation": "个人信息保护法", "clause": "第55条（须开展PIA的情形）；第28条（敏感个人信息处理规则）"},
+        {"regulation": "数据安全法", "clause": "（全文/未指明具体条款）"},
+        {"regulation": "GB/T 35273-2020", "clause": "（全文/未指明具体条款）"},
+    ],
+    "41": [
+        {"regulation": "YY/T 0664-2020", "clause": "§5.7（系统测试）"},
+        {"regulation": "对应性能测试标准", "clause": "YY/T 1843或YY/T 1858相关条款"},
+    ],
+    "44": [
+        {"regulation": "人工智能辅助检测医疗器械（软件）临床评价注册审查指导原则（2023第38号）", "clause": "2023第38号指导原则全文"},
+        {"regulation": "对应适应症专项指导原则", "clause": "各适应症专项指导原则全文"},
+    ],
+    "70": [
+        {"regulation": "YY/T 1833.4-2023", "clause": "第5节：变更可追溯要求"},
+        {"regulation": "人工智能医疗器械注册审查指导原则第五部分", "clause": "（全文/未指明具体条款）"},
+    ],
+}
+
+
+def get_basis_split(seq: int):
+    """返回某条目的多法规拆分（无则 None）。"""
+    return BASIS_SPLIT.get(str(seq))
+
+
 def get_checklist() -> dict:
     """返回按阶段分组的全流程对照表。"""
     by_stage = {}
