@@ -122,7 +122,55 @@ def build_graph() -> nx.MultiDiGraph:
                   base.get("doc_id"), ex["basis"], ex["clause"], ex.get("requirement", ""),
                   extra=True)
 
+    # 4) 从法规原文抽取的审查要求（审核员视角倒推：法规 → 要求 → 文档）
+    _add_extracted_requirements(G)
+
     return G
+
+
+def _add_extracted_requirements(G: nx.MultiDiGraph):
+    """加载 extracted_requirements.json，为每条抽取的审查要求建节点：
+    Requirement(标题+章节) --CITES--> Regulation(法规)；并 SATISFIES 到关联文档。
+    这是图谱里"法规包含哪些要求、每条要求由哪些文档体现"的主体数据。"""
+    import os, json
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "extracted_requirements.json")
+    if not os.path.exists(path):
+        return
+    try:
+        data = json.load(open(path, encoding="utf-8"))
+    except Exception:
+        return
+
+    for entry in data:
+        reg_name = entry.get("regulation")
+        if not reg_name:
+            continue
+        gnode = reg_node_id(reg_name)
+        if not G.has_node(gnode):
+            G.add_node(gnode, type="Regulation", name=reg_name)
+        for req in entry.get("requirements", []):
+            clause = req.get("clause") or ""
+            title = req.get("title") or ""
+            detail = req.get("detail") or ""
+            # 要求节点 id 用 法规+章节+标题 保证唯一
+            rnode = "REQX-" + _hash(reg_name + "|" + clause + "|" + title)
+            if not G.has_node(rnode):
+                G.add_node(rnode, type="Requirement", basis=reg_name,
+                           clause=(clause + ("：" + title if title else "")) or title,
+                           title=title, detail=detail, summary=detail, extracted=True)
+            # 要求 --CITES--> 法规
+            if not G.has_edge(rnode, gnode, key="CITES"):
+                G.add_edge(rnode, gnode, key="CITES", rel="CITES")
+            # 文档 --SATISFIES--> 要求
+            for did in (req.get("doc_ids") or []):
+                dnode = f"DOC-{did}"
+                if not G.has_node(dnode):
+                    fw = get_document_by_id(did)
+                    if not fw:
+                        continue
+                    G.add_node(dnode, type="Document", name=fw["name"], alias=fw["name"],
+                               doc_id=did, generatable=True, sub="")
+                G.add_edge(dnode, rnode, key=f"SATX-{rnode}", rel="SATISFIES", extracted=True)
 
 
 # 进程内缓存
