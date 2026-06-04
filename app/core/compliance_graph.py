@@ -267,10 +267,15 @@ def path_between(src: str, dst: str) -> dict:
 def _serialize(sub, center=None) -> dict:
     nodes = []
     for n, a in sub.nodes(data=True):
-        nodes.append({"id": n, "type": a.get("type"),
-                      "label": a.get("name") or a.get("basis") or a.get("clause") or n,
+        t = a.get("type")
+        if t == "Requirement":
+            # 法规要求节点显示「条款」，区别于法规文件节点显示的「法规名」
+            label = a.get("clause") or a.get("basis") or n
+        else:
+            label = a.get("name") or a.get("basis") or a.get("clause") or n
+        nodes.append({"id": n, "type": t, "label": label,
                       "alias": a.get("alias"), "clause": a.get("clause"),
-                      "doc_id": a.get("doc_id"),
+                      "basis": a.get("basis"), "doc_id": a.get("doc_id"),
                       "color": a.get("color"), "center": n == center})
     edges = []
     seen = set()

@@ -421,7 +421,7 @@ const REL_COLOR={PRODUCES:'#f6ad55',SATISFIES:'#63b3ed',CITES:'#f687b3',BELONGS_
 async function initGraph(){
   const data=await fetch('/api/compliance/graph').then(r=>r.json());
   fullGraphData=data;
-  allNodesIndex=data.nodes.map(n=>({id:n.id,type:n.type,label:n.label,alias:n.alias||''}));
+  allNodesIndex=data.nodes.map(n=>({id:n.id,type:n.type,label:n.label,alias:(n.alias||'')+' '+(n.basis||'')}));
   const nodes=data.nodes.map(n=>{
     const st=TYPE_STYLE[n.type]||{color:'#a0aec0',size:14,shape:'dot'};
     let label=n.label||n.id;
