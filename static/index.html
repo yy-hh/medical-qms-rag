@@ -221,9 +221,11 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
 /* ── Scrollbar ── */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#cbd5e0;border-radius:3px}
+::-webkit-scrollbar{width:14px;height:14px}
+::-webkit-scrollbar-track{background:#f0f4f8}
+::-webkit-scrollbar-thumb{background:#a0aec0;border-radius:7px;border:3px solid #f0f4f8;background-clip:padding-box;min-height:40px}
+::-webkit-scrollbar-thumb:hover{background:#718096;border:3px solid #f0f4f8;background-clip:padding-box}
+*{scrollbar-width:auto;scrollbar-color:#a0aec0 #f0f4f8}
 </style>
 </head>
 <body>
