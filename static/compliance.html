@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>合规知识图谱 · 法规×文档×阶段</title>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f4f8;color:#1a202c;height:100vh;display:flex;flex-direction:column;overflow:hidden}
@@ -76,6 +77,37 @@ header .back:hover{background:rgba(255,255,255,.28)}
 .icon-btn{background:none;border:1px solid #e2e8f0;border-radius:7px;padding:6px 14px;font-size:12px;cursor:pointer;color:#4a5568}
 .icon-btn:hover{border-color:#3182ce;color:#3182ce}
 .icon-btn:disabled{opacity:.5;cursor:not-allowed}
+/* 图谱视图 */
+.graph-wrap{position:relative;width:100%;height:100%}
+#graphCanvas{width:100%;height:100%;background:radial-gradient(circle at 50% 40%,#0f1b2d 0%,#0a1422 70%,#070d18 100%)}
+.graph-legend{position:absolute;top:14px;left:14px;background:rgba(15,27,45,.82);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;font-size:11px;color:#cbd5e0;backdrop-filter:blur(6px)}
+.graph-legend .lg{display:flex;align-items:center;gap:7px;margin:4px 0}
+.graph-legend .dot{width:11px;height:11px;border-radius:50%;box-shadow:0 0 6px currentColor}
+.graph-hint{position:absolute;bottom:14px;left:14px;font-size:11px;color:#64748b;background:rgba(15,27,45,.6);padding:5px 10px;border-radius:8px}
+.node-panel{position:absolute;top:14px;right:14px;width:300px;max-height:calc(100% - 28px);overflow-y:auto;background:rgba(17,28,46,.95);border:1px solid rgba(120,160,220,.25);border-radius:12px;padding:14px;color:#e2e8f0;font-size:12px;box-shadow:0 8px 30px rgba(0,0,0,.4);display:none}
+.node-panel.show{display:block}
+.node-panel .np-type{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7dd3fc;font-weight:700}
+.node-panel .np-title{font-size:14px;font-weight:700;color:#fff;margin:4px 0 8px;line-height:1.4}
+.node-panel .np-sub{font-size:11px;color:#94a3b8;margin-bottom:10px;line-height:1.5}
+.node-panel .np-sec{font-size:10px;color:#64748b;font-weight:700;margin:10px 0 5px;text-transform:uppercase}
+.np-nb{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:.12s;margin-bottom:3px}
+.np-nb:hover{background:rgba(120,160,220,.16)}
+.np-nb .nb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.np-nb .nb-lab{flex:1;color:#cbd5e0;line-height:1.35}
+.np-nb .nb-rel{font-size:9px;color:#64748b}
+.np-gen{width:100%;margin-top:10px;background:#3182ce;color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;cursor:pointer;font-weight:600}
+.np-gen:hover{background:#2b6cb0}
+.np-close{position:absolute;top:10px;right:12px;cursor:pointer;color:#64748b;font-size:16px}
+.np-close:hover{color:#fff}
+.graph-search{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:5}
+.graph-search input{width:320px;background:rgba(17,28,46,.92);border:1px solid rgba(120,160,220,.3);border-radius:20px;padding:8px 16px;font-size:13px;color:#fff;outline:none}
+.graph-search input::placeholder{color:#64748b}
+.graph-search input:focus{border-color:#3182ce;box-shadow:0 0 0 3px rgba(49,130,206,.2)}
+.gs-results{margin-top:6px;background:rgba(17,28,46,.97);border:1px solid rgba(120,160,220,.25);border-radius:10px;max-height:300px;overflow-y:auto;display:none}
+.gs-results.show{display:block}
+.gs-item{padding:8px 14px;font-size:12px;color:#cbd5e0;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)}
+.gs-item:hover{background:rgba(120,160,220,.16)}
+.gs-item .gi-type{font-size:9px;color:#7dd3fc;margin-right:6px}
 .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
 ::-webkit-scrollbar{width:14px;height:14px}::-webkit-scrollbar-track{background:#f0f4f8}::-webkit-scrollbar-thumb{background:#a0aec0;border-radius:7px;border:3px solid #f0f4f8;background-clip:padding-box;min-height:40px}::-webkit-scrollbar-thumb:hover{background:#718096}*{scrollbar-width:auto;scrollbar-color:#a0aec0 #f0f4f8}
@@ -90,17 +122,44 @@ header .back:hover{background:rgba(255,255,255,.28)}
 </header>
 
 <div class="tabs">
-  <div class="tab active" data-view="stage" onclick="switchView('stage')">按注册阶段</div>
+  <div class="tab active" data-view="graph" onclick="switchView('graph')">🌐 图谱视图</div>
+  <div class="tab" data-view="stage" onclick="switchView('stage')">按注册阶段</div>
   <div class="tab" data-view="requirement" onclick="switchView('requirement')">按法规要求</div>
   <div class="tab" data-view="document" onclick="switchView('document')">按文档/证据</div>
 </div>
 
-<div class="toolbar">
+<div class="toolbar" id="toolbar">
   <input id="searchBox" placeholder="搜索法规名 / 条款 / 文档关键词…" oninput="onSearch()">
   <span class="hint" id="viewHint"></span>
 </div>
 
-<div class="body" id="body"><div class="empty">加载中…</div></div>
+<!-- 列表视图 -->
+<div class="body" id="body" style="display:none"><div class="empty">加载中…</div></div>
+
+<!-- 图谱视图 -->
+<div class="graph-wrap" id="graphWrap">
+  <div class="graph-search">
+    <input id="graphSearch" placeholder="🔍 搜索节点（法规 / 文档 / 阶段）…" oninput="onGraphSearch()" autocomplete="off">
+    <div class="gs-results" id="gsResults"></div>
+  </div>
+  <div id="graphCanvas"></div>
+  <div class="graph-legend">
+    <div class="lg"><span class="dot" style="background:#f6ad55;color:#f6ad55"></span>注册阶段 Stage</div>
+    <div class="lg"><span class="dot" style="background:#4fd1c5;color:#4fd1c5"></span>文档/证据 Document</div>
+    <div class="lg"><span class="dot" style="background:#90cdf4;color:#90cdf4"></span>法规要求 Requirement</div>
+    <div class="lg"><span class="dot" style="background:#f687b3;color:#f687b3"></span>法规文件 Regulation</div>
+  </div>
+  <div class="graph-hint">单击节点查看详情并高亮关联 · 双击聚焦 · 滚轮缩放 · 拖拽平移</div>
+  <div class="node-panel" id="nodePanel">
+    <span class="np-close" onclick="closePanel()">✕</span>
+    <div class="np-type" id="npType"></div>
+    <div class="np-title" id="npTitle"></div>
+    <div class="np-sub" id="npSub"></div>
+    <div id="npGenWrap"></div>
+    <div class="np-sec">关联节点（点击跳转）</div>
+    <div id="npNeighbors"></div>
+  </div>
+</div>
 
 <!-- 生成 modal -->
 <div class="modal-bg" id="modalBg">
@@ -117,7 +176,8 @@ header .back:hover{background:rgba(255,255,255,.28)}
 <div class="toast" id="toast"></div>
 
 <script>
-let GRAPH=null, CHECKLIST=null, curView='stage', curDocId=null, streaming=false;
+let GRAPH=null, CHECKLIST=null, curView='graph', curDocId=null, streaming=false;
+let network=null, visNodes=null, visEdges=null, fullGraphData=null, allNodesIndex=[];
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -131,15 +191,22 @@ async function init(){
     ]);
     GRAPH=ov; CHECKLIST=cl;
     ov.stages.forEach(s=>stageColor[s.key]=s.color);
+    const st=ov.stats;
     document.getElementById('hstats').textContent=
-      `${ov.stats.requirements} 条法规要求 · ${ov.stats.documents} 份文档 · ${ov.stats.generatable_docs} 可生成`;
-    render();
+      `${st.nodes||0} 节点 · ${st.edges||0} 关系 · ${st.requirements} 法规要求 · ${st.documents} 文档`;
+    // 默认进图谱视图
+    switchView('graph');
   }catch(e){ document.getElementById('body').innerHTML=`<div class="empty">加载失败：${esc(e.message)}</div>`; }
 }
 
 function switchView(v){
   curView=v;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.view===v));
+  const isGraph=v==='graph';
+  document.getElementById('graphWrap').style.display=isGraph?'block':'none';
+  document.getElementById('toolbar').style.display=isGraph?'none':'flex';
+  document.getElementById('body').style.display=isGraph?'none':'block';
+  if(isGraph){ if(!network) initGraph(); else network.redraw(); return; }
   document.getElementById('searchBox').value='';
   render();
 }
@@ -341,6 +408,124 @@ async function downloadDoc(){
 }
 
 function closeModal(){ if(streaming){ if(!confirm('正在生成，确定关闭？')) return; } document.getElementById('modalBg').classList.remove('open'); }
+
+// ══ 力导向图谱可视化 ══════════════════════════════════════════════════════
+const TYPE_STYLE={
+  Stage:      {color:'#f6ad55', size:30, shape:'hexagon'},
+  Document:   {color:'#4fd1c5', size:18, shape:'dot'},
+  Requirement:{color:'#90cdf4', size:14, shape:'dot'},
+  Regulation: {color:'#f687b3', size:22, shape:'diamond'},
+};
+const REL_COLOR={PRODUCES:'#f6ad55',SATISFIES:'#63b3ed',CITES:'#f687b3',BELONGS_TO:'rgba(255,255,255,0.06)'};
+
+async function initGraph(){
+  const data=await fetch('/api/compliance/graph').then(r=>r.json());
+  fullGraphData=data;
+  allNodesIndex=data.nodes.map(n=>({id:n.id,type:n.type,label:n.label}));
+  const nodes=data.nodes.map(n=>{
+    const st=TYPE_STYLE[n.type]||{color:'#a0aec0',size:14,shape:'dot'};
+    let label=n.label||n.id;
+    if(label.length>18) label=label.slice(0,17)+'…';
+    return {id:n.id, label, title:`${n.type}: ${n.label}`,
+      color:{background:st.color,border:'#fff',highlight:{background:st.color,border:'#fff'}},
+      size:st.size, shape:st.shape, font:{color:'#e2e8f0',size:11,face:'PingFang SC'},
+      borderWidth:1, _type:n.type, _full:n.label, _doc_id:n.doc_id};
+  });
+  const edges=data.edges
+    .filter(e=>e.rel!=='BELONGS_TO')  // 反向便捷边不画，避免重叠
+    .map(e=>({from:e.source,to:e.target,color:{color:REL_COLOR[e.rel]||'#555',highlight:'#fff',opacity:0.5},
+      width:e.rel==='SATISFIES'?1:1.5, arrows:{to:{enabled:true,scaleFactor:0.4}},
+      smooth:{type:'continuous'}, _rel:e.rel}));
+  visNodes=new vis.DataSet(nodes);
+  visEdges=new vis.DataSet(edges);
+  const container=document.getElementById('graphCanvas');
+  network=new vis.Network(container,{nodes:visNodes,edges:visEdges},{
+    physics:{barnesHut:{gravitationalConstant:-8000,springLength:130,springConstant:0.035,damping:0.5,avoidOverlap:0.3},
+      stabilization:{iterations:220},minVelocity:0.5},
+    interaction:{hover:true,tooltipDelay:120,navigationButtons:false,keyboard:false},
+    nodes:{shadow:{enabled:true,color:'rgba(0,0,0,0.5)',size:8}},
+    edges:{shadow:false},
+  });
+  network.on('click',params=>{
+    if(params.nodes.length){ selectNode(params.nodes[0]); }
+    else { closePanel(); hideGsResults(); }
+  });
+  network.on('doubleClick',params=>{ if(params.nodes.length) network.focus(params.nodes[0],{scale:1.3,animation:true}); });
+}
+
+let highlightTimer=null;
+function selectNode(nodeId){
+  // 高亮该节点及其直接邻居，淡化其余
+  const connected=new Set([nodeId]);
+  visEdges.forEach(e=>{ if(e.from===nodeId) connected.add(e.to); if(e.to===nodeId) connected.add(e.from); });
+  visNodes.forEach(n=>{
+    const dim=!connected.has(n.id);
+    visNodes.update({id:n.id, opacity:dim?0.18:1, font:{color:dim?'#475569':'#fff',size:n.id===nodeId?14:11}});
+  });
+  visEdges.forEach(e=>{
+    const on=e.from===nodeId||e.to===nodeId;
+    visEdges.update({id:e.id, color:{color:on?(REL_COLOR[e._rel]||'#fff'):'rgba(255,255,255,0.04)',opacity:on?0.95:0.15}, width:on?2.5:0.5});
+  });
+  showNodePanel(nodeId);
+}
+
+function resetHighlight(){
+  if(!visNodes) return;
+  visNodes.forEach(n=>visNodes.update({id:n.id,opacity:1,font:{color:'#e2e8f0',size:11}}));
+  visEdges.forEach(e=>visEdges.update({id:e.id,color:{color:REL_COLOR[e._rel]||'#555',opacity:0.5},width:e._rel==='SATISFIES'?1:1.5}));
+}
+
+async function showNodePanel(nodeId){
+  const d=await fetch('/api/compliance/node/'+encodeURIComponent(nodeId)).then(r=>r.json()).catch(()=>null);
+  if(!d){ return; }
+  const n=d.node;
+  const typeLabel={Stage:'注册阶段',Document:'文档/证据',Requirement:'法规要求',Regulation:'法规文件'}[n.type]||n.type;
+  document.getElementById('npType').textContent=typeLabel;
+  document.getElementById('npTitle').textContent=n.name||n.clause||n.basis||n.id;
+  let sub='';
+  if(n.type==='Requirement'){ sub=`<b style="color:#90cdf4">出自：</b>${esc(n.basis||'')}<br><b style="color:#90cdf4">条款：</b>${esc(n.clause||'')}`; if(n.summary) sub+=`<br><span style="color:#64748b">${esc(n.summary)}</span>`; }
+  else if(n.type==='Stage'){ sub=esc(n.goal||''); }
+  else if(n.type==='Document'){ sub=n.sub?('工作包：'+esc(n.sub)):''; }
+  else if(n.type==='Regulation'){ sub='法规/标准文件'; }
+  document.getElementById('npSub').innerHTML=sub;
+  // 可生成文档 → 生成按钮
+  const gw=document.getElementById('npGenWrap');
+  if(n.type==='Document'&&n.doc_id){ gw.innerHTML=`<button class="np-gen" onclick="genDoc('${n.doc_id}')">✨ 生成此文档</button>`; }
+  else gw.innerHTML='';
+  // 邻居列表
+  const nbHtml=d.neighbors.map(nb=>{
+    const c=(TYPE_STYLE[nb.type]||{}).color||'#888';
+    const relLab={PRODUCES:'产出',SATISFIES:'满足',CITES:'引用',BELONGS_TO:'属于'}[nb.rel]||nb.rel;
+    return `<div class="np-nb" onclick="jumpNode('${nb.id.replace(/'/g,"\\'")}')">
+      <span class="nb-dot" style="background:${c}"></span>
+      <span class="nb-lab">${esc(nb.label)}</span>
+      <span class="nb-rel">${nb.dir==='out'?relLab:'被'+relLab}</span></div>`;
+  }).join('')||'<div style="color:#64748b;font-size:11px">无关联</div>';
+  document.getElementById('npNeighbors').innerHTML=nbHtml;
+  document.getElementById('nodePanel').classList.add('show');
+}
+
+function jumpNode(id){ network.focus(id,{scale:1.2,animation:{duration:500}}); network.selectNodes([id]); selectNode(id); }
+function closePanel(){ document.getElementById('nodePanel').classList.remove('show'); resetHighlight(); }
+
+// 图谱内搜索
+let gsTimer=null;
+function onGraphSearch(){
+  clearTimeout(gsTimer);
+  gsTimer=setTimeout(()=>{
+    const kw=(document.getElementById('graphSearch').value||'').trim().toLowerCase();
+    const box=document.getElementById('gsResults');
+    if(!kw){ hideGsResults(); return; }
+    const hits=allNodesIndex.filter(n=>(n.label||'').toLowerCase().includes(kw)).slice(0,20);
+    if(!hits.length){ box.innerHTML='<div class="gs-item">无匹配节点</div>'; box.classList.add('show'); return; }
+    const tl={Stage:'阶段',Document:'文档',Requirement:'法规要求',Regulation:'法规'};
+    box.innerHTML=hits.map(h=>`<div class="gs-item" onclick="pickGs('${h.id.replace(/'/g,"\\'")}')">
+      <span class="gi-type">${tl[h.type]||h.type}</span>${esc(h.label)}</div>`).join('');
+    box.classList.add('show');
+  },200);
+}
+function pickGs(id){ document.getElementById('graphSearch').value=''; hideGsResults(); jumpNode(id); }
+function hideGsResults(){ document.getElementById('gsResults').classList.remove('show'); }
 
 init();
 </script>

@@ -275,6 +275,32 @@ def _serialize(sub, center=None) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
+def full_graph() -> dict:
+    """整张图序列化，供前端力导向可视化。"""
+    return _serialize(graph())
+
+
+def node_detail(node_id: str) -> dict:
+    """单节点详情 + 直接邻居（点击节点时展示）。"""
+    G = graph()
+    if node_id not in G:
+        return {}
+    a = dict(G.nodes[node_id])
+    a["id"] = node_id
+    neighbors = []
+    for _, v, d in G.out_edges(node_id, data=True):
+        nb = G.nodes[v]
+        neighbors.append({"id": v, "type": nb.get("type"), "rel": d.get("rel"),
+                          "label": nb.get("name") or nb.get("clause") or nb.get("basis") or v,
+                          "dir": "out"})
+    for u, _, d in G.in_edges(node_id, data=True):
+        nb = G.nodes[u]
+        neighbors.append({"id": u, "type": nb.get("type"), "rel": d.get("rel"),
+                          "label": nb.get("name") or nb.get("clause") or nb.get("basis") or u,
+                          "dir": "in"})
+    return {"node": a, "neighbors": neighbors}
+
+
 def stats() -> dict:
     G = graph()
     types = {}

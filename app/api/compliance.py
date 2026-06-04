@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from app.core.compliance_graph import (
     stats, by_stage, by_document, by_requirement, search_requirements,
     neighbors_subgraph, related_requirements, path_between,
+    full_graph, node_detail,
 )
 from app.core.registration_checklist import get_checklist, STAGES
 
@@ -57,6 +58,21 @@ async def search(q: str):
 
 
 # ── 真图能力 ──────────────────────────────────────────────────────────────
+
+@router.get("/graph")
+async def graph_full():
+    """整张图（节点+边），供前端力导向可视化。"""
+    return full_graph()
+
+
+@router.get("/node/{node_id}")
+async def node(node_id: str):
+    """单节点详情 + 直接邻居。"""
+    res = node_detail(node_id)
+    if not res:
+        raise HTTPException(status_code=404, detail=f"节点 {node_id} 不存在")
+    return res
+
 
 @router.get("/subgraph/{node_id}")
 async def subgraph(node_id: str, hops: int = 1):
