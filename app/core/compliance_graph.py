@@ -40,6 +40,36 @@ def req_node_id(basis: str, clause: str) -> str:
     return f"REQ-{_hash(basis + '|' + clause)}"
 
 
+# 法规名规范化：把 73 项对照表里的变体/合写/占位写法，归一到规范法规名。
+# - 变体（同一法规被写成 §三 / 第五部分 等）→ 合并到主节点
+# - 占位符（"对应性能测试标准""对应适应症专项指导原则"）→ 映射为 None，不建节点
+# - 合写（"A / B"）→ 在 canonical_regs() 里拆开
+REG_CANONICAL = {
+    "人工智能医疗器械注册审查指导原则§三": "人工智能医疗器械注册审查指导原则（2022第8号）",
+    "人工智能医疗器械注册审查指导原则第五部分": "人工智能医疗器械注册审查指导原则（2022第8号）",
+    "人工智能医疗器械注册审查指导原则（2022第8号）第五部分": "人工智能医疗器械注册审查指导原则（2022第8号）",
+    "对应性能测试标准": None,
+    "对应适应症专项指导原则": None,
+}
+
+
+def canonical_regs(name: str) -> list[str]:
+    """把一个 basis 里的法规名规范化为 0~N 个干净法规名（拆合写、并变体、剔占位）。"""
+    out = []
+    for part in re.split(r"\s*/\s*", name or ""):   # 拆 "A / B" 合写
+        part = part.strip()
+        if not part:
+            continue
+        if part in REG_CANONICAL:
+            mapped = REG_CANONICAL[part]
+            if mapped:
+                out.append(mapped)
+            # mapped is None → 占位符，丢弃
+        else:
+            out.append(part)
+    return out
+
+
 def reg_node_id(name: str) -> str:
     return f"REG-{_hash(name)}"
 
@@ -94,19 +124,24 @@ def build_graph() -> nx.MultiDiGraph:
         else:
             pairs = [(basis, clause)]
 
-        for reg_name, req_clause in pairs:
-            rnode = req_node_id(reg_name, req_clause)
-            if not G.has_node(rnode):
-                G.add_node(rnode, type="Requirement", basis=reg_name, clause=req_clause, summary=note)
-            # 文档 --SATISFIES--> 要求
-            G.add_edge(dnode, rnode, key=f"SAT-{seq}-{int(extra)}-{reg_node_id(reg_name)}",
-                       rel="SATISFIES", seq=seq, extra=extra)
-            # 要求 --CITES--> 它自己那一部法规文件
-            gnode = reg_node_id(reg_name)
-            if not G.has_node(gnode):
-                G.add_node(gnode, type="Regulation", name=reg_name)
-            if not G.has_edge(rnode, gnode, key="CITES"):
-                G.add_edge(rnode, gnode, key="CITES", rel="CITES")
+        for reg_raw, req_clause in pairs:
+            # 规范化法规名（并变体、拆合写、剔占位）。占位符 → 无干净法规，跳过该 pair。
+            clean = canonical_regs(reg_raw)
+            if not clean:
+                continue
+            for reg_name in clean:
+                rnode = req_node_id(reg_name, req_clause)
+                if not G.has_node(rnode):
+                    G.add_node(rnode, type="Requirement", basis=reg_name, clause=req_clause, summary=note)
+                # 文档 --SATISFIES--> 要求
+                G.add_edge(dnode, rnode, key=f"SAT-{seq}-{int(extra)}-{reg_node_id(reg_name)}",
+                           rel="SATISFIES", seq=seq, extra=extra)
+                # 要求 --CITES--> 它自己那一部法规文件
+                gnode = reg_node_id(reg_name)
+                if not G.has_node(gnode):
+                    G.add_node(gnode, type="Regulation", name=reg_name)
+                if not G.has_edge(rnode, gnode, key="CITES"):
+                    G.add_edge(rnode, gnode, key="CITES", rel="CITES")
 
     # 2) 种子：73 项
     for it in CHECKLIST:
