@@ -322,6 +322,31 @@ def search_requirements(keyword: str) -> list[dict]:
 
 # ── 真图能力：多跳 / 路径 / 邻居子图 ───────────────────────────────────────
 
+def overview_subgraph() -> dict:
+    """轻量概览图：只含枢纽节点（阶段 / 法规 / 档案）及它们之间的关系，
+    不含数百个审查要点和文档，供前端默认快速渲染。点击枢纽再加载局部细节。"""
+    G = graph()
+    keep_types = {"Stage", "Regulation", "Dossier"}
+    nodes = [n for n, a in G.nodes(data=True) if a.get("type") in keep_types]
+    sub = G.subgraph(nodes)
+    data = _serialize(sub)
+    # 概览里枢纽之间几乎没有直接边（要经要求/文档中转），所以补充统计标签：
+    # 每个法规挂多少审查要点、每个阶段产出多少文档、每个档案归档多少文档
+    for nd in data["nodes"]:
+        nid = nd["id"]
+        a = G.nodes[nid]
+        if a.get("type") == "Regulation":
+            cnt = sum(1 for _, _, d in G.in_edges(nid, data=True) if d.get("rel") == "CITES")
+            nd["badge"] = cnt
+        elif a.get("type") == "Stage":
+            cnt = sum(1 for _, _, d in G.out_edges(nid, data=True) if d.get("rel") == "PRODUCES")
+            nd["badge"] = cnt
+        elif a.get("type") == "Dossier":
+            cnt = sum(1 for _, _, d in G.in_edges(nid, data=True) if d.get("rel") == "ARCHIVED_IN")
+            nd["badge"] = cnt
+    return data
+
+
 def neighbors_subgraph(node_id: str, hops: int = 1) -> dict:
     """以某节点为中心、半径 hops 的邻居子图（无向意义上的可达），返回节点+边，供可视化。"""
     G = graph()

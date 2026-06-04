@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from app.core.compliance_graph import (
     stats, by_stage, by_document, by_requirement, search_requirements,
     neighbors_subgraph, related_requirements, path_between,
-    full_graph, node_detail,
+    full_graph, node_detail, overview_subgraph,
 )
 from app.core.registration_checklist import get_checklist, STAGES
 
@@ -63,6 +63,12 @@ async def search(q: str):
 async def graph_full():
     """整张图（节点+边），供前端力导向可视化。"""
     return full_graph()
+
+
+@router.get("/overview-graph")
+async def graph_overview():
+    """轻量概览图：只含枢纽节点（阶段/法规/档案），供默认快速渲染。"""
+    return overview_subgraph()
 
 
 @router.get("/node/{node_id}")

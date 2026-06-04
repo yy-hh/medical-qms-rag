@@ -420,77 +420,107 @@ const TYPE_STYLE={
 };
 const REL_COLOR={PRODUCES:'#f6ad55',SATISFIES:'#63b3ed',CITES:'#f687b3',BELONGS_TO:'rgba(255,255,255,0.06)',ARCHIVED_IN:'#b794f4'};
 
-async function initGraph(){
-  const data=await fetch('/api/compliance/graph').then(r=>r.json());
-  fullGraphData=data;
-  allNodesIndex=data.nodes.map(n=>({id:n.id,type:n.type,label:n.label,alias:(n.alias||'')+' '+(n.basis||'')}));
+// 子图聚焦模式：默认只画枢纽概览图（几十个节点），点/搜某节点 → 只加载它的局部子图。
+// 彻底避免一次渲染 500+ 节点导致卡死。
+let curCenter=null;
+
+function buildVisData(data, centerId){
   const nodes=data.nodes.map(n=>{
     const st=TYPE_STYLE[n.type]||{color:'#a0aec0',size:14,shape:'dot'};
     let label=n.label||n.id;
-    if(label.length>18) label=label.slice(0,17)+'…';
+    if(n.badge!=null) label=label+`  (${n.badge})`;
+    if(label.length>22) label=label.slice(0,21)+'…';
+    const isCenter=n.id===centerId;
     return {id:n.id, label, title:`${n.type}: ${n.label}`,
-      color:{background:st.color,border:'#fff',highlight:{background:st.color,border:'#fff'}},
-      size:st.size, shape:st.shape, font:{color:'#e2e8f0',size:11,face:'PingFang SC'},
-      borderWidth:1, _type:n.type, _full:n.label, _doc_id:n.doc_id};
+      color:{background:st.color,border:isCenter?'#fff':'rgba(255,255,255,0.5)',
+        highlight:{background:st.color,border:'#fff'}},
+      size:isCenter?st.size+10:st.size, shape:st.shape,
+      font:{color:'#e2e8f0',size:isCenter?13:11,face:'PingFang SC'},
+      borderWidth:isCenter?3:1, _type:n.type, _full:n.label, _doc_id:n.doc_id};
   });
   const edges=data.edges
-    .filter(e=>e.rel!=='BELONGS_TO')  // 反向便捷边不画，避免重叠
-    .map(e=>({from:e.source,to:e.target,color:{color:REL_COLOR[e.rel]||'#555',highlight:'#fff',opacity:0.45},
-      width:e.rel==='SATISFIES'?0.6:1.2, arrows:{to:{enabled:true,scaleFactor:0.35}},
-      smooth:false, _rel:e.rel}));   // 直线边，省渲染
-  visNodes=new vis.DataSet(nodes);
-  visEdges=new vis.DataSet(edges);
-  const container=document.getElementById('graphCanvas');
-  // 稳定中提示
-  const hint=document.querySelector('.graph-hint');
-  if(hint) hint.textContent='⏳ 正在布局图谱（500+ 节点，请稍候）…';
-  network=new vis.Network(container,{nodes:visNodes,edges:visEdges},{
-    physics:{
-      solver:'forceAtlas2Based',
-      forceAtlas2Based:{gravitationalConstant:-55,centralGravity:0.012,springLength:110,springConstant:0.06,damping:0.7,avoidOverlap:0.1},
-      stabilization:{enabled:true,iterations:160,updateInterval:30,fit:true},
-      minVelocity:1, maxVelocity:30,
-    },
-    layout:{improvedLayout:false},   // 跳过昂贵的初始 kamada-kawai 布局
-    interaction:{hover:false,tooltipDelay:150,navigationButtons:false,keyboard:false,
-      hideEdgesOnDrag:true,hideEdgesOnZoom:true},   // 拖拽/缩放时隐藏边，流畅
-    nodes:{shadow:false},
-    edges:{shadow:false},
-  });
-  // 稳定完成后冻结物理引擎，彻底停止 CPU 占用
-  network.once('stabilizationIterationsDone',()=>{
-    network.setOptions({physics:false});
-    if(hint) hint.textContent='单击节点查看详情并高亮关联 · 双击聚焦 · 滚轮缩放 · 拖拽平移';
-    network.fit({animation:false});
-  });
-  network.on('click',params=>{
-    if(params.nodes.length){ selectNode(params.nodes[0]); }
-    else { closePanel(); hideGsResults(); }
-  });
-  network.on('doubleClick',params=>{ if(params.nodes.length) network.focus(params.nodes[0],{scale:1.3,animation:true}); });
+    .filter(e=>e.rel!=='BELONGS_TO')
+    .map((e,i)=>({id:'e'+i, from:e.source,to:e.target,
+      color:{color:REL_COLOR[e.rel]||'#555',opacity:0.5},
+      width:e.rel==='SATISFIES'?0.8:1.4, arrows:{to:{enabled:true,scaleFactor:0.35}},
+      smooth:false, _rel:e.rel}));
+  return {nodes, edges};
 }
 
-let highlightTimer=null;
-function selectNode(nodeId){
-  // 高亮该节点及其直接邻居，淡化其余
-  const connected=new Set([nodeId]);
-  visEdges.forEach(e=>{ if(e.from===nodeId) connected.add(e.to); if(e.to===nodeId) connected.add(e.from); });
-  visNodes.forEach(n=>{
-    const dim=!connected.has(n.id);
-    visNodes.update({id:n.id, opacity:dim?0.18:1, font:{color:dim?'#475569':'#fff',size:n.id===nodeId?14:11}});
+function renderGraphData(data, centerId){
+  const {nodes,edges}=buildVisData(data, centerId);
+  if(!network){
+    visNodes=new vis.DataSet(nodes);
+    visEdges=new vis.DataSet(edges);
+    network=new vis.Network(document.getElementById('graphCanvas'),{nodes:visNodes,edges:visEdges},{
+      physics:{solver:'forceAtlas2Based',
+        forceAtlas2Based:{gravitationalConstant:-60,centralGravity:0.015,springLength:120,springConstant:0.08,damping:0.8,avoidOverlap:0.2},
+        stabilization:{enabled:true,iterations:120,updateInterval:25,fit:true},
+        minVelocity:1.5, maxVelocity:30},
+      layout:{improvedLayout:false},
+      interaction:{hover:false,navigationButtons:false,keyboard:false,hideEdgesOnDrag:true,hideEdgesOnZoom:true},
+      nodes:{shadow:false}, edges:{shadow:false},
+    });
+    network.once('stabilizationIterationsDone',()=>{ network.setOptions({physics:false}); network.fit({animation:false}); });
+    network.on('click',params=>{
+      if(params.nodes.length){ focusNode(params.nodes[0]); }
+      else { closePanel(); hideGsResults(); }
+    });
+  }else{
+    // 整体替换数据集（局部图节点少，瞬间完成）
+    network.setOptions({physics:{enabled:true,stabilization:{enabled:true,iterations:120,fit:true}}});
+    visNodes.clear(); visEdges.clear();
+    visNodes.add(nodes); visEdges.add(edges);
+    network.once('stabilizationIterationsDone',()=>{ network.setOptions({physics:false}); network.fit({animation:false}); });
+  }
+}
+
+async function initGraph(){
+  const hint=document.querySelector('.graph-hint');
+  if(hint) hint.textContent='⏳ 加载概览图…';
+  // 搜索索引用全量节点（轻量，仅 id/label/type），但渲染只用概览图
+  fetch('/api/compliance/graph').then(r=>r.json()).then(d=>{
+    allNodesIndex=d.nodes.map(n=>({id:n.id,type:n.type,label:n.label,alias:(n.alias||'')+' '+(n.basis||'')}));
   });
-  visEdges.forEach(e=>{
-    const on=e.from===nodeId||e.to===nodeId;
-    visEdges.update({id:e.id, color:{color:on?(REL_COLOR[e._rel]||'#fff'):'rgba(255,255,255,0.04)',opacity:on?0.95:0.15}, width:on?2.5:0.5});
-  });
+  const data=await fetch('/api/compliance/overview-graph').then(r=>r.json());
+  renderGraphData(data, null);
+  if(hint) hint.textContent='点击枢纽节点（法规/阶段/档案）展开其关联 · 或上方搜索任意节点';
+}
+
+// 聚焦某节点：加载它的局部子图并渲染（替换当前图）
+async function focusNode(nodeId){
+  curCenter=nodeId;
+  const hint=document.querySelector('.graph-hint');
+  if(hint) hint.textContent='⏳ 展开关联…';
+  const data=await fetch('/api/compliance/subgraph/'+encodeURIComponent(nodeId)+'?hops=1').then(r=>r.json()).catch(()=>null);
+  if(data && data.nodes && data.nodes.length){
+    renderGraphData(data, nodeId);
+    if(hint) hint.textContent=`已展开「${(allNodesIndex.find(x=>x.id===nodeId)||{}).label||nodeId}」的关联 · 点其它节点继续展开 · 「返回概览」回到全局`;
+    showBackBtn(true);
+  }
   showNodePanel(nodeId);
 }
 
-function resetHighlight(){
-  if(!visNodes) return;
-  visNodes.forEach(n=>visNodes.update({id:n.id,opacity:1,font:{color:'#e2e8f0',size:11}}));
-  visEdges.forEach(e=>visEdges.update({id:e.id,color:{color:REL_COLOR[e._rel]||'#555',opacity:0.5},width:e._rel==='SATISFIES'?1:1.5}));
+async function backToOverview(){
+  closePanel(); showBackBtn(false); curCenter=null;
+  const data=await fetch('/api/compliance/overview-graph').then(r=>r.json());
+  renderGraphData(data, null);
+  const hint=document.querySelector('.graph-hint');
+  if(hint) hint.textContent='点击枢纽节点（法规/阶段/档案）展开其关联 · 或上方搜索任意节点';
 }
+
+function showBackBtn(show){
+  let b=document.getElementById('gBackBtn');
+  if(!b){
+    b=document.createElement('button'); b.id='gBackBtn'; b.textContent='← 返回概览';
+    b.onclick=backToOverview;
+    b.style.cssText='position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(49,130,206,.9);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer';
+    document.querySelector('.graph-wrap').appendChild(b);
+  }
+  b.style.display=show?'block':'none';
+}
+
+function closePanel(){ document.getElementById('nodePanel').classList.remove('show'); }
 
 async function showNodePanel(nodeId){
   const d=await fetch('/api/compliance/node/'+encodeURIComponent(nodeId)).then(r=>r.json()).catch(()=>null);
@@ -514,7 +544,7 @@ async function showNodePanel(nodeId){
   const nbHtml=d.neighbors.map(nb=>{
     const c=(TYPE_STYLE[nb.type]||{}).color||'#888';
     const relLab={PRODUCES:'产出',SATISFIES:'满足',CITES:'引用',BELONGS_TO:'属于',ARCHIVED_IN:'归入'}[nb.rel]||nb.rel;
-    return `<div class="np-nb" onclick="jumpNode('${nb.id.replace(/'/g,"\\'")}')">
+    return `<div class="np-nb" onclick="focusNode('${nb.id.replace(/'/g,"\\'")}')">
       <span class="nb-dot" style="background:${c}"></span>
       <span class="nb-lab">${esc(nb.label)}</span>
       <span class="nb-rel">${nb.dir==='out'?relLab:'被'+relLab}</span></div>`;
@@ -522,9 +552,6 @@ async function showNodePanel(nodeId){
   document.getElementById('npNeighbors').innerHTML=nbHtml;
   document.getElementById('nodePanel').classList.add('show');
 }
-
-function jumpNode(id){ network.focus(id,{scale:1.2,animation:{duration:500}}); network.selectNodes([id]); selectNode(id); }
-function closePanel(){ document.getElementById('nodePanel').classList.remove('show'); resetHighlight(); }
 
 // 图谱内搜索
 let gsTimer=null;
@@ -542,7 +569,7 @@ function onGraphSearch(){
     box.classList.add('show');
   },200);
 }
-function pickGs(id){ document.getElementById('graphSearch').value=''; hideGsResults(); jumpNode(id); }
+function pickGs(id){ document.getElementById('graphSearch').value=''; hideGsResults(); focusNode(id); }
 function hideGsResults(){ document.getElementById('gsResults').classList.remove('show'); }
 
 init();
