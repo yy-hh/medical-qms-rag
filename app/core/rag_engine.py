@@ -107,7 +107,13 @@ class RAGEngine:
             logger.info("  Collection '%s': %d chunks", col, self._indices[col].count)
 
         api_key = settings.api_key or settings.anthropic_api_key
-        self.llm = OpenAI(api_key=api_key, base_url=settings.api_base_url)
+        # timeout 防止 Poe 端慢/挂起时 executor 线程被无限阻塞；max_retries 避免静默重试拖长首字节
+        self.llm = OpenAI(
+            api_key=api_key,
+            base_url=settings.api_base_url,
+            timeout=120.0,
+            max_retries=1,
+        )
         logger.info("RAGEngine ready (model=%s)", settings.claude_model)
 
     def _init_db(self):
@@ -199,8 +205,9 @@ class RAGEngine:
     # ── LLM Generation ───────────────────────────────────────────────────────
 
     def _extra_body(self) -> dict | None:
-        if "opus-4" in settings.claude_model:
-            return {"thinking": {"type": "enabled", "budget_tokens": 1024}}
+        # 注意：不要给 Poe 的 OpenAI 兼容端点传 thinking 参数——
+        # 实测带 thinking 会让流式请求 ~30s 后报 "Connection error"，
+        # 而 Poe 的 opus-4 本身就会输出 reasoning_content（已被忽略）。
         return None
 
     def _messages(self, question: str, context: str, history: list[dict] | None) -> list[dict]:

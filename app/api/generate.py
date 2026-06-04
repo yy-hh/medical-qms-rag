@@ -110,25 +110,35 @@ async def generate_document_stream(request: GenerateRequest):
     ref_context, ref_sources = _retrieve_refs(engine, doc)
     user_prompt = _build_prompt(doc, profile, request.extra_context or "", ref_context)
 
+    # 不传 thinking：Poe 兼容端点带 thinking 会导致流式 ~30s 后 Connection error（见 rag_engine._extra_body）
     extra_body = {}
-    if "opus-4" in settings.claude_model:
-        extra_body["thinking"] = {"type": "enabled", "budget_tokens": 1024}
 
     async def event_gen():
         yield f"data: {json.dumps({'type': 'meta', 'doc_id': doc['id'], 'doc_name': doc['name'], 'sources': ref_sources}, ensure_ascii=False)}\n\n"
 
-        gen = engine.llm.chat.completions.create(
-            model=settings.claude_model,
-            max_tokens=4096,
-            messages=[
-                {"role": "system", "content": GENERATE_SYSTEM},
-                {"role": "user", "content": user_prompt},
-            ],
-            stream=True,
-            extra_body=extra_body or None,
-        )
-
         loop = asyncio.get_event_loop()
+
+        def _open_stream():
+            # 建立 Poe 流式连接会阻塞直到首响应，必须放到 executor，
+            # 否则会卡住整个 asyncio 事件循环（导致 /api/health 等全部挂起）。
+            return engine.llm.chat.completions.create(
+                model=settings.claude_model,
+                max_tokens=4096,
+                messages=[
+                    {"role": "system", "content": GENERATE_SYSTEM},
+                    {"role": "user", "content": user_prompt},
+                ],
+                stream=True,
+                extra_body=extra_body or None,
+            )
+
+        try:
+            gen = await loop.run_in_executor(None, _open_stream)
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
         it = iter(gen)
         _END = object()
         while True:

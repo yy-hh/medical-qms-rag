@@ -294,6 +294,7 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
               <button class="icon-btn" id="genBtn" onclick="startGenerate()">✨ 生成文件</button>
               <button class="icon-btn" onclick="copyContent()">📋 复制</button>
             </div>
+            <div id="genStatus" style="display:none;font-size:12px;color:#3182ce;padding:4px 0"></div>
             <div class="gen-output">
               <div class="doc-content" id="genOutput">
                 <div class="gen-placeholder">点击「生成文件」按钮开始生成</div>
@@ -685,39 +686,72 @@ async function startGenerate() {
   out.classList.add('streaming');
 
   let fullText = '';
+  let done = false;
+  let lastDelta = Date.now();
+  let stallTimer = null;
+  const statusEl = document.getElementById('genStatus');
+  const setStatus = (msg)=>{ if(statusEl){ statusEl.textContent = msg||''; statusEl.style.display = msg?'block':'none'; } };
+
+  // 看门狗：超过 40s 没有新内容则提示仍在生成，但不覆盖已有文本
+  stallTimer = setInterval(()=>{
+    if(done) return;
+    if(Date.now()-lastDelta > 40000){
+      setStatus('⏳ 模型仍在生成中，请稍候…');
+    }
+  }, 5000);
+
   try {
     const resp = await fetch('/api/generate/stream',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({doc_id:selectedDocId, extra_context:pendingExtra||undefined}),
     });
+    if(!resp.ok || !resp.body){
+      throw new Error('HTTP '+resp.status);
+    }
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
     let buf='';
-    while(true) {
-      const {value,done}=await reader.read();
-      if(done) break;
+    while(!done) {
+      const {value,done:rdDone}=await reader.read();
+      if(rdDone) break;
       buf+=dec.decode(value,{stream:true});
       const lines=buf.split('\n');
       buf=lines.pop();
       for(const line of lines){
         if(!line.startsWith('data: ')) continue;
         const raw=line.slice(6);
-        if(raw==='[DONE]') break;
-        const ev=JSON.parse(raw);
+        if(raw==='[DONE]'){ done=true; break; }
+        let ev;
+        try{ ev=JSON.parse(raw); }catch{ continue; }  // 跳过半截/空行
         if(ev.type==='delta'){
           fullText+=ev.content;
           out.innerHTML=marked.parse(fullText);
+          lastDelta=Date.now();
+          setStatus('');
         } else if(ev.type==='error'){
-          toast('生成失败：'+ev.message);
+          done=true;
+          out.innerHTML = marked.parse(fullText) +
+            `<div style="color:#e53e3e;padding:10px;margin-top:8px;border:1px solid #feb2b2;border-radius:6px;background:#fff5f5">⚠️ 生成失败：${(ev.message||'未知错误').replace(/</g,'&lt;')}</div>`;
+          toast('生成失败：'+(ev.message||''));
+          break;
         }
       }
     }
-  } catch(e){ toast('请求失败：'+e.message); }
-
-  out.classList.remove('streaming');
-  genStreaming=false;
-  btn.disabled=false; btn.textContent='✨ 重新生成';
+    if(!done && !fullText){
+      out.innerHTML = `<div style="color:#e53e3e;padding:10px">⚠️ 连接结束但未收到内容，请重试</div>`;
+    }
+  } catch(e){
+    out.innerHTML = marked.parse(fullText) +
+      `<div style="color:#e53e3e;padding:10px;margin-top:8px;border:1px solid #feb2b2;border-radius:6px;background:#fff5f5">⚠️ 请求失败：${(e.message||e).toString().replace(/</g,'&lt;')}</div>`;
+    toast('请求失败：'+e.message);
+  } finally {
+    if(stallTimer) clearInterval(stallTimer);
+    setStatus('');
+    out.classList.remove('streaming');
+    genStreaming=false;
+    btn.disabled=false; btn.textContent='✨ 重新生成';
+  }
 }
 
 function copyContent() {
@@ -796,10 +830,11 @@ async function sendMsg(){
         collection:document.getElementById('kbColl').value||null,
       }),
     });
+    if(!resp.ok || !resp.body) throw new Error('HTTP '+resp.status);
     const reader=resp.body.getReader();
     const dec=new TextDecoder();
-    let buf='';
-    while(true){
+    let buf=''; let chatDone=false;
+    while(!chatDone){
       const {value,done}=await reader.read();
       if(done) break;
       buf+=dec.decode(value,{stream:true});
@@ -807,8 +842,8 @@ async function sendMsg(){
       for(const line of lines){
         if(!line.startsWith('data: ')) continue;
         const raw=line.slice(6);
-        if(raw==='[DONE]') break;
-        const ev=JSON.parse(raw);
+        if(raw==='[DONE]'){ chatDone=true; break; }
+        let ev; try{ ev=JSON.parse(raw); }catch{ continue; }
         if(ev.type==='sources'&&!srcDone){
           removeThinking(thinkId);
           ansEl=addAssistantBubble(ev.sources);
@@ -817,6 +852,11 @@ async function sendMsg(){
           fullAns+=ev.content;
           ansEl.innerHTML=marked.parse(fullAns);
           scrollBottom();
+        } else if(ev.type==='error'){
+          chatDone=true;
+          if(!srcDone){ removeThinking(thinkId); ansEl=addAssistantBubble([]); }
+          if(ansEl) ansEl.innerHTML=marked.parse(fullAns)+`<div style="color:#e53e3e">⚠️ ${(ev.message||'生成失败').replace(/</g,'&lt;')}</div>`;
+          break;
         }
       }
     }
@@ -825,9 +865,10 @@ async function sendMsg(){
   }catch(e){
     removeThinking(thinkId);
     appendAssist('请求失败：'+e.message);
+  }finally{
+    isLoading=false;
+    document.getElementById('sendBtn').disabled=false;
   }
-  isLoading=false;
-  document.getElementById('sendBtn').disabled=false;
 }
 
 function addUserBubble(text){
