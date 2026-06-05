@@ -33,8 +33,19 @@ async def save(req: SaveDocRequest):
 
 @router.get("")
 async def list_all():
-    """已生成文档列表（不含正文）。"""
-    return {"docs": doc_store.list_docs()}
+    """已生成文档列表（不含正文）。每份补 dossiers（归属档案 DHF/DMR/DHR/TF/NMPA）。"""
+    from app.core.qms_framework import DOSSIERS
+    # doc_id → [{key,name}] 该文档归入哪些档案
+    doc2dossier = {}
+    dossiers_meta = []
+    for ds in DOSSIERS:
+        dossiers_meta.append({"key": ds["id"], "name": ds["name"]})
+        for did in ds.get("compiles", []):
+            doc2dossier.setdefault(did, []).append({"key": ds["id"], "name": ds["name"]})
+    docs = doc_store.list_docs()
+    for d in docs:
+        d["dossiers"] = doc2dossier.get(d.get("doc_id"), [])
+    return {"docs": docs, "dossiers": dossiers_meta}
 
 
 @router.get("/{rid}")

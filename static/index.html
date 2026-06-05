@@ -98,6 +98,11 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .gen-group-tabs{display:flex;gap:0;background:#edf2f7;border-radius:7px;padding:2px}
 .ggt{flex:1;border:none;background:none;font-size:11px;padding:5px 6px;border-radius:5px;cursor:pointer;color:#718096;font-weight:600}
 .ggt.active{background:#fff;color:#2b6cb0;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.dossier-tabs{display:flex;flex-wrap:wrap;gap:5px}
+.dtab{border:1px solid #e2e8f0;background:#fff;font-size:11px;padding:3px 9px;border-radius:12px;cursor:pointer;color:#718096}
+.dtab:hover{border-color:#cbd5e0}
+.dtab.active{background:#3182ce;border-color:#3182ce;color:#fff;font-weight:600}
+.dtab .dt-n{opacity:.7;margin-left:3px}
 .gen-content{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .gen-empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:#a0aec0;flex-direction:column;gap:10px}
 .gen-empty .icon{font-size:40px}
@@ -292,10 +297,11 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
       <div class="gen-layout">
         <div class="gen-sidebar">
           <div class="gen-sidebar-head">
-            <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <span>已生成文档</span>
               <span id="docCount" style="font-size:11px;color:#a0aec0;font-weight:400"></span>
             </div>
+            <div class="dossier-tabs" id="dossierTabs"></div>
           </div>
           <div class="gen-doc-list" id="savedDocList">加载中…</div>
         </div>
@@ -533,22 +539,60 @@ function showPage(id) {
 // ── 文件管理（已生成文档存档）──────────────────────────────────
 let savedDocs = [];
 let curSavedId = null;
+let dossierMeta = [];     // [{key,name}]
+let curDossier = 'ALL';   // 当前选中的档案分组
 async function loadSavedDocs(){
   const el=document.getElementById('savedDocList');
   try{
     const d=await fetch('/api/docs').then(r=>r.json());
     savedDocs=d.docs||[];
+    dossierMeta=d.dossiers||[];
   }catch{ el.innerHTML='<div style="padding:12px;font-size:12px;color:#a0aec0">加载失败</div>'; return; }
   document.getElementById('docCount').textContent=savedDocs.length?`${savedDocs.length} 份`:'';
+  renderDossierTabs();
+  renderSavedList();
+}
+
+function renderDossierTabs(){
+  const wrap=document.getElementById('dossierTabs');
+  const cnt=key=>key==='ALL'?savedDocs.length:savedDocs.filter(d=>(d.dossiers||[]).some(x=>x.key===key)).length;
+  const tabs=[{key:'ALL',name:'全部'}].concat(dossierMeta);
+  // 未归入任何档案的文档(如纯清单类),给个"未归档"分组
+  const unfiled=savedDocs.filter(d=>!(d.dossiers||[]).length).length;
+  if(unfiled) tabs.push({key:'NONE',name:'未归档'});
+  wrap.innerHTML=tabs.map(t=>{
+    const n=t.key==='NONE'?unfiled:cnt(t.key);
+    const short=t.name.split(' ')[0].split('·')[0].split('（')[0];
+    return `<button class="dtab ${curDossier===t.key?'active':''}" onclick="setDossier('${t.key}')" title="${esc(t.name)}">${esc(short)}<span class="dt-n">${n}</span></button>`;
+  }).join('');
+}
+
+function setDossier(key){
+  curDossier=key;
+  renderDossierTabs();
+  renderSavedList();
+}
+
+function renderSavedList(){
+  const el=document.getElementById('savedDocList');
+  let list=savedDocs;
+  if(curDossier==='NONE') list=savedDocs.filter(d=>!(d.dossiers||[]).length);
+  else if(curDossier!=='ALL') list=savedDocs.filter(d=>(d.dossiers||[]).some(x=>x.key===curDossier));
   if(!savedDocs.length){
     el.innerHTML='<div style="padding:16px;font-size:12px;color:#a0aec0;line-height:1.6">暂无已生成文档。<br>到「实施路线图」点击任务即可生成并自动归档到这里。</div>';
     return;
   }
-  el.innerHTML=savedDocs.map(d=>{
+  if(!list.length){
+    el.innerHTML='<div style="padding:16px;font-size:12px;color:#a0aec0">该档案下暂无已生成文档</div>';
+    return;
+  }
+  el.innerHTML=list.map(d=>{
     const t=new Date(d.updated_at*1000); const ds=`${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+    const tags=(d.dossiers||[]).map(x=>`<span style="font-size:9px;background:#e9d8fd;color:#6b46c1;border-radius:8px;padding:0 5px;margin-right:3px">${esc(x.key.replace('DOSSIER-',''))}</span>`).join('');
     return `<div class="gen-doc-item" id="sdi-${d.id}" onclick="viewSavedDoc('${d.id}')">
       <div class="gdi-name">${esc(d.doc_name)}</div>
       <div class="gdi-id">${d.product_name?esc(d.product_name)+' · ':''}${(d.char_count||0)}字 · ${ds}</div>
+      ${tags?`<div style="margin-top:3px">${tags}</div>`:''}
     </div>`;
   }).join('');
 }
