@@ -95,6 +95,9 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .gen-doc-item .gdi-id{font-size:10px;font-family:monospace;color:#a0aec0}
 .gen-doc-item .gdi-name{font-size:12px;font-weight:500;color:#2d3748;margin-top:1px}
 .gen-phase-label{font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;padding:8px 10px 3px;letter-spacing:.5px}
+.gen-group-tabs{display:flex;gap:0;background:#edf2f7;border-radius:7px;padding:2px}
+.ggt{flex:1;border:none;background:none;font-size:11px;padding:5px 6px;border-radius:5px;cursor:pointer;color:#718096;font-weight:600}
+.ggt.active{background:#fff;color:#2b6cb0;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .gen-content{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .gen-empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:#a0aec0;flex-direction:column;gap:10px}
 .gen-empty .icon{font-size:40px}
@@ -285,7 +288,13 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
       </div>
       <div class="gen-layout">
         <div class="gen-sidebar">
-          <div class="gen-sidebar-head">选择文件</div>
+          <div class="gen-sidebar-head">
+            <div style="margin-bottom:8px">选择文件</div>
+            <div class="gen-group-tabs">
+              <button class="ggt active" data-by="level" onclick="setGenGroup('level')">按文件体系</button>
+              <button class="ggt" data-by="stage" onclick="setGenGroup('stage')">按注册阶段</button>
+            </div>
+          </div>
           <div class="gen-doc-list" id="genDocList">加载中…</div>
         </div>
         <div class="gen-content">
@@ -694,8 +703,39 @@ function renderRoadmap() {
   body.innerHTML = html;
 }
 
-function renderGenSidebar() {
+let genGroupBy = 'level';      // level=按文件体系  stage=按注册阶段
+let genChecklist = null;        // 缓存合规对照表(阶段→文档)
+
+function setGenGroup(by){
+  genGroupBy = by;
+  document.querySelectorAll('.ggt').forEach(b=>b.classList.toggle('active', b.dataset.by===by));
+  renderGenSidebar();
+}
+
+async function renderGenSidebar() {
   const el = document.getElementById('genDocList');
+  if(genGroupBy==='stage'){
+    // 按注册阶段分组：只列出"有可生成模板(doc_id)"的文档
+    if(!genChecklist){
+      try{ genChecklist = await fetch('/api/compliance/checklist').then(r=>r.json()); }
+      catch{ el.innerHTML='<div style="padding:12px;font-size:12px;color:#a0aec0">加载失败</div>'; return; }
+    }
+    const seen=new Set();
+    el.innerHTML = genChecklist.stages.map(s=>{
+      const docs=[];
+      for(const it of s.items){
+        if(it.doc_id && !seen.has(it.doc_id)){ seen.add(it.doc_id); docs.push(it); }
+      }
+      if(!docs.length) return '';
+      return `<div class="gen-phase-label">${s.no} ${esc(s.name)}</div>` +
+        docs.map(it=>`<div class="gen-doc-item" id="gdi-${it.doc_id}" onclick="selectGenDoc('${it.doc_id}')">
+          <div class="gdi-id">${it.doc_id}</div>
+          <div class="gdi-name">${esc(findDocName(it.doc_id)||it.output)}</div>
+        </div>`).join('');
+    }).join('') || '<div style="padding:12px;font-size:12px;color:#a0aec0">该视图暂无可生成文档</div>';
+    return;
+  }
+  // 按文件体系（四级）
   el.innerHTML = framework.doc_levels.map(lvl => `
     <div class="gen-phase-label">${lvl.name}</div>
     ${lvl.documents.map(doc => `
@@ -705,6 +745,8 @@ function renderGenSidebar() {
       </div>`).join('')}
   `).join('');
 }
+
+function findDocName(id){ const d=findDoc(id); return d?d.name:null; }
 
 // ── Doc Modal ──────────────────────────────────────────────────
 function findDoc(id) {
