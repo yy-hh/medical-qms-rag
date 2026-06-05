@@ -187,8 +187,9 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .new-chat{background:none;border:1px solid #e2e8f0;color:#718096;border-radius:7px;padding:0 8px;height:40px;font-size:11px;cursor:pointer;flex-shrink:0;white-space:nowrap}
 .new-chat:hover{border-color:#3182ce;color:#3182ce}
 /* ── Settings ── */
-.settings-body{flex:1;overflow-y:auto;padding:20px}
-.settings-card{background:#fff;border-radius:12px;padding:20px;max-width:640px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.settings-body{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+@media(max-width:900px){.settings-body{grid-template-columns:1fr}}
+.settings-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .settings-card h3{font-size:15px;font-weight:700;color:#1a365d;margin-bottom:16px}
 .form-row{margin-bottom:14px}
 .form-row label{display:block;font-size:12px;font-weight:600;color:#4a5568;margin-bottom:5px}
@@ -378,7 +379,7 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
       </div>
       <div class="settings-body">
         <div class="settings-card">
-          <h3>企业与产品信息</h3>
+          <h3>企业信息</h3>
           <div class="form-row">
             <label>企业名称 *</label>
             <input id="sCompany" type="text" placeholder="例：北京XX医疗科技有限公司">
