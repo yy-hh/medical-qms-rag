@@ -412,11 +412,11 @@ function closeModal(){ if(streaming){ if(!confirm('正在生成，确定关闭�
 
 // ══ 力导向图谱可视化 ══════════════════════════════════════════════════════
 const TYPE_STYLE={
-  Stage:      {color:'#f6ad55', size:30, shape:'hexagon'},
+  Stage:      {color:'#f6ad55', size:30, shape:'dot'},
   Document:   {color:'#4fd1c5', size:18, shape:'dot'},
   Requirement:{color:'#90cdf4', size:14, shape:'dot'},
-  Regulation: {color:'#f687b3', size:22, shape:'diamond'},
-  Dossier:    {color:'#b794f4', size:26, shape:'square'},
+  Regulation: {color:'#f687b3', size:22, shape:'dot'},
+  Dossier:    {color:'#b794f4', size:26, shape:'dot'},
 };
 const REL_COLOR={PRODUCES:'#f6ad55',SATISFIES:'#63b3ed',CITES:'#f687b3',BELONGS_TO:'rgba(255,255,255,0.06)',ARCHIVED_IN:'#b794f4'};
 
