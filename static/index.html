@@ -253,8 +253,8 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     <button class="nav-btn" id="nav-compliance" onclick="location.href='/static/compliance.html'" title="合规图谱">
       <span class="icon">🔗</span>合规图谱
     </button>
-    <button class="nav-btn" id="nav-generator" onclick="showPage('generator')" title="文件生成">
-      <span class="icon">📝</span>文件生成
+    <button class="nav-btn" id="nav-docs" onclick="showPage('docs')" title="文件管理">
+      <span class="icon">📁</span>文件管理
     </button>
     <button class="nav-btn" id="nav-chat" onclick="showPage('chat')" title="法规顾问">
       <span class="icon">💬</span>法规顾问
@@ -281,42 +281,40 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     </div>
 
     <!-- ══ Page: Generator ══ -->
-    <div class="page" id="page-generator">
-      <div class="page-head">
-        <h2>📝 文件生成器</h2>
-        <p>选择文件类型，AI 根据公司信息生成定制化模板（流式输出）</p>
+    <div class="page" id="page-docs">
+      <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <h2>📁 文件管理</h2>
+          <p>已生成的体系文档；如需新建，请到「实施路线图」点击任务生成</p>
+        </div>
+        <a class="icon-btn" href="/static/roadmap.html" style="white-space:nowrap;border-color:#3182ce;color:#3182ce;font-weight:600">🚀 去实施路线图生成文档 →</a>
       </div>
       <div class="gen-layout">
         <div class="gen-sidebar">
           <div class="gen-sidebar-head">
-            <div style="margin-bottom:8px">选择文件</div>
-            <div class="gen-group-tabs">
-              <button class="ggt active" data-by="level" onclick="setGenGroup('level')">按文件体系</button>
-              <button class="ggt" data-by="stage" onclick="setGenGroup('stage')">按注册阶段</button>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span>已生成文档</span>
+              <span id="docCount" style="font-size:11px;color:#a0aec0;font-weight:400"></span>
             </div>
           </div>
-          <div class="gen-doc-list" id="genDocList">加载中…</div>
+          <div class="gen-doc-list" id="savedDocList">加载中…</div>
         </div>
         <div class="gen-content">
-          <div class="gen-empty" id="genEmpty">
-            <div class="icon">📄</div>
-            <div style="font-size:14px;color:#718096">从左侧选择要生成的文件</div>
-            <div style="font-size:12px">AI 将根据公司信息生成定制化模板</div>
+          <div class="gen-empty" id="docEmpty">
+            <div class="icon">📁</div>
+            <div style="font-size:14px;color:#718096">从左侧选择已生成的文档查看</div>
+            <div style="font-size:12px">还没有文档？到实施路线图点任务生成</div>
           </div>
-          <div class="gen-panel" id="genPanel" style="display:none">
+          <div class="gen-panel" id="docPanel" style="display:none">
             <div class="gen-toolbar">
-              <h3 id="genDocTitle">—</h3>
-              <button class="icon-btn" id="genBtn" onclick="startGenerate()">✨ 生成文件</button>
-              <button class="icon-btn" id="genAllBtn" onclick="generateAll()" style="display:none">📖 生成全部章节</button>
-              <button class="icon-btn" id="copyBtn" onclick="copyContent()" style="display:none">📋 复制</button>
-              <button class="icon-btn" id="downloadBtn" onclick="downloadDoc()" style="display:none">⬇️ 下载 Word</button>
+              <h3 id="docTitle">—</h3>
+              <span id="docMeta" style="font-size:11px;color:#a0aec0;margin-right:auto"></span>
+              <button class="icon-btn" onclick="copySavedDoc()">📋 复制</button>
+              <button class="icon-btn" onclick="downloadSavedDoc()">⬇️ 下载 Word</button>
+              <button class="icon-btn" onclick="deleteSavedDoc()" style="border-color:#feb2b2;color:#e53e3e">🗑 删除</button>
             </div>
-            <div id="genSections" style="display:none;flex-wrap:wrap;gap:6px;padding:8px 0;border-bottom:1px solid #e2e8f0;margin-bottom:8px"></div>
-            <div id="genStatus" style="display:none;font-size:12px;color:#3182ce;padding:4px 0"></div>
             <div class="gen-output">
-              <div class="doc-content" id="genOutput">
-                <div class="gen-placeholder">点击「生成文件」按钮开始生成</div>
-              </div>
+              <div class="doc-content" id="docView"></div>
             </div>
           </div>
         </div>
@@ -490,11 +488,9 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     <div class="meta" id="modalMeta"></div>
     <div class="modal-tags" id="modalTags"></div>
     <div style="font-size:13px;color:#4a5568;margin-bottom:12px" id="modalDesc"></div>
-    <label style="font-size:12px;font-weight:600;color:#4a5568;display:block;margin-bottom:4px">补充说明（可选）</label>
-    <textarea id="modalExtra" placeholder="例：我们的产品采用云端SaaS模式部署，主要使用Python后端…"></textarea>
     <div class="modal-btns">
-      <button class="btn-primary" onclick="confirmGenerate()">✨ 生成文件</button>
-      <button class="btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn-primary" onclick="location.href='/static/roadmap.html'">🚀 去实施路线图生成</button>
+      <button class="btn-secondary" onclick="closeModal()">关闭</button>
     </div>
   </div>
 </div>
@@ -531,6 +527,68 @@ function showPage(id) {
   document.getElementById('page-'+id).classList.add('active');
   const nb = document.getElementById('nav-'+id);
   if (nb) nb.classList.add('active');
+  if (id==='docs') loadSavedDocs();
+}
+
+// ── 文件管理（已生成文档存档）──────────────────────────────────
+let savedDocs = [];
+let curSavedId = null;
+async function loadSavedDocs(){
+  const el=document.getElementById('savedDocList');
+  try{
+    const d=await fetch('/api/docs').then(r=>r.json());
+    savedDocs=d.docs||[];
+  }catch{ el.innerHTML='<div style="padding:12px;font-size:12px;color:#a0aec0">加载失败</div>'; return; }
+  document.getElementById('docCount').textContent=savedDocs.length?`${savedDocs.length} 份`:'';
+  if(!savedDocs.length){
+    el.innerHTML='<div style="padding:16px;font-size:12px;color:#a0aec0;line-height:1.6">暂无已生成文档。<br>到「实施路线图」点击任务即可生成并自动归档到这里。</div>';
+    return;
+  }
+  el.innerHTML=savedDocs.map(d=>{
+    const t=new Date(d.updated_at*1000); const ds=`${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+    return `<div class="gen-doc-item" id="sdi-${d.id}" onclick="viewSavedDoc('${d.id}')">
+      <div class="gdi-name">${esc(d.doc_name)}</div>
+      <div class="gdi-id">${d.product_name?esc(d.product_name)+' · ':''}${(d.char_count||0)}字 · ${ds}</div>
+    </div>`;
+  }).join('');
+}
+
+async function viewSavedDoc(id){
+  curSavedId=id;
+  document.querySelectorAll('#savedDocList .gen-doc-item').forEach(e=>e.classList.remove('active'));
+  document.getElementById('sdi-'+id)?.classList.add('active');
+  document.getElementById('docEmpty').style.display='none';
+  document.getElementById('docPanel').style.display='flex';
+  const view=document.getElementById('docView');
+  view.innerHTML='<div style="color:#a0aec0">加载中…</div>';
+  try{
+    const d=await fetch('/api/docs/'+id).then(r=>r.json());
+    document.getElementById('docTitle').textContent=d.doc_name;
+    const t=new Date(d.updated_at*1000);
+    document.getElementById('docMeta').textContent=`${d.product_name||''} · ${d.char_count}字 · ${t.toLocaleString('zh-CN')}`;
+    view.dataset.md=d.content;
+    view.innerHTML=marked.parse(d.content);
+  }catch{ view.innerHTML='<div style="color:#e53e3e">加载失败</div>'; }
+}
+
+function copySavedDoc(){
+  const v=document.getElementById('docView');
+  navigator.clipboard.writeText(v.innerText).then(()=>toast('✓ 已复制'));
+}
+function downloadSavedDoc(){
+  if(!curSavedId) return;
+  window.location.href='/api/docs/'+curSavedId+'/download';
+}
+async function deleteSavedDoc(){
+  if(!curSavedId) return;
+  if(!confirm('确定删除这份文档存档？')) return;
+  try{
+    await fetch('/api/docs/'+curSavedId,{method:'DELETE'});
+    toast('✓ 已删除'); curSavedId=null;
+    document.getElementById('docPanel').style.display='none';
+    document.getElementById('docEmpty').style.display='flex';
+    loadSavedDocs();
+  }catch{ toast('删除失败'); }
 }
 
 // ── Profile ────────────────────────────────────────────────────

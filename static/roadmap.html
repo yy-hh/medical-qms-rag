@@ -227,8 +227,9 @@ function closeModal(){
 }
 
 // ── Generation (reuses /api/generate/stream) ──
+let genDocName='';
 function startGen(docId,docName){
-  genDocId=docId;
+  genDocId=docId; genDocName=docName||docId;
   document.getElementById('genTitle').textContent='生成：'+docName;
   document.getElementById('genWrap').classList.add('show');
   document.getElementById('modalFoot').style.display='none';
@@ -273,6 +274,14 @@ async function runGenerate(){
       }
     }
     if(!done&&!full){out.innerHTML='<div style="color:#e53e3e;padding:8px">⚠️ 连接结束但未收到内容，请重试</div>';}
+    // 生成成功(有正文)→ 自动存档到「文件管理」
+    if(full.trim()){
+      try{
+        await fetch('/api/docs/save',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({doc_id:genDocId,doc_name:genDocName,content:full})});
+        toast('✓ 已生成并归档到「文件管理」');
+      }catch{ toast('生成完成，但归档失败'); }
+    }
   }catch(e){
     out.innerHTML=marked.parse(full)+`<div style="color:#e53e3e;padding:8px">⚠️ 请求失败：${(e.message||e).toString().replace(/</g,'&lt;')}</div>`;
     toast('请求失败：'+e.message);

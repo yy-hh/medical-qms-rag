@@ -224,7 +224,7 @@ function render(){
 }
 
 function genBtnHtml(docId, label){
-  if(docId) return `<button class="gen-btn" onclick="genDoc('${docId}',event)">✨ 生成</button>`;
+  if(docId) return `<button class="gen-btn" onclick="genDoc('${docId}',event)">📄 可生成</button>`;
   return `<span class="gen-btn none" title="暂无模板">清单项</span>`;
 }
 
@@ -280,7 +280,7 @@ async function renderRequirement(){
         ${r.docs.map(d=>`<div class="link-item">
           <span class="stage-pill" style="background:${stageColor[d.stage]||'#888'}">${stageNo(d.stage)}</span>
           <span class="lname"><b>${esc(d.doc_name)}</b></span>
-          ${d.doc_id?`<button class="gen-btn" onclick="genDoc('${d.doc_id}',event)">✨ 生成</button>`:'<span class="gen-btn none">清单项</span>'}
+          ${d.doc_id?`<button class="gen-btn" onclick="genDoc('${d.doc_id}',event)">📄 可生成</button>`:'<span class="gen-btn none">清单项</span>'}
         </div>`).join('')}
       </div></div>`).join('');
 }
@@ -317,7 +317,7 @@ function renderDocument(){
         <span class="ic">📄</span>
         <div class="main"><div class="t">${esc(d.name)}</div>
           <div class="s">${[...d.stages].map(stageNo).join(' / ')} 阶段 · 满足 ${d.reqs.length} 条法规要求</div></div>
-        ${d.doc_id?`<button class="gen-btn" onclick="genDoc('${d.doc_id}',event)">✨ 生成</button>`:'<span class="badge">清单项</span>'}
+        ${d.doc_id?`<button class="gen-btn" onclick="genDoc('${d.doc_id}',event)">📄 可生成</button>`:'<span class="badge">清单项</span>'}
       </div>
       <div class="card-body">
         ${d.reqs.map(r=>`<div class="link-item">
@@ -332,9 +332,14 @@ let searchTimer=null;
 function onSearch(){ clearTimeout(searchTimer); searchTimer=setTimeout(render,250); }
 
 // ── 生成文档（复用 outline + stream，分章生成）──
+// 合规图谱不再直接生成文档；统一引导到「实施路线图」生成（生成后自动归档）。
 async function genDoc(docId,ev){
   if(ev) ev.stopPropagation();
-  if(streaming){ toast('正在生成，请稍候'); return; }
+  if(confirm('文档生成已统一到「实施路线图」。是否前往实施路线图生成此文档？')){
+    location.href='/static/roadmap.html';
+  }
+  return;
+  /* 旧的图谱内生成逻辑已停用
   curDocId=docId;
   document.getElementById('modalBg').classList.add('open');
   const out=document.getElementById('modalOut');
@@ -362,6 +367,7 @@ async function genDoc(docId,ev){
     toast('✓ 生成完成');
   }catch(e){ toast('生成失败：'+e.message); }
   finally{ streaming=false; }
+  */
 }
 
 async function streamSection(docId,section,outline,el,label){
@@ -538,7 +544,7 @@ async function showNodePanel(nodeId){
   document.getElementById('npSub').innerHTML=sub;
   // 可生成文档 → 生成按钮
   const gw=document.getElementById('npGenWrap');
-  if(n.type==='Document'&&n.doc_id){ gw.innerHTML=`<button class="np-gen" onclick="genDoc('${n.doc_id}')">✨ 生成此文档</button>`; }
+  if(n.type==='Document'&&n.doc_id){ gw.innerHTML=`<button class="np-gen" onclick="genDoc('${n.doc_id}')">🚀 去实施路线图生成</button>`; }
   else gw.innerHTML='';
   // 邻居列表
   const nbHtml=d.neighbors.map(nb=>{
