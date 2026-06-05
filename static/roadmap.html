@@ -27,6 +27,8 @@ header .back:hover{background:rgba(255,255,255,.28)}
 .phase-head .en{font-size:11px;color:#a0aec0;font-weight:500}
 .phase-head .dur{font-size:11px;background:#edf2f7;color:#4a5568;border-radius:10px;padding:1px 9px;margin-left:auto}
 .phase-head .goal{font-size:12px;color:#718096;margin-top:3px}
+.sub-group{margin-bottom:14px}
+.sub-label{font-size:12px;font-weight:700;color:#4a5568;background:#edf2f7;border-radius:6px;padding:4px 10px;display:inline-block;margin-bottom:8px}
 .task-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .task-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:7px}
 .task-card:hover{border-color:#4299e1;box-shadow:0 3px 10px rgba(66,153,225,.15);transform:translateY(-1px)}
@@ -148,75 +150,79 @@ async function checkHealth(){
   try{const d=await fetch('/api/health').then(r=>r.json());
     document.getElementById('headerStats').textContent=`${d.total_documents} 篇文档 · ${d.total_chunks} 块`;}catch{}
 }
+const STAGE_COLOR={S1:'#1a365d',S2:'#dd6b20',S3:'#805ad5',S4:'#c53030',S5:'#38a169',S6:'#4a5568'};
+let checklist=null;
+
 async function loadRoadmap(){
   try{
-    roadmap=await fetch('/api/roadmap').then(r=>r.json());
+    checklist=await fetch('/api/compliance/checklist').then(r=>r.json());
     render();
   }catch(e){toast('加载路线图失败');}
 }
 
 function render(){
   const body=document.getElementById('rmBody');
-  body.innerHTML=roadmap.phases.map(p=>`
-    <div class="phase">
-      <div class="phase-dot" style="background:${p.color}">${p.phase}</div>
+  body.innerHTML=checklist.stages.map(s=>{
+    const color=STAGE_COLOR[s.key]||'#2b6cb0';
+    // 按子阶段(sub)分组
+    const groups={};
+    for(const it of s.items){ (groups[it.sub]=groups[it.sub]||[]).push(it); }
+    const groupsHtml=Object.entries(groups).map(([sub,items])=>`
+      <div class="sub-group">
+        <div class="sub-label">${esc(sub)}</div>
+        <div class="task-grid">
+          ${items.map(it=>taskCard(it)).join('')}
+        </div>
+      </div>`).join('');
+    return `<div class="phase">
+      <div class="phase-dot" style="background:${color}">${s.no}</div>
       <div class="phase-head">
-        <h3>${esc(p.name)} <span class="en">${esc(p.en)}</span><span class="dur">${esc(p.duration)}</span></h3>
-        <div class="goal">🎯 ${esc(p.goal)}</div>
+        <h3>${esc(s.name)} <span class="en">${esc(s.en||'')}</span><span class="dur">${s.items.length} 项</span></h3>
+        <div class="goal">🎯 ${esc(s.goal||'')}</div>
       </div>
-      <div class="task-grid">
-        ${p.tasks.map(t=>taskCard(t)).join('')}
-      </div>
-    </div>`).join('');
+      ${groupsHtml}
+    </div>`;
+  }).join('');
 }
 
-function taskCard(t){
-  const docTags=(t.docs&&t.docs.length)
-    ? t.docs.map(d=>`<span class="tag tag-doc">📄 ${esc(d.name)}</span>`).join('')
-    : `<span class="tag tag-none">无直接生成文件</span>`;
-  const dossTags=(t.dossier_labels||[]).map(d=>`<span class="tag tag-dossier">🗂 ${esc(d.key)}</span>`).join('');
-  return `<div class="task-card" onclick="openTask('${t.id}')">
-    <div class="tc-top"><div class="tc-id">${t.id}</div><div class="tc-title">${esc(t.title)}</div></div>
-    <div class="tc-what">${esc(t.what)}</div>
-    <div class="tc-io">
-      <div class="io-box"><b>输入</b>${esc(t.input)}</div>
-      <div class="io-box"><b>输出</b>${esc(t.output)}</div>
-    </div>
-    <div class="tc-tags">${docTags}</div>
-    <div class="tc-tags">${dossTags}</div>
-    <div class="tc-foot">点击查看详情并生成模板 →</div>
+function taskCard(it){
+  const canGen=!!it.doc_id;
+  const docTag=canGen
+    ? `<span class="tag tag-doc">📄 可生成</span>`
+    : `<span class="tag tag-none">清单项</span>`;
+  return `<div class="task-card" onclick="openTask(${it.seq})">
+    <div class="tc-top"><div class="tc-id">#${it.seq}</div><div class="tc-title">${esc(it.activity)}</div></div>
+    <div class="tc-what">输出：${esc(it.output)}</div>
+    <div class="tc-io"><div class="io-box"><b>法规依据</b>${esc(it.basis)}</div></div>
+    <div class="tc-tags">${docTag}</div>
+    <div class="tc-foot">${canGen?'点击查看并生成文档 →':'点击查看详情 →'}</div>
   </div>`;
 }
 
-function findTask(id){
-  for(const p of roadmap.phases) for(const t of p.tasks) if(t.id===id) return t;
+function findTask(seq){
+  for(const s of checklist.stages) for(const it of s.items) if(it.seq===seq) return {it,stage:s};
   return null;
 }
 
-function openTask(id){
-  const t=findTask(id);
-  if(!t) return;
-  curTask=t;
-  document.getElementById('mTitle').textContent=t.title;
-  document.getElementById('mMeta').textContent=`${t.id} · 阶段 ${(roadmap.phases.find(p=>p.tasks.some(x=>x.id===id))||{}).phase||''}`;
-  const docPick=(t.docs&&t.docs.length)
-    ? `<div class="doc-pick">${t.docs.map(d=>`
-        <div class="doc-pick-item" onclick="startGen('${d.id}','${esc(d.name)}')">
-          <span class="dp-name">${esc(d.name)}</span><span class="dp-id">${d.id}</span><span class="dp-go">✨ 生成模板</span>
-        </div>`).join('')}</div>`
-    : `<div class="no-doc">本任务为策划/管理类活动，无单一可生成文件；其产出将归入对应档案。</div>`;
-  const dossier=(t.dossier_labels||[]).map(d=>`<span class="tag tag-dossier">🗂 ${esc(d.label)}</span>`).join('') || '<span class="tag tag-none">—</span>';
+function openTask(seq){
+  const r=findTask(seq);
+  if(!r) return;
+  const it=r.it; curTask=it;
+  document.getElementById('mTitle').textContent=it.activity;
+  document.getElementById('mMeta').textContent=`#${it.seq} · ${r.stage.no} ${r.stage.name} · ${it.sub}`;
+  const docName=esc(it.output);
+  const docPick=it.doc_id
+    ? `<div class="doc-pick"><div class="doc-pick-item" onclick="startGen('${it.doc_id}','${docName.replace(/'/g,"\\'")}')">
+        <span class="dp-name">${docName}</span><span class="dp-id">${it.doc_id}</span><span class="dp-go">✨ 生成模板</span>
+       </div></div>`
+    : `<div class="no-doc">本项暂无可生成模板（多为判断/提交/检查类活动）；其产出归入对应注册资料。</div>`;
   document.getElementById('mScroll').innerHTML=`
-    <div class="m-section"><div class="lab">📌 要做什么</div><div class="val">${esc(t.what)}</div></div>
-    <div class="m-section"><div class="lab">❓ 为什么做</div><div class="val">${esc(t.why)}</div></div>
-    <div class="m-grid">
-      <div class="m-box"><div class="lab">⬇ 输入</div><div class="val">${esc(t.input)}</div></div>
-      <div class="m-box"><div class="lab">⬆ 输出</div><div class="val">${esc(t.output)}</div></div>
-    </div>
-    <div class="m-section" style="margin-top:14px"><div class="lab">📖 法规依据</div>
-      <div class="m-tags">${(t.standards||[]).map(s=>`<span class="tag tag-doc">${esc(s)}</span>`).join('')}</div></div>
-    <div class="m-section"><div class="lab">🗂 DHF / DMR / DHR 归档</div><div class="m-tags">${dossier}</div></div>
-    <div class="m-section"><div class="lab">📄 对应文件（点击生成模板，自动检索法规依据）</div>${docPick}</div>`;
+    <div class="m-section"><div class="lab">📌 活动</div><div class="val">${esc(it.activity)}</div></div>
+    <div class="m-section"><div class="lab">📄 输出文档/证据</div><div class="val">${esc(it.output)}</div></div>
+    <div class="m-section"><div class="lab">📖 法规依据</div><div class="val">${esc(it.basis)}</div></div>
+    <div class="m-section"><div class="lab">📑 具体条款</div><div class="val">${esc(it.clause)}</div></div>
+    ${it.note?`<div class="m-section"><div class="lab">💡 关键说明</div><div class="val">${esc(it.note)}</div></div>`:''}
+    <div class="m-section"><div class="lab">✨ 生成文档（自动检索法规依据、结合产品信息，完成后归档到文件管理）</div>${docPick}</div>`;
   closeGen();
   document.getElementById('taskModal').classList.add('open');
 }
