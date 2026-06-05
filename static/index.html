@@ -415,6 +415,58 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
             <span class="save-ok" id="saveOk">✓ 已保存</span>
           </div>
         </div>
+
+        <div class="settings-card">
+          <h3>注册产品信息 <span style="font-size:12px;color:#a0aec0;font-weight:400">（选填，填得越具体，生成的文件越贴合本产品）</span></h3>
+          <div class="form-row">
+            <label>产品描述</label>
+            <textarea id="sProdDesc" placeholder="例：一款基于深度学习的颈动脉超声图像辅助扫查软件，实时引导基层医生完成标准切面采集"></textarea>
+          </div>
+          <div class="form-row">
+            <label>核心功能</label>
+            <input id="sCoreFunc" type="text" placeholder="例：切面识别、斑块检测、内中膜厚度测量、扫查质量评估">
+          </div>
+          <div class="form-row">
+            <label>AI 类型</label>
+            <input id="sAiType" type="text" placeholder="例：辅助决策 / 非辅助决策（检测·测量·分割）/ 不含AI">
+          </div>
+          <div class="form-row">
+            <label>算法 / 模型</label>
+            <input id="sAlgo" type="text" placeholder="例：U-Net分割 + CNN分类；是否使用预训练大模型">
+          </div>
+          <div class="form-row">
+            <label>输入数据</label>
+            <input id="sInput" type="text" placeholder="例：B超实时视频流 / DICOM超声图像">
+          </div>
+          <div class="form-row">
+            <label>输出结果</label>
+            <input id="sOutput" type="text" placeholder="例：切面合格度评分、斑块位置标注框、IMT测量值">
+          </div>
+          <div class="form-row">
+            <label>适应症 / 临床场景</label>
+            <input id="sIndication" type="text" placeholder="例：颈动脉粥样硬化筛查（基层医疗机构）">
+          </div>
+          <div class="form-row">
+            <label>运行环境</label>
+            <input id="sEnv" type="text" placeholder="例：院内服务器部署 / 云端SaaS；依赖GPU、Windows/Linux">
+          </div>
+          <div class="form-row">
+            <label>训练 / 测试数据来源</label>
+            <input id="sData" type="text" placeholder="例：5家三甲医院、12000例、双盲标注、Kappa>0.8">
+          </div>
+          <div class="form-row">
+            <label>关键性能指标</label>
+            <input id="sMetrics" type="text" placeholder="例：灵敏度≥90%、特异度≥85%、AUC≥0.92">
+          </div>
+          <div class="form-row">
+            <label>主要第三方组件 / SOUP</label>
+            <input id="sSoup" type="text" placeholder="例：PyTorch 2.x、OpenCV、pydicom、ITK">
+          </div>
+          <div style="display:flex;align-items:center">
+            <button class="save-btn" onclick="saveProfile()">保存配置</button>
+            <span class="save-ok" id="saveOk2">✓ 已保存</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -487,6 +539,19 @@ function applyProfileToUI() {
   document.getElementById('sProduct').value = profile.product_name||'';
   document.getElementById('sUse').value = profile.intended_use||'';
   document.getElementById('sUsers').value = profile.target_users||'';
+  // 注册产品信息
+  const setv=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+  setv('sProdDesc',profile.product_description);
+  setv('sCoreFunc',profile.core_functions);
+  setv('sAiType',profile.ai_type);
+  setv('sAlgo',profile.algorithm);
+  setv('sInput',profile.input_data);
+  setv('sOutput',profile.output_result);
+  setv('sIndication',profile.clinical_indication);
+  setv('sEnv',profile.operating_env);
+  setv('sData',profile.data_source);
+  setv('sMetrics',profile.key_metrics);
+  setv('sSoup',profile.soup_list);
   document.getElementById('cls2').checked = (profile.device_class||[]).includes('II');
   document.getElementById('cls3').checked = (profile.device_class||[]).includes('III');
   document.getElementById('mktNMPA').checked = (profile.markets||[]).includes('NMPA');
@@ -497,6 +562,7 @@ function applyProfileToUI() {
 async function saveProfile() {
   const classes = ['cls2','cls3'].filter(id=>document.getElementById(id).checked).map(id=>document.getElementById(id).value);
   const markets = ['mktNMPA','mktCE','mktFDA'].filter(id=>document.getElementById(id).checked).map(id=>document.getElementById(id).value);
+  const gv=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
   const data = {
     company_name: document.getElementById('sCompany').value.trim(),
     product_name: document.getElementById('sProduct').value.trim(),
@@ -504,13 +570,22 @@ async function saveProfile() {
     target_users: document.getElementById('sUsers').value.trim(),
     device_class: classes,
     markets,
+    product_description: gv('sProdDesc'),
+    core_functions: gv('sCoreFunc'),
+    ai_type: gv('sAiType'),
+    algorithm: gv('sAlgo'),
+    input_data: gv('sInput'),
+    output_result: gv('sOutput'),
+    clinical_indication: gv('sIndication'),
+    operating_env: gv('sEnv'),
+    data_source: gv('sData'),
+    key_metrics: gv('sMetrics'),
+    soup_list: gv('sSoup'),
   };
   try {
     profile = await fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json());
     applyProfileToUI();
-    const ok = document.getElementById('saveOk');
-    ok.style.display='inline';
-    setTimeout(()=>ok.style.display='none',2000);
+    ['saveOk','saveOk2'].forEach(id=>{const ok=document.getElementById(id);if(ok){ok.style.display='inline';setTimeout(()=>ok.style.display='none',2000);}});
   } catch { toast('保存失败'); }
 }
 

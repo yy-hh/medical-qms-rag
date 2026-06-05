@@ -72,6 +72,23 @@ def _build_prompt(doc: dict, profile: dict, extra_context: str = "", ref_context
     standards = "、".join(doc.get("standards") or [])
     description = doc.get("desc") or doc.get("description") or ""
 
+    # 注册产品信息：只把填了的字段拼进去，让生成内容贴合具体产品
+    prod_fields = [
+        ("产品描述", profile.get("product_description")),
+        ("核心功能", profile.get("core_functions")),
+        ("AI类型", profile.get("ai_type")),
+        ("算法/模型", profile.get("algorithm")),
+        ("输入数据", profile.get("input_data")),
+        ("输出结果", profile.get("output_result")),
+        ("适应症/临床场景", profile.get("clinical_indication")),
+        ("运行环境", profile.get("operating_env")),
+        ("数据来源", profile.get("data_source")),
+        ("关键性能指标", profile.get("key_metrics")),
+        ("主要第三方组件(SOUP)", profile.get("soup_list")),
+    ]
+    prod_lines = "\n".join(f"- {label}：{val}" for label, val in prod_fields if (val or "").strip())
+    product_block = f"\n## 注册产品信息（请据此生成贴合本产品的内容，不要泛泛而谈）\n{prod_lines}\n" if prod_lines else ""
+
     base_info = f"""## 企业信息
 - 企业名称：{company}
 - 产品名称：{product}
@@ -80,7 +97,7 @@ def _build_prompt(doc: dict, profile: dict, extra_context: str = "", ref_context
 - 目标市场：{markets}
 - 预期用途：{intended_use}
 - 目标用户：{target_users}
-
+{product_block}
 ## 文件要求
 - 文件名称：{doc['name']}
 - 文件类型：{doc.get('type', '档案汇编')}
@@ -294,9 +311,18 @@ async def generate_outline(request: OutlineRequest):
 
     standards = "、".join(doc.get("standards") or [])
     desc = doc.get("desc") or doc.get("description") or ""
+    profile = load_profile()
+    pctx_fields = [
+        ("产品名称", profile.get("product_name")),
+        ("核心功能", profile.get("core_functions")),
+        ("AI类型", profile.get("ai_type")),
+        ("适应症/临床场景", profile.get("clinical_indication")),
+    ]
+    pctx = "；".join(f"{k}：{v}" for k, v in pctx_fields if (v or "").strip())
+    pctx_line = f"\n产品背景：{pctx}" if pctx else ""
     prompt = f"""请为医疗器械软件（SaMD）企业的「{doc['name']}」设计章节大纲。
 文件说明：{desc}
-适用标准：{standards}
+适用标准：{standards}{pctx_line}
 
 要求：
 - 输出该文件应包含的一级章节标题（如"第一章 ××"或"1. ××"），覆盖标准要求的关键要素
