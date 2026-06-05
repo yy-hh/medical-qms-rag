@@ -385,18 +385,6 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
             <input id="sCompany" type="text" placeholder="例：北京XX医疗科技有限公司">
           </div>
           <div class="form-row">
-            <label>产品名称 *</label>
-            <input id="sProduct" type="text" placeholder="例：XX辅助诊断软件">
-          </div>
-          <div class="form-row">
-            <label>预期用途</label>
-            <textarea id="sUse" placeholder="例：基于人工智能对X光片进行辅助分析，为临床医生提供诊断参考"></textarea>
-          </div>
-          <div class="form-row">
-            <label>目标用户</label>
-            <input id="sUsers" type="text" placeholder="例：三级甲等医院放射科医生">
-          </div>
-          <div class="form-row">
             <label>注册类别</label>
             <div class="checkbox-group">
               <label class="cb-item"><input type="checkbox" id="cls2" value="II" checked> 二类</label>
@@ -418,7 +406,19 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
         </div>
 
         <div class="settings-card">
-          <h3>注册产品信息 <span style="font-size:12px;color:#a0aec0;font-weight:400">（选填，填得越具体，生成的文件越贴合本产品）</span></h3>
+          <h3>注册产品信息 <span style="font-size:12px;color:#a0aec0;font-weight:400">（填得越具体，生成的文件越贴合本产品）</span></h3>
+          <div class="form-row">
+            <label>产品名称 *</label>
+            <input id="sProduct" type="text" placeholder="例：XX辅助诊断软件">
+          </div>
+          <div class="form-row">
+            <label>预期用途</label>
+            <textarea id="sUse" placeholder="例：基于人工智能对X光片进行辅助分析，为临床医生提供诊断参考"></textarea>
+          </div>
+          <div class="form-row">
+            <label>目标用户</label>
+            <input id="sUsers" type="text" placeholder="例：三级甲等医院放射科医生">
+          </div>
           <div class="form-row">
             <label>产品描述</label>
             <textarea id="sProdDesc" placeholder="例：一款基于深度学习的颈动脉超声图像辅助扫查软件，实时引导基层医生完成标准切面采集"></textarea>
