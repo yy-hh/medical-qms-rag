@@ -95,6 +95,10 @@ header .back:hover{background:rgba(255,255,255,.28)}
 .np-nb .nb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .np-nb .nb-lab{flex:1;color:#cbd5e0;line-height:1.35}
 .np-nb .nb-rel{font-size:9px;color:#64748b}
+.req-group{margin-top:4px}
+.req-group-hd{font-size:11px;color:#cbd5e0;cursor:pointer;padding:5px 6px;border-radius:6px;background:rgba(120,160,220,.08)}
+.req-group-hd:hover{background:rgba(120,160,220,.16)}
+.req-group-body{padding-left:6px}
 .np-gen{width:100%;margin-top:10px;background:#3182ce;color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;cursor:pointer;font-weight:600}
 .np-gen:hover{background:#2b6cb0}
 .np-close{position:absolute;top:10px;right:12px;cursor:pointer;color:#64748b;font-size:16px}
@@ -546,16 +550,32 @@ async function showNodePanel(nodeId){
   const gw=document.getElementById('npGenWrap');
   if(n.type==='Document'&&n.doc_id){ gw.innerHTML=`<button class="np-gen" onclick="genDoc('${n.doc_id}')">🚀 去实施路线图生成</button>`; }
   else gw.innerHTML='';
-  // 邻居列表
-  const nbHtml=d.neighbors.map(nb=>{
+  // 邻居列表：审查要点(Requirement)按法规分组折叠，其余平铺
+  const relLab={PRODUCES:'产出',SATISFIES:'满足',CITES:'引用',BELONGS_TO:'属于',ARCHIVED_IN:'归入'};
+  const reqNbs=d.neighbors.filter(nb=>nb.type==='Requirement');
+  const otherNbs=d.neighbors.filter(nb=>nb.type!=='Requirement');
+  const nb1=(nb)=>{
     const c=(TYPE_STYLE[nb.type]||{}).color||'#888';
-    const relLab={PRODUCES:'产出',SATISFIES:'满足',CITES:'引用',BELONGS_TO:'属于',ARCHIVED_IN:'归入'}[nb.rel]||nb.rel;
     return `<div class="np-nb" onclick="focusNode('${nb.id.replace(/'/g,"\\'")}')">
       <span class="nb-dot" style="background:${c}"></span>
       <span class="nb-lab">${esc(nb.label)}</span>
-      <span class="nb-rel">${nb.dir==='out'?relLab:'被'+relLab}</span></div>`;
-  }).join('')||'<div style="color:#64748b;font-size:11px">无关联</div>';
-  document.getElementById('npNeighbors').innerHTML=nbHtml;
+      <span class="nb-rel">${nb.dir==='out'?(relLab[nb.rel]||nb.rel):'被'+(relLab[nb.rel]||nb.rel)}</span></div>`;
+  };
+  let html=otherNbs.map(nb1).join('');
+  if(reqNbs.length){
+    // 按 basis(法规) 分组
+    const groups={};
+    reqNbs.forEach(nb=>{ const k=nb.basis||'其他'; (groups[k]=groups[k]||[]).push(nb); });
+    html+=`<div style="margin-top:8px;font-size:10px;color:#64748b">满足的审查要点（共 ${reqNbs.length} 条，按法规分组）</div>`;
+    html+=Object.entries(groups).map(([reg,items])=>`
+      <div class="req-group">
+        <div class="req-group-hd" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <span style="color:#90cdf4">▸</span> ${esc(reg)} <span style="color:#64748b">(${items.length})</span>
+        </div>
+        <div class="req-group-body" style="display:none">${items.map(nb1).join('')}</div>
+      </div>`).join('');
+  }
+  document.getElementById('npNeighbors').innerHTML=html||'<div style="color:#64748b;font-size:11px">无关联</div>';
   document.getElementById('nodePanel').classList.add('show');
 }
 

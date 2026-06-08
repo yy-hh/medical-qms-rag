@@ -146,9 +146,9 @@ def build_graph() -> nx.MultiDiGraph:
                 rnode = req_node_id(reg_name, req_clause)
                 if not G.has_node(rnode):
                     G.add_node(rnode, type="Requirement", basis=reg_name, clause=req_clause, summary=note)
-                # 文档 --SATISFIES--> 要求
+                # 文档 --SATISFIES--> 要求（73项种子均为单文档关联，视为主关联）
                 G.add_edge(dnode, rnode, key=f"SAT-{seq}-{int(extra)}-{reg_node_id(reg_name)}",
-                           rel="SATISFIES", seq=seq, extra=extra)
+                           rel="SATISFIES", seq=seq, extra=extra, primary=True)
                 # 要求 --CITES--> 它自己那一部法规文件
                 gnode = reg_node_id(reg_name)
                 if not G.has_node(gnode):
@@ -231,8 +231,9 @@ def _add_extracted_requirements(G: nx.MultiDiGraph):
             # 要求 --CITES--> 法规
             if not G.has_edge(rnode, gnode, key="CITES"):
                 G.add_edge(rnode, gnode, key="CITES", rel="CITES")
-            # 文档 --SATISFIES--> 要求
-            for did in (req.get("doc_ids") or []):
+            # 文档 --SATISFIES--> 要求。doc_ids[0] 为主文档(primary)，其余为次要关联，
+            # 用于查询时默认只展示主关联，避免 RMF/SRS/临床评价报告等通用文档被过度堆叠。
+            for pos, did in enumerate(req.get("doc_ids") or []):
                 dnode = f"DOC-{did}"
                 if not G.has_node(dnode):
                     fw = get_document_by_id(did)
@@ -240,7 +241,8 @@ def _add_extracted_requirements(G: nx.MultiDiGraph):
                         continue
                     G.add_node(dnode, type="Document", name=fw["name"], alias=fw["name"],
                                doc_id=did, generatable=True, sub="")
-                G.add_edge(dnode, rnode, key=f"SATX-{rnode}", rel="SATISFIES", extracted=True)
+                G.add_edge(dnode, rnode, key=f"SATX-{rnode}", rel="SATISFIES",
+                           extracted=True, primary=(pos == 0))
 
 
 # 进程内缓存
@@ -276,21 +278,27 @@ def by_stage(stage_key: str) -> dict:
             "requirements": list(reqs.values()), "count": count}
 
 
-def by_document(key_or_doc_id: str) -> dict:
+def by_document(key_or_doc_id: str, primary_only: bool = True) -> dict:
+    """primary_only=True 时只返回以该文档为主文档的审查要点（默认），
+    避免 RMF/SRS/临床评价报告等通用文档堆叠几十上百条次要关联。"""
     G = graph()
     dnode = key_or_doc_id if key_or_doc_id in G else f"DOC-{key_or_doc_id}"
     if dnode not in G or G.nodes[dnode].get("type") != "Document":
         return {}
     dn = G.nodes[dnode]
     stages, reqs = set(), []
+    secondary = 0
     for _, tgt, d in G.out_edges(dnode, data=True):
         if d.get("rel") == "BELONGS_TO":
             stages.add(tgt)
         elif d.get("rel") == "SATISFIES":
+            if primary_only and not d.get("primary", True):
+                secondary += 1
+                continue
             rn = G.nodes[tgt]
             reqs.append({"basis": rn["basis"], "clause": rn["clause"], "note": rn.get("summary", "")})
     return {"doc_key": dnode, "doc_name": dn["name"], "doc_id": dn.get("doc_id"),
-            "stages": sorted(stages), "requirements": reqs}
+            "stages": sorted(stages), "requirements": reqs, "secondary_count": secondary}
 
 
 def by_requirement(req_id: str) -> dict:
@@ -492,15 +500,18 @@ def node_detail(node_id: str) -> dict:
     a["id"] = node_id
     neighbors = []
     for _, v, d in G.out_edges(node_id, data=True):
+        # 文档节点：只展示主关联的审查要点，次要关联省略(避免一份文档列几十条)
+        if d.get("rel") == "SATISFIES" and not d.get("primary", True):
+            continue
         nb = G.nodes[v]
         neighbors.append({"id": v, "type": nb.get("type"), "rel": d.get("rel"),
                           "label": nb.get("name") or nb.get("clause") or nb.get("basis") or v,
-                          "dir": "out"})
+                          "basis": nb.get("basis"), "dir": "out"})
     for u, _, d in G.in_edges(node_id, data=True):
         nb = G.nodes[u]
         neighbors.append({"id": u, "type": nb.get("type"), "rel": d.get("rel"),
                           "label": nb.get("name") or nb.get("clause") or nb.get("basis") or u,
-                          "dir": "in"})
+                          "basis": nb.get("basis"), "dir": "in"})
     return {"node": a, "neighbors": neighbors}
 
 
