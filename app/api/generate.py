@@ -49,7 +49,9 @@ DOC_END_MARKER = "<!--DOC_END-->"
 
 
 class GenerateRequest(BaseModel):
-    doc_id: str
+    doc_id: Optional[str] = None
+    # 按全流程对照表序号生成（无预置 doc_id 的"企业自产文档"走这条）
+    seq: Optional[int] = None
     extra_context: Optional[str] = None
     # 分章节生成：指定则只生成该章节（长文档如质量手册逐章生成，避免单次过慢/超时）
     section: Optional[str] = None
@@ -57,8 +59,30 @@ class GenerateRequest(BaseModel):
     outline: Optional[list[str]] = None
 
 
+def _doc_from_checklist_seq(seq: int) -> dict | None:
+    """把 checklist 项构造成生成所需的 doc 结构（用于没有预置 doc_id 的企业自产文档）。"""
+    from app.core.registration_checklist import get_checklist_item, is_genable
+    it = get_checklist_item(seq)
+    if not it or not is_genable(it):
+        return None
+    if it.get("doc_id"):
+        d = get_document_by_id(it["doc_id"])
+        if d:
+            return d
+    # 合成 doc：用对照表项自身信息
+    return {
+        "id": f"SEQ-{seq}",
+        "name": (it["output"].split("；")[0].split("&")[0]).strip(),
+        "type": "注册文档",
+        "desc": f"{it['activity']}（{it['sub']}）。法规依据：{it['basis']} {it['clause']}。{it.get('note','')}",
+        "standards": [it["basis"]],
+        "refs": [],
+    }
+
+
 class OutlineRequest(BaseModel):
-    doc_id: str
+    doc_id: Optional[str] = None
+    seq: Optional[int] = None
 
 
 def _build_prompt(doc: dict, profile: dict, extra_context: str = "", ref_context: str = "",
@@ -158,9 +182,13 @@ GENERATE_SYSTEM = """你是一位拥有 15 年经验的医疗器械 QMS 咨询�
 
 @router.post("/stream")
 async def generate_document_stream(request: GenerateRequest):
-    doc = get_document_by_id(request.doc_id)
+    doc = None
+    if request.doc_id:
+        doc = get_document_by_id(request.doc_id)
+    if not doc and request.seq is not None:
+        doc = _doc_from_checklist_seq(request.seq)
     if not doc:
-        raise HTTPException(status_code=404, detail=f"文档 {request.doc_id} 不在框架中")
+        raise HTTPException(status_code=404, detail="未找到可生成的文档")
 
     profile = load_profile()
     engine = get_engine()
@@ -305,9 +333,13 @@ OUTLINE_SYSTEM = """你是医疗器械 QMS 文档架构师。只输出该文件�
 @router.post("/outline")
 async def generate_outline(request: OutlineRequest):
     """为某个文件生成章节大纲（章节标题列表），供前端分章节逐章生成。单轮小输出，快。"""
-    doc = get_document_by_id(request.doc_id)
+    doc = None
+    if request.doc_id:
+        doc = get_document_by_id(request.doc_id)
+    if not doc and request.seq is not None:
+        doc = _doc_from_checklist_seq(request.seq)
     if not doc:
-        raise HTTPException(status_code=404, detail=f"文档 {request.doc_id} 不在框架中")
+        raise HTTPException(status_code=404, detail="未找到可生成的文档")
 
     standards = "、".join(doc.get("standards") or [])
     desc = doc.get("desc") or doc.get("description") or ""

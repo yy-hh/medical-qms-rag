@@ -186,10 +186,10 @@ function render(){
 }
 
 function taskCard(it){
-  const canGen=!!it.doc_id;
+  const canGen=it.genable;
   const docTag=canGen
     ? `<span class="tag tag-doc">📄 可生成</span>`
-    : `<span class="tag tag-none">清单项</span>`;
+    : `<span class="tag tag-none">外部出具/流程</span>`;
   return `<div class="task-card" onclick="openTask(${it.seq})">
     <div class="tc-top"><div class="tc-id">#${it.seq}</div><div class="tc-title">${esc(it.activity)}</div></div>
     <div class="tc-what">输出：${esc(it.output)}</div>
@@ -210,12 +210,12 @@ function openTask(seq){
   const it=r.it; curTask=it;
   document.getElementById('mTitle').textContent=it.activity;
   document.getElementById('mMeta').textContent=`#${it.seq} · ${r.stage.no} ${r.stage.name} · ${it.sub}`;
-  const docName=esc(it.output);
-  const docPick=it.doc_id
-    ? `<div class="doc-pick"><div class="doc-pick-item" onclick="startGen('${it.doc_id}','${docName.replace(/'/g,"\\'")}')">
-        <span class="dp-name">${docName}</span><span class="dp-id">${it.doc_id}</span><span class="dp-go">✨ 生成模板</span>
+  const docName=esc(it.output.split('；')[0].split('&')[0].trim());
+  const docPick=it.genable
+    ? `<div class="doc-pick"><div class="doc-pick-item" onclick="startGen(${it.doc_id?`'${it.doc_id}'`:'null'},${it.seq},'${docName.replace(/'/g,"\\'")}')">
+        <span class="dp-name">${docName}</span><span class="dp-id">${it.doc_id||'#'+it.seq}</span><span class="dp-go">✨ 生成模板</span>
        </div></div>`
-    : `<div class="no-doc">本项暂无可生成模板（多为判断/提交/检查类活动）；其产出归入对应注册资料。</div>`;
+    : `<div class="no-doc">本项为外部机构出具或纯流程类（如检验报告、注册证、受理通知），不提供生成模板。</div>`;
   document.getElementById('mScroll').innerHTML=`
     <div class="m-section"><div class="lab">📌 活动</div><div class="val">${esc(it.activity)}</div></div>
     <div class="m-section"><div class="lab">📄 输出文档/证据</div><div class="val">${esc(it.output)}</div></div>
@@ -233,10 +233,10 @@ function closeModal(){
 }
 
 // ── Generation (reuses /api/generate/stream) ──
-let genDocName='';
-function startGen(docId,docName){
-  genDocId=docId; genDocName=docName||docId;
-  document.getElementById('genTitle').textContent='生成：'+docName;
+let genDocName='', genSeq=null;
+function startGen(docId,seq,docName){
+  genDocId=docId; genSeq=seq; genDocName=docName||docId||('#'+seq);
+  document.getElementById('genTitle').textContent='生成：'+genDocName;
   document.getElementById('genWrap').classList.add('show');
   document.getElementById('modalFoot').style.display='none';
   runGenerate();
@@ -246,7 +246,7 @@ function closeGen(){
   document.getElementById('modalFoot').style.display='block';
 }
 async function runGenerate(){
-  if(!genDocId||genStreaming) return;
+  if((!genDocId && genSeq==null)||genStreaming) return;
   genStreaming=true;
   const btn=document.getElementById('genRegen');
   btn.disabled=true; btn.textContent='⏳ 生成中…';
@@ -260,7 +260,7 @@ async function runGenerate(){
   try{
     const resp=await fetch('/api/generate/stream',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({doc_id:genDocId}),
+      body:JSON.stringify(genDocId?{doc_id:genDocId}:{seq:genSeq}),
     });
     if(!resp.ok||!resp.body) throw new Error('HTTP '+resp.status);
     const reader=resp.body.getReader();const dec=new TextDecoder();let buf='';
