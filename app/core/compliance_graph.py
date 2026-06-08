@@ -333,6 +333,45 @@ def search_requirements(keyword: str) -> list[dict]:
     return out
 
 
+def retrieve_for_qa(question: str, top_k: int = 6) -> list[dict]:
+    """问答专用：按问题在审查要点(basis+clause+title+detail)上做分词重叠打分，
+    返回 top 要点及其法规、所属阶段、关联文档。供法规助手做"阶段→文档→法规要求"关联回答。"""
+    import jieba
+    from app.core.registration_checklist import STAGES
+    stage_name = {s["key"]: f"{s['no']} {s['name']}" for s in STAGES}
+
+    q_terms = {t for t in jieba.cut(question) if len(t.strip()) > 1}
+    if not q_terms:
+        return []
+    G = graph()
+    scored = []
+    for n, a in G.nodes(data=True):
+        if a.get("type") != "Requirement":
+            continue
+        text = " ".join(str(a.get(k, "")) for k in ("basis", "clause", "title", "detail", "summary"))
+        hit = sum(1 for t in q_terms if t in text)
+        if hit == 0:
+            continue
+        # 关联文档 + 阶段
+        docs, stages = [], set()
+        for dnode, _, d in G.in_edges(n, data=True):
+            if d.get("rel") != "SATISFIES":
+                continue
+            dn = G.nodes[dnode]
+            docs.append({"doc_name": dn["name"], "doc_id": dn.get("doc_id")})
+            for _, st, ed in G.out_edges(dnode, data=True):
+                if ed.get("rel") == "BELONGS_TO":
+                    stages.add(stage_name.get(st, st))
+        scored.append((hit, {
+            "basis": a.get("basis"), "clause": a.get("clause"),
+            "detail": a.get("detail") or a.get("summary") or "",
+            "stages": sorted(stages),
+            "docs": docs[:4],
+        }))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [r for _, r in scored[:top_k]]
+
+
 # ── 真图能力：多跳 / 路径 / 邻居子图 ───────────────────────────────────────
 
 def overview_subgraph() -> dict:

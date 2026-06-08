@@ -39,6 +39,35 @@ async def stream_query(request: StreamQueryRequest):
     )
     context = engine.build_context(sources)
 
+    # 双路召回：在 BM25 法规原文之外，再从合规知识图谱检索相关审查要点，
+    # 让回答能给出「涉及哪个注册阶段 · 要哪些文档 · 满足哪条法规要求」的结构化关联。
+    graph_block = ""
+    try:
+        from app.core.compliance_graph import retrieve_for_qa
+        reqs = retrieve_for_qa(request.question, top_k=6)
+        if reqs:
+            lines = []
+            for r in reqs:
+                stages = "、".join(r["stages"]) or "—"
+                docs = "、".join(d["doc_name"] for d in r["docs"]) or "—"
+                lines.append(
+                    f"- 审查要点：{r['clause']}（出自《{r['basis']}》）\n"
+                    f"  注册阶段：{stages}；应由文档体现：{docs}"
+                    + (f"\n  要点说明：{r['detail']}" if r.get('detail') else "")
+                )
+            graph_block = "\n".join(lines)
+    except Exception:
+        graph_block = ""
+
+    if graph_block:
+        context = (
+            context
+            + "\n\n===== 合规知识图谱关联（审查要点 → 注册阶段 / 应产出文档） =====\n"
+            + graph_block
+            + "\n\n（请在回答中结合上述关联，说明该问题涉及的注册阶段、需要产出/体现的文档，"
+              "以及对应满足的法规审查要点；法规条款引用仍以前述法规原文为准。）"
+        )
+
     async def event_gen():
         # 1. Send retrieved sources immediately
         yield f"data: {json.dumps({'type':'sources','sources':[s.model_dump() for s in sources]}, ensure_ascii=False)}\n\n"
