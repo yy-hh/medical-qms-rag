@@ -14,10 +14,11 @@ build/
 # Conda
 .conda/
 
-# Data & vector store
+# Vector store (unused, legacy)
 vector_store/
+# data/documents/ 是入库用的原始 PDF（~67MB），不入库；知识库索引 qms.db（~4MB）
+# 已随仓库提交，clone 后法规问答开箱即用，无需重新导入。
 data/documents/
-qms.db
 
 # IDE
 .vscode/
