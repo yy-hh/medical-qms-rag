@@ -372,11 +372,28 @@ def get_basis_split(seq: int):
     return BASIS_SPLIT.get(str(seq))
 
 
+# 外部出具 / 纯流程类输出物的关键词——这些不是企业编写的文档，不提供生成模板
+_EXTERNAL_OUTPUT_KW = [
+    "检验报告", "受理通知", "补充资料回复", "体系核查记录",
+    "注册证", "经营备案证", "许可证", "伦理审批",
+]
+
+
+def is_genable(item: dict) -> bool:
+    """该 checklist 项是否可生成文档模板：
+    有预置 doc_id 的可生成；无 doc_id 但属于"企业自产文档"的也可生成；
+    外部机构出具/纯流程类（检验报告、注册证、受理通知等）不可生成。"""
+    if item.get("doc_id"):
+        return True
+    out = item.get("output", "")
+    return not any(kw in out for kw in _EXTERNAL_OUTPUT_KW)
+
+
 def get_checklist() -> dict:
-    """返回按阶段分组的全流程对照表。"""
+    """返回按阶段分组的全流程对照表。每项附 genable 标记。"""
     by_stage = {}
     for item in CHECKLIST:
-        by_stage.setdefault(item["stage"], []).append(item)
+        by_stage.setdefault(item["stage"], []).append({**item, "genable": is_genable(item)})
     stages = []
     for s in STAGES:
         items = by_stage.get(s["key"], [])
@@ -387,6 +404,7 @@ def get_checklist() -> dict:
             "total_items": len(CHECKLIST),
             "total_stages": len(STAGES),
             "with_template": sum(1 for i in CHECKLIST if i.get("doc_id")),
+            "genable": sum(1 for i in CHECKLIST if is_genable(i)),
         },
     }
 
