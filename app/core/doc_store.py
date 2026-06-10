@@ -71,13 +71,20 @@ def save_doc(doc_id, doc_name, content, product_name="", company_name="", ts=Non
     return rid
 
 
-def list_docs():
-    """列出所有存档（不含正文，轻量）。"""
+def list_docs(product_name=None):
+    """列出存档（不含正文，轻量）。传 product_name 则只返回该产品的文档（按产品隔离）。"""
     db = _db()
-    rows = db.execute(
-        "SELECT id, doc_id, doc_name, product_name, company_name, char_count, "
-        "created_at, updated_at FROM generated_docs ORDER BY updated_at DESC"
-    ).fetchall()
+    if product_name is not None:
+        rows = db.execute(
+            "SELECT id, doc_id, doc_name, product_name, company_name, char_count, "
+            "created_at, updated_at FROM generated_docs WHERE product_name=? ORDER BY updated_at DESC",
+            (product_name,),
+        ).fetchall()
+    else:
+        rows = db.execute(
+            "SELECT id, doc_id, doc_name, product_name, company_name, char_count, "
+            "created_at, updated_at FROM generated_docs ORDER BY updated_at DESC"
+        ).fetchall()
     cols = ["id", "doc_id", "doc_name", "product_name", "company_name",
             "char_count", "created_at", "updated_at"]
     return [dict(zip(cols, r)) for r in rows]
