@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse, Response
@@ -46,6 +47,10 @@ router = APIRouter(prefix="/api/generate", tags=["generate"])
 # 全文完成信号：模型写完整篇后输出此标记。HTML 注释形式，marked 渲染后浏览器不显示，
 # 后端据此判断是否还需续写（不能只靠 Poe 的 finish_reason —— 实测它常返回 "stop" 却内容未完）。
 DOC_END_MARKER = "<!--DOC_END-->"
+
+# 生成专用线程池：流式生成把同步迭代器的 next() 放到这里跑。独立且较大，
+# 即使个别请求卡在 Poe 读取上，也不会耗尽默认线程池而拖垮整个服务。
+_GEN_POOL = ThreadPoolExecutor(max_workers=64, thread_name_prefix="gen")
 
 
 class GenerateRequest(BaseModel):
@@ -214,6 +219,9 @@ async def generate_document_stream(request: GenerateRequest):
         # 且本轮已加断连容错（中途断开会把已生成内容回灌续写接上），即使偶发断连也能恢复。
         MAX_TOKENS_PER_ROUND = 16384
         MAX_ROUNDS = 8
+        # 总字数硬上限：防止 SDD 等可无限展开的文档续写失控（曾出现 22 万字）。
+        # 超过即停止续写，保证单份文档体量合理、耗时可控。
+        MAX_TOTAL_CHARS = 80000
 
         messages = [
             {"role": "system", "content": GENERATE_SYSTEM},
@@ -223,12 +231,16 @@ async def generate_document_stream(request: GenerateRequest):
         def _open_stream(msgs):
             # 建立 Poe 流式连接会阻塞直到首响应，必须放到 executor，
             # 否则会卡住整个 asyncio 事件循环（导致 /api/health 等全部挂起）。
+            # 显式传 timeout（读 90s）：Poe 偶发不回首字节时让底层 httpx 抛超时、
+            # 释放 executor 线程，避免线程泄漏累积耗尽线程池。
+            import httpx
             return engine.llm.chat.completions.create(
                 model=settings.claude_model,
                 max_tokens=MAX_TOKENS_PER_ROUND,
                 messages=msgs,
                 stream=True,
                 extra_body=extra_body or None,
+                timeout=httpx.Timeout(connect=15.0, read=90.0, write=30.0, pool=15.0),
             )
 
         full_text = ""          # 累计已发给前端的正文（不含结束标记）
@@ -239,9 +251,11 @@ async def generate_document_stream(request: GenerateRequest):
 
         for round_idx in range(MAX_ROUNDS):
             try:
-                gen = await loop.run_in_executor(None, _open_stream, messages)
+                # wait_for 兜底：建连 + 首响应最多等 100s，超时即放弃本轮，避免无限挂
+                gen = await asyncio.wait_for(
+                    loop.run_in_executor(_GEN_POOL, _open_stream, messages), timeout=100)
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': '生成超时或失败：' + str(e)}, ensure_ascii=False)}\n\n"
                 errored = True
                 break
 
@@ -252,7 +266,9 @@ async def generate_document_stream(request: GenerateRequest):
                 try:
                     # 用 sentinel 避免 StopIteration 跨 run_in_executor 边界——
                     # asyncio 无法把 StopIteration 设入 Future，否则 await 会永久挂起。
-                    chunk = await loop.run_in_executor(None, next, it, _END)
+                    # wait_for 兜底：单个 chunk 最多等 100s，超时按断流处理（已有内容则续写接力）。
+                    chunk = await asyncio.wait_for(
+                        loop.run_in_executor(_GEN_POOL, next, it, _END), timeout=100)
                     if chunk is _END:
                         break
                     if not chunk.choices:
@@ -296,6 +312,10 @@ async def generate_document_stream(request: GenerateRequest):
 
             # 本轮一个字都没出且未中断 —— 视为异常，停止避免空转
             if round_chars == 0 and not stream_broke:
+                break
+
+            # 总字数达到硬上限 —— 停止续写，防止失控
+            if len(full_text) >= MAX_TOTAL_CHARS:
                 break
 
             # 还没写完 → 回灌已生成内容，要求无缝续写
@@ -376,7 +396,7 @@ async def generate_outline(request: OutlineRequest):
         )
 
     try:
-        resp = await loop.run_in_executor(None, _call)
+        resp = await loop.run_in_executor(_GEN_POOL, _call)
         content = resp.choices[0].message.content or ""
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"大纲生成失败：{e}")

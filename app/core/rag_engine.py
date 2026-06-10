@@ -107,11 +107,13 @@ class RAGEngine:
             logger.info("  Collection '%s': %d chunks", col, self._indices[col].count)
 
         api_key = settings.api_key or settings.anthropic_api_key
-        # timeout 防止 Poe 端慢/挂起时 executor 线程被无限阻塞；max_retries 避免静默重试拖长首字节
+        # 用细粒度 httpx.Timeout：流式下若 Poe 端两次数据块之间卡住超过 read 超时即报错，
+        # 让阻塞的 executor 线程能退出、归还线程池（否则大请求卡死会耗尽线程池拖垮整个服务）。
+        import httpx
         self.llm = OpenAI(
             api_key=api_key,
             base_url=settings.api_base_url,
-            timeout=120.0,
+            timeout=httpx.Timeout(connect=15.0, read=90.0, write=30.0, pool=15.0),
             max_retries=1,
         )
         logger.info("RAGEngine ready (model=%s)", settings.claude_model)
