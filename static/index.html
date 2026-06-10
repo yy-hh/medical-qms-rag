@@ -585,7 +585,8 @@ function renderSavedList(){
   }
   el.innerHTML=list.map(d=>{
     const t=new Date(d.updated_at*1000); const ds=`${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
-    const tags=(d.dossiers||[]).map(x=>`<span style="font-size:9px;background:#e9d8fd;color:#6b46c1;border-radius:8px;padding:0 5px;margin-right:3px">${esc(x.key.replace('DOSSIER-',''))}</span>`).join('');
+    const DOSSHORT={'DOSSIER-DHF':'DHF','DOSSIER-DMR':'DMR','DOSSIER-DHR':'DHR','DOSSIER-TF':'技术文档','DOSSIER-NMPA':'NMPA','DOSSIER-PLAN':'注册策划'};
+    const tags=(d.dossiers||[]).map(x=>`<span style="font-size:9px;background:#e9d8fd;color:#6b46c1;border-radius:8px;padding:0 5px;margin-right:3px">${esc(DOSSHORT[x.key]||x.name)}</span>`).join('');
     return `<div class="gen-doc-item" id="sdi-${d.id}" onclick="viewSavedDoc('${d.id}')">
       <div class="gdi-name">${esc(d.doc_name)}</div>
       <div class="gdi-id">${d.product_name?esc(d.product_name)+' · ':''}${(d.char_count||0)}字 · ${ds}</div>

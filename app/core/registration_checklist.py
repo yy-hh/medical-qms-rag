@@ -389,10 +389,18 @@ def is_genable(item: dict) -> bool:
     return not any(kw in out for kw in _EXTERNAL_OUTPUT_KW)
 
 
+# 立项阶段产出的定性/策划材料单独归入「注册策划资料」（非设计/技术档案）。
+PLANNING_DOSSIER = {"key": "DOSSIER-PLAN", "name": "注册策划资料"}
+
 # 子类 → 归档档案 映射（一份文档可归多个档案）。依据 SaMD 实际归档规则：
 #   设计开发产出 → DHF；版本构建/发布/变更记录 → DHR；产品主规格 → DMR；
-#   技术文档(CE) → TF；注册申报材料 → NMPA。
+#   技术文档(CE) → TF；注册申报材料 → NMPA；立项定性/策划 → 注册策划资料。
 _SUB_TO_DOSSIERS = {
+    # ① 立项与产品定性 → 注册策划资料
+    "定性判断": ["DOSSIER-PLAN"],
+    "分类管理": ["DOSSIER-PLAN"],
+    "产品命名": ["DOSSIER-PLAN"],
+    "体外诊断路径": ["DOSSIER-PLAN"],
     # ② 研发
     "2A 软件生命周期": ["DOSSIER-DHF", "DOSSIER-DMR"],
     "2B 风险管理": ["DOSSIER-DHF", "DOSSIER-TF", "DOSSIER-NMPA"],
