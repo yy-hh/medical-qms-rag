@@ -36,10 +36,11 @@ async def list_all():
     """已生成文档列表（不含正文）。每份按其 checklist 子类推断归入的档案
     （DHF/DMR/DHR/技术文档/NMPA），覆盖按 seq 生成、无预置 doc_id 的文档。"""
     from app.core.qms_framework import DOSSIERS
-    from app.core.registration_checklist import CHECKLIST, infer_dossiers
+    from app.core.registration_checklist import CHECKLIST, infer_dossiers, PLANNING_DOSSIER
 
     dossiers_meta = [{"key": ds["id"], "name": ds["name"]} for ds in DOSSIERS]
-    name2meta = {ds["id"]: {"key": ds["id"], "name": ds["name"]} for ds in DOSSIERS}
+    dossiers_meta.append(PLANNING_DOSSIER)   # 第6个档案：注册策划资料
+    name2meta = {m["key"]: m for m in dossiers_meta}
 
     # 把存档文档匹配回 checklist：优先 doc_id，其次 output 首段名
     by_docid = {i["doc_id"]: i for i in CHECKLIST if i.get("doc_id")}
