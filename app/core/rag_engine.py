@@ -177,19 +177,33 @@ class RAGEngine:
         return cur.rowcount
 
     def list_documents(self, collection_name: str | None = None) -> list[DocumentInfo]:
-        collection_name = collection_name or settings.default_collection
-        rows = self.db.execute(
-            "SELECT doc_id, doc_name, file_type, collection, created_at, COUNT(*) FROM chunks WHERE collection=? GROUP BY doc_id",
-            (collection_name,),
-        ).fetchall()
+        # 不指定 collection 时返回全部知识库文档（文档分布在 regulations/standards/
+        # guidance-* 等多个 collection，没有名为 default_collection 的集合）。
+        if collection_name:
+            rows = self.db.execute(
+                "SELECT doc_id, doc_name, file_type, collection, created_at, COUNT(*) FROM chunks WHERE collection=? GROUP BY doc_id",
+                (collection_name,),
+            ).fetchall()
+        else:
+            rows = self.db.execute(
+                "SELECT doc_id, doc_name, file_type, collection, created_at, COUNT(*) FROM chunks GROUP BY doc_id ORDER BY collection",
+            ).fetchall()
         return [DocumentInfo(doc_id=r[0], name=r[1], file_type=r[2], collection=r[3], created_at=r[4], chunk_count=r[5]) for r in rows]
 
     # ── Retrieval ─────────────────────────────────────────────────────────────
 
     def retrieve(self, question: str, top_k: int, collection_name: str | None = None) -> list[SourceChunk]:
-        collection_name = collection_name or settings.default_collection
-        index = self._get_index(collection_name)
-        hits = index.search(question, top_k)
+        if collection_name:
+            hits = self._get_index(collection_name).search(question, top_k)
+        else:
+            # 不指定时跨全部 collection 检索，各取若干再按分数合并取 top_k
+            all_collections = [r[0] for r in self.db.execute(
+                "SELECT DISTINCT collection FROM chunks").fetchall()]
+            merged = []
+            for col in all_collections:
+                merged.extend(self._get_index(col).search(question, top_k))
+            merged.sort(key=lambda x: x[1], reverse=True)
+            hits = merged[:top_k]
         return [
             SourceChunk(doc_name=c["doc_name"], page=c.get("page"),
                         chunk_index=c["chunk_index"], content=c["text"], score=round(s, 4))

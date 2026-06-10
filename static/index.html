@@ -339,10 +339,7 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
           <div class="kb-coll-sel">
             <label>集合</label>
             <select id="kbColl" onchange="loadKbDocs()">
-              <option value="">默认</option>
-              <option value="regulations">法规文件</option>
-              <option value="standards">标准文件</option>
-              <option value="guidelines">指导原则</option>
+              <option value="">全部</option>
             </select>
           </div>
           <div class="drop-z" id="kbDrop"
@@ -1130,17 +1127,29 @@ function copyContent() {
 }
 
 // ── KB / Chat ──────────────────────────────────────────────────
+const COLL_LABEL={regulations:'法规',standards:'标准','guidance-ai':'AI指导原则','guidance-ai-clinical':'AI临床','guidance-ai-product':'AI产品专项','guidance-clinical':'临床评价','guidance-cybersecurity':'网络安全指导','guidance-mobile':'移动器械','guidance-qms-software':'独立软件GMP','guidance-registration':'注册指导','guidance-software':'软件指导','guidance-usability':'可用性',classification:'分类界定',cybersecurity:'网络安全法规'};
+function collLabel(c){return COLL_LABEL[c]||c;}
+let kbCollFilled=false;
 async function loadKbDocs() {
   const col = document.getElementById('kbColl').value;
-  const url = col ? `/api/documents?collection=${col}` : '/api/documents';
+  const url = col ? `/api/documents?collection=${encodeURIComponent(col)}` : '/api/documents';
   try {
     const docs = await fetch(url).then(r=>r.json());
+    // 首次：用全量文档的 collection 动态填充下拉
+    if(!kbCollFilled && !col){
+      const cols=[...new Set(docs.map(d=>d.collection))].sort();
+      const sel=document.getElementById('kbColl');
+      sel.innerHTML='<option value="">全部（'+docs.length+'）</option>'+
+        cols.map(c=>`<option value="${c}">${collLabel(c)}（${docs.filter(d=>d.collection===c).length}）</option>`).join('');
+      kbCollFilled=true;
+    }
     const el = document.getElementById('kbDocList');
     if (!docs.length) { el.innerHTML='<div style="text-align:center;padding:16px;font-size:11px;color:#a0aec0">暂无文档</div>'; return; }
     el.innerHTML = docs.map(d=>`
       <div class="kb-doc-item">
         <span style="font-size:14px">📄</span>
         <span class="kb-doc-name" title="${esc(d.name)}">${esc(d.name)}</span>
+        <span style="font-size:9px;background:#edf2f7;color:#718096;border-radius:6px;padding:0 5px;flex-shrink:0">${collLabel(d.collection)}</span>
         <button class="kb-doc-del" onclick="kbDel('${d.doc_id}','${esc(d.name)}')" title="删除">✕</button>
       </div>`).join('');
     checkHealth();
