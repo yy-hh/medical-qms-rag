@@ -33,18 +33,26 @@ async def save(req: SaveDocRequest):
 
 @router.get("")
 async def list_all():
-    """已生成文档列表（不含正文）。每份补 dossiers（归属档案 DHF/DMR/DHR/TF/NMPA）。"""
+    """已生成文档列表（不含正文）。每份按其 checklist 子类推断归入的档案
+    （DHF/DMR/DHR/技术文档/NMPA），覆盖按 seq 生成、无预置 doc_id 的文档。"""
     from app.core.qms_framework import DOSSIERS
-    # doc_id → [{key,name}] 该文档归入哪些档案
-    doc2dossier = {}
-    dossiers_meta = []
-    for ds in DOSSIERS:
-        dossiers_meta.append({"key": ds["id"], "name": ds["name"]})
-        for did in ds.get("compiles", []):
-            doc2dossier.setdefault(did, []).append({"key": ds["id"], "name": ds["name"]})
+    from app.core.registration_checklist import CHECKLIST, infer_dossiers
+
+    dossiers_meta = [{"key": ds["id"], "name": ds["name"]} for ds in DOSSIERS]
+    name2meta = {ds["id"]: {"key": ds["id"], "name": ds["name"]} for ds in DOSSIERS}
+
+    # 把存档文档匹配回 checklist：优先 doc_id，其次 output 首段名
+    by_docid = {i["doc_id"]: i for i in CHECKLIST if i.get("doc_id")}
+    by_name = {}
+    for i in CHECKLIST:
+        nm = i["output"].split("；")[0].split("&")[0].strip()
+        by_name.setdefault(nm, i)
+
     docs = doc_store.list_docs()
     for d in docs:
-        d["dossiers"] = doc2dossier.get(d.get("doc_id"), [])
+        item = by_docid.get(d.get("doc_id")) or by_name.get(d.get("doc_name"))
+        dossier_ids = infer_dossiers(item) if item else []
+        d["dossiers"] = [name2meta[k] for k in dossier_ids if k in name2meta]
     return {"docs": docs, "dossiers": dossiers_meta}
 
 

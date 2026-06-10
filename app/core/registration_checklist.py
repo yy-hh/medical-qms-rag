@@ -389,6 +389,40 @@ def is_genable(item: dict) -> bool:
     return not any(kw in out for kw in _EXTERNAL_OUTPUT_KW)
 
 
+# 子类 → 归档档案 映射（一份文档可归多个档案）。依据 SaMD 实际归档规则：
+#   设计开发产出 → DHF；版本构建/发布/变更记录 → DHR；产品主规格 → DMR；
+#   技术文档(CE) → TF；注册申报材料 → NMPA。
+_SUB_TO_DOSSIERS = {
+    # ② 研发
+    "2A 软件生命周期": ["DOSSIER-DHF", "DOSSIER-DMR"],
+    "2B 风险管理": ["DOSSIER-DHF", "DOSSIER-TF", "DOSSIER-NMPA"],
+    "2C AI算法开发": ["DOSSIER-DHF", "DOSSIER-TF", "DOSSIER-NMPA"],
+    "2D 网络安全": ["DOSSIER-DHF", "DOSSIER-TF", "DOSSIER-NMPA"],
+    "2E 可用性工程": ["DOSSIER-DHF", "DOSSIER-TF", "DOSSIER-NMPA"],
+    # ③ 注册申报准备
+    "3A 注册检验": ["DOSSIER-NMPA"],
+    "3B 临床评价": ["DOSSIER-TF", "DOSSIER-NMPA"],
+    "3C 注册资料整理": ["DOSSIER-NMPA", "DOSSIER-TF"],
+    # ④ 注册审查（体系核查）
+    "4B 生产质量体系核查": ["DOSSIER-DMR", "DOSSIER-DHR"],
+    # ⑤ 上市准备
+    "5A 注册证管理": ["DOSSIER-DHR", "DOSSIER-NMPA"],
+    "5B 上市前准备": ["DOSSIER-NMPA", "DOSSIER-TF"],
+    # ⑥ 上市后
+    "6A 不良事件监测": ["DOSSIER-NMPA"],
+    "6B 算法性能持续监控": ["DOSSIER-TF", "DOSSIER-NMPA"],
+    "6C 变更管理": ["DOSSIER-DHR", "DOSSIER-DMR", "DOSSIER-NMPA"],
+    "6D 产品再评价": ["DOSSIER-NMPA"],
+    "6E 信息安全更新": ["DOSSIER-DHR"],
+}
+
+
+def infer_dossiers(item: dict) -> list[str]:
+    """按 checklist 项的子类推断它归入的档案（DOSSIER-* id 列表）。
+    ①立项、4A形式审查、5C经营合规等不归入设计/技术档案，返回空。"""
+    return _SUB_TO_DOSSIERS.get(item.get("sub", ""), [])
+
+
 def get_checklist() -> dict:
     """返回按阶段分组的全流程对照表。每项附 genable 标记。"""
     by_stage = {}
