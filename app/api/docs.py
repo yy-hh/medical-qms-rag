@@ -32,11 +32,12 @@ async def save(req: SaveDocRequest):
 
 
 @router.get("")
-async def list_all():
-    """已生成文档列表（不含正文）。每份按其 checklist 子类推断归入的档案
-    （DHF/DMR/DHR/技术文档/NMPA），覆盖按 seq 生成、无预置 doc_id 的文档。"""
+async def list_all(product: str | None = None, all: bool = False):
+    """已生成文档列表（不含正文）。默认只返回【当前选中产品】的文档（按产品隔离）；
+    传 all=true 返回全部、或 product=<名称> 指定产品。每份按 checklist 子类推断档案。"""
     from app.core.qms_framework import DOSSIERS
     from app.core.registration_checklist import CHECKLIST, infer_dossiers, PLANNING_DOSSIER
+    from app.api.company import current_product_name
 
     dossiers_meta = [{"key": ds["id"], "name": ds["name"]} for ds in DOSSIERS]
     dossiers_meta.append(PLANNING_DOSSIER)   # 第6个档案：注册策划资料
@@ -49,7 +50,10 @@ async def list_all():
         nm = i["output"].split("；")[0].split("&")[0].strip()
         by_name.setdefault(nm, i)
 
-    docs = doc_store.list_docs()
+    if all:
+        docs = doc_store.list_docs()
+    else:
+        docs = doc_store.list_docs(product_name=(product if product is not None else current_product_name()))
     for d in docs:
         item = by_docid.get(d.get("doc_id")) or by_name.get(d.get("doc_name"))
         dossier_ids = infer_dossiers(item) if item else []

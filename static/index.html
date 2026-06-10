@@ -290,7 +290,7 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
       <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div>
           <h2>📁 文件管理</h2>
-          <p>已生成的体系文档；如需新建，请到「实施路线图」点击任务生成</p>
+          <p>当前产品：<b id="docsCurProd" style="color:#2b6cb0">—</b>　·　仅显示该产品已生成的文档（在「公司信息」切换产品）</p>
         </div>
         <a class="icon-btn" href="/static/roadmap.html" style="white-space:nowrap;border-color:#3182ce;color:#3182ce;font-weight:600">🚀 去实施路线图生成文档 →</a>
       </div>
@@ -392,34 +392,42 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
           <h3>企业信息</h3>
           <div class="form-row">
             <label>企业名称 *</label>
-            <input id="sCompany" type="text" placeholder="例：北京XX医疗科技有限公司">
+            <input id="sCompany" type="text" placeholder="例：北京XX医疗科技有限公司" onchange="saveCompanyName()">
+          </div>
+          <div class="form-row">
+            <label>注册产品（切换当前产品，文档与文件管理按产品隔离）</label>
+            <select id="prodSelect" onchange="switchProduct(this.value)"></select>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="icon-btn" onclick="newProduct()">＋ 新增产品</button>
+            <button class="icon-btn" onclick="deleteProduct()" style="border-color:#feb2b2;color:#e53e3e">🗑 删除当前产品</button>
+          </div>
+          <div style="font-size:11px;color:#a0aec0;margin-top:10px;line-height:1.6">
+            当前产品：<b id="curProdName" style="color:#2b6cb0">—</b><br>
+            切换产品后，「文件管理」只显示该产品已生成的文档，生成的新文档也归该产品。
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h3>注册产品信息 <span style="font-size:12px;color:#a0aec0;font-weight:400">（当前产品；填得越具体，生成越贴合）</span></h3>
+          <div class="form-row">
+            <label>产品名称 *</label>
+            <input id="sProduct" type="text" placeholder="例：XX辅助诊断软件">
           </div>
           <div class="form-row">
             <label>注册类别</label>
             <div class="checkbox-group">
-              <label class="cb-item"><input type="checkbox" id="cls2" value="II" checked> 二类</label>
-              <label class="cb-item"><input type="checkbox" id="cls3" value="III" checked> 三类</label>
+              <label class="cb-item"><input type="checkbox" id="cls2" value="II"> 二类</label>
+              <label class="cb-item"><input type="checkbox" id="cls3" value="III"> 三类</label>
             </div>
           </div>
           <div class="form-row">
             <label>目标市场</label>
             <div class="checkbox-group">
-              <label class="cb-item"><input type="checkbox" id="mktNMPA" value="NMPA" checked> 中国 NMPA</label>
-              <label class="cb-item"><input type="checkbox" id="mktCE" value="CE" checked> 欧盟 CE/MDR</label>
-              <label class="cb-item"><input type="checkbox" id="mktFDA" value="FDA" checked> 美国 FDA</label>
+              <label class="cb-item"><input type="checkbox" id="mktNMPA" value="NMPA"> 中国 NMPA</label>
+              <label class="cb-item"><input type="checkbox" id="mktCE" value="CE"> 欧盟 CE/MDR</label>
+              <label class="cb-item"><input type="checkbox" id="mktFDA" value="FDA"> 美国 FDA</label>
             </div>
-          </div>
-          <div style="display:flex;align-items:center">
-            <button class="save-btn" onclick="saveProfile()">保存配置</button>
-            <span class="save-ok" id="saveOk">✓ 已保存</span>
-          </div>
-        </div>
-
-        <div class="settings-card">
-          <h3>注册产品信息 <span style="font-size:12px;color:#a0aec0;font-weight:400">（填得越具体，生成的文件越贴合本产品）</span></h3>
-          <div class="form-row">
-            <label>产品名称 *</label>
-            <input id="sProduct" type="text" placeholder="例：XX辅助诊断软件">
           </div>
           <div class="form-row">
             <label>预期用途</label>
@@ -540,6 +548,8 @@ let dossierMeta = [];     // [{key,name}]
 let curDossier = 'ALL';   // 当前选中的档案分组
 async function loadSavedDocs(){
   const el=document.getElementById('savedDocList');
+  const cp=document.getElementById('docsCurProd');
+  if(cp) cp.textContent=(curProduct().product_name)||'(未设置)';
   try{
     const d=await fetch('/api/docs').then(r=>r.json());
     savedDocs=d.docs||[];
@@ -634,69 +644,112 @@ async function deleteSavedDoc(){
 }
 
 // ── Profile ────────────────────────────────────────────────────
+let store = {company_name:'', products:[], current_product_id:''};
+function curProduct(){ return (store.products||[]).find(p=>p.id===store.current_product_id) || (store.products||[])[0] || {}; }
+
 async function loadProfile() {
   try {
-    profile = await fetch('/api/company').then(r=>r.json());
-    applyProfileToUI();
+    store = await fetch('/api/company').then(r=>r.json());
+    profile = curProduct();   // 兼容旧引用
+    applyStoreToUI();
   } catch {}
 }
 
-function applyProfileToUI() {
-  if (profile.company_name) {
-    document.getElementById('companyTag').textContent = '🏢 '+profile.company_name;
+function applyStoreToUI() {
+  const cur = curProduct();
+  if (store.company_name) document.getElementById('companyTag').textContent = '🏢 '+store.company_name;
+  document.getElementById('sCompany').value = store.company_name||'';
+  // 产品下拉
+  const sel=document.getElementById('prodSelect');
+  if(sel){
+    sel.innerHTML=(store.products||[]).map(p=>`<option value="${p.id}" ${p.id===store.current_product_id?'selected':''}>${esc(p.product_name||'(未命名产品)')}</option>`).join('');
   }
-  document.getElementById('sCompany').value = profile.company_name||'';
-  document.getElementById('sProduct').value = profile.product_name||'';
-  document.getElementById('sUse').value = profile.intended_use||'';
-  document.getElementById('sUsers').value = profile.target_users||'';
-  // 注册产品信息
+  const cpn=document.getElementById('curProdName');
+  if(cpn) cpn.textContent=cur.product_name||'(未命名产品)';
+  // 当前产品字段填表
   const setv=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
-  setv('sProdDesc',profile.product_description);
-  setv('sCoreFunc',profile.core_functions);
-  setv('sAiType',profile.ai_type);
-  setv('sAlgo',profile.algorithm);
-  setv('sInput',profile.input_data);
-  setv('sOutput',profile.output_result);
-  setv('sIndication',profile.clinical_indication);
-  setv('sEnv',profile.operating_env);
-  setv('sData',profile.data_source);
-  setv('sMetrics',profile.key_metrics);
-  setv('sSoup',profile.soup_list);
-  document.getElementById('cls2').checked = (profile.device_class||[]).includes('II');
-  document.getElementById('cls3').checked = (profile.device_class||[]).includes('III');
-  document.getElementById('mktNMPA').checked = (profile.markets||[]).includes('NMPA');
-  document.getElementById('mktCE').checked = (profile.markets||[]).includes('CE');
-  document.getElementById('mktFDA').checked = (profile.markets||[]).includes('FDA');
+  setv('sProduct',cur.product_name);
+  setv('sUse',cur.intended_use);
+  setv('sUsers',cur.target_users);
+  setv('sProdDesc',cur.product_description);
+  setv('sCoreFunc',cur.core_functions);
+  setv('sAiType',cur.ai_type);
+  setv('sAlgo',cur.algorithm);
+  setv('sInput',cur.input_data);
+  setv('sOutput',cur.output_result);
+  setv('sIndication',cur.clinical_indication);
+  setv('sEnv',cur.operating_env);
+  setv('sData',cur.data_source);
+  setv('sMetrics',cur.key_metrics);
+  setv('sSoup',cur.soup_list);
+  const dc=cur.device_class||[], mk=cur.markets||[];
+  document.getElementById('cls2').checked=dc.includes('II');
+  document.getElementById('cls3').checked=dc.includes('III');
+  document.getElementById('mktNMPA').checked=mk.includes('NMPA');
+  document.getElementById('mktCE').checked=mk.includes('CE');
+  document.getElementById('mktFDA').checked=mk.includes('FDA');
 }
 
-async function saveProfile() {
-  const classes = ['cls2','cls3'].filter(id=>document.getElementById(id).checked).map(id=>document.getElementById(id).value);
-  const markets = ['mktNMPA','mktCE','mktFDA'].filter(id=>document.getElementById(id).checked).map(id=>document.getElementById(id).value);
+async function saveCompanyName(){
+  try{
+    store=await fetch('/api/company/company-name',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({company_name:document.getElementById('sCompany').value.trim()})}).then(r=>r.json());
+    applyStoreToUI();
+  }catch{}
+}
+
+async function saveProfile(){
+  const classes=['cls2','cls3'].filter(id=>document.getElementById(id).checked).map(id=>document.getElementById(id).value);
+  const markets=['mktNMPA','mktCE','mktFDA'].filter(id=>document.getElementById(id).checked).map(id=>document.getElementById(id).value);
   const gv=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
-  const data = {
-    company_name: document.getElementById('sCompany').value.trim(),
-    product_name: document.getElementById('sProduct').value.trim(),
-    intended_use: document.getElementById('sUse').value.trim(),
-    target_users: document.getElementById('sUsers').value.trim(),
-    device_class: classes,
-    markets,
-    product_description: gv('sProdDesc'),
-    core_functions: gv('sCoreFunc'),
-    ai_type: gv('sAiType'),
-    algorithm: gv('sAlgo'),
-    input_data: gv('sInput'),
-    output_result: gv('sOutput'),
-    clinical_indication: gv('sIndication'),
-    operating_env: gv('sEnv'),
-    data_source: gv('sData'),
-    key_metrics: gv('sMetrics'),
-    soup_list: gv('sSoup'),
+  const data={
+    id: store.current_product_id,
+    product_name: gv('sProduct'), intended_use: gv('sUse'), target_users: gv('sUsers'),
+    device_class: classes, markets,
+    product_description: gv('sProdDesc'), core_functions: gv('sCoreFunc'), ai_type: gv('sAiType'),
+    algorithm: gv('sAlgo'), input_data: gv('sInput'), output_result: gv('sOutput'),
+    clinical_indication: gv('sIndication'), operating_env: gv('sEnv'), data_source: gv('sData'),
+    key_metrics: gv('sMetrics'), soup_list: gv('sSoup'),
   };
-  try {
-    profile = await fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json());
-    applyProfileToUI();
+  try{
+    store=await fetch('/api/company/product',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json());
+    profile=curProduct();
+    applyStoreToUI();
     ['saveOk','saveOk2'].forEach(id=>{const ok=document.getElementById(id);if(ok){ok.style.display='inline';setTimeout(()=>ok.style.display='none',2000);}});
-  } catch { toast('保存失败'); }
+  }catch{ toast('保存失败'); }
+}
+
+async function switchProduct(pid){
+  try{
+    store=await fetch('/api/company/current/'+pid,{method:'POST'}).then(r=>r.json());
+    profile=curProduct();
+    applyStoreToUI();
+    if(document.getElementById('page-docs').classList.contains('active')) loadSavedDocs();
+    toast('已切换到：'+(curProduct().product_name||'该产品'));
+  }catch{ toast('切换失败'); }
+}
+
+async function newProduct(){
+  const name=prompt('新产品名称：');
+  if(name===null) return;
+  try{
+    store=await fetch('/api/company/product',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({product_name:name.trim()||'新产品'})}).then(r=>r.json());
+    profile=curProduct();
+    applyStoreToUI();
+    toast('已新增并切换到新产品');
+  }catch{ toast('新增失败'); }
+}
+
+async function deleteProduct(){
+  if((store.products||[]).length<=1){ toast('至少保留一个产品'); return; }
+  if(!confirm('确定删除当前产品「'+(curProduct().product_name||'')+'」？\n（该产品已生成的文档不会被删除，但将不再按此产品显示）')) return;
+  try{
+    store=await fetch('/api/company/product/'+store.current_product_id,{method:'DELETE'}).then(r=>r.json());
+    profile=curProduct();
+    applyStoreToUI();
+    toast('已删除');
+  }catch{ toast('删除失败'); }
 }
 
 // ── Framework / Roadmap ────────────────────────────────────────
