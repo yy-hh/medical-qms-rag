@@ -264,6 +264,12 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     <button class="nav-btn" id="nav-chat" onclick="showPage('chat')" title="法规顾问">
       <span class="icon">💬</span>法规顾问
     </button>
+    <button class="nav-btn" id="nav-notes" onclick="showPage('notes')" title="笔记">
+      <span class="icon">📝</span>笔记
+    </button>
+    <button class="nav-btn" id="nav-hotnews" onclick="showPage('hotnews')" title="热点速递">
+      <span class="icon">📰</span>热点速递
+    </button>
     <button class="nav-btn" id="nav-settings" onclick="showPage('settings')" title="公司信息">
       <span class="icon">⚙️</span>公司信息
     </button>
@@ -378,6 +384,91 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
             <button class="send-btn" id="sendBtn" onclick="sendMsg()">➤</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ══ Page: Notes ══ -->
+    <div class="page" id="page-notes">
+      <div class="chat-wrap">
+        <!-- Notes sidebar -->
+        <div class="chat-sidebar" style="width:280px">
+          <div class="chat-sidebar-head">
+            <h3>📝 我的笔记</h3>
+            <button onclick="loadNotes()" style="background:none;border:none;cursor:pointer;color:#718096;font-size:15px" title="刷新">↻</button>
+          </div>
+          <div style="padding:8px 10px">
+            <button class="up-btn2" style="width:100%;margin-top:0;padding:7px" onclick="newNote()">＋ 新建笔记</button>
+          </div>
+          <div style="padding:0 10px 6px">
+            <input id="noteSearchBox" type="text" placeholder="🔍 搜索标题/正文…"
+              style="width:100%;padding:6px 9px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;outline:none"
+              oninput="onNoteSearch()">
+          </div>
+          <div class="dossier-tabs" id="noteTagTabs" style="padding:0 10px 8px"></div>
+          <div class="kb-doc-list" id="noteList" style="padding:6px 8px">加载中…</div>
+        </div>
+        <!-- Notes main -->
+        <div class="chat-main">
+          <div class="gen-empty" id="noteEmpty" style="flex:1;display:flex">
+            <div class="icon">📝</div>
+            <div style="font-size:14px;color:#718096">从左侧选择一条笔记查看，或点「＋ 新建笔记」</div>
+            <div style="font-size:12px">记录使用中的想法和心得，支持 Markdown</div>
+          </div>
+          <!-- 查看态 -->
+          <div class="gen-panel" id="noteView" style="display:none">
+            <div class="gen-toolbar">
+              <h3 id="noteViewTitle">—</h3>
+              <span id="noteViewMeta" style="font-size:11px;color:#a0aec0;margin-right:auto"></span>
+              <button class="icon-btn" onclick="editNote()">✏️ 编辑</button>
+              <button class="icon-btn" onclick="deleteNote()" style="border-color:#feb2b2;color:#e53e3e">🗑 删除</button>
+            </div>
+            <div class="gen-output">
+              <div id="noteViewTags" style="margin-bottom:10px"></div>
+              <div class="doc-content" id="noteViewBody"></div>
+            </div>
+          </div>
+          <!-- 编辑态 -->
+          <div class="gen-panel" id="noteEdit" style="display:none">
+            <div class="gen-toolbar">
+              <h3 id="noteEditHead">编辑笔记</h3>
+              <button class="icon-btn" id="noteCancelBtn" onclick="cancelEdit()" style="margin-left:auto">取消</button>
+            </div>
+            <div class="gen-output">
+              <div style="max-width:820px">
+                <div class="form-row">
+                  <label>标题</label>
+                  <input id="noteTitle" type="text" placeholder="给这条笔记起个标题（留空则取正文首行）">
+                </div>
+                <div class="form-row">
+                  <label>标签（逗号分隔）</label>
+                  <input id="noteTagsInput" type="text" placeholder="例：ISO13485, 风险管理, CAPA">
+                </div>
+                <div class="form-row">
+                  <label>正文（支持 Markdown）</label>
+                  <textarea id="noteBody" style="min-height:320px;font-family:inherit" placeholder="记录你的想法和心得…"></textarea>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <button class="save-btn" onclick="saveNote()">保存笔记</button>
+                  <span class="save-ok" id="noteSaveOk">✓ 已保存</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Page: Hot News ══ -->
+    <div class="page" id="page-hotnews">
+      <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <h2>📰 热点速递</h2>
+          <p>每天 10:00 自动联网搜索 · 中国医疗器械注册 / 监管热点新闻　<span id="hotnewsTime" style="color:#a0aec0"></span></p>
+        </div>
+        <button class="icon-btn" id="hotnewsRefreshBtn" onclick="refreshHotnews()" style="white-space:nowrap;border-color:#3182ce;color:#3182ce;font-weight:600">🔄 立即刷新</button>
+      </div>
+      <div class="roadmap-body" id="hotnewsBody">
+        <div style="text-align:center;padding:40px;color:#a0aec0">加载中…</div>
       </div>
     </div>
 
@@ -506,6 +597,23 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
   </div>
 </div>
 
+<!-- Document reader modal -->
+<div class="modal-bg" id="readModal">
+  <div class="modal" style="max-width:1000px;width:92%;height:88vh;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <h2 id="readTitle" style="margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</h2>
+        <div class="meta" id="readMeta" style="margin:2px 0 0;font-size:11px"></div>
+      </div>
+      <button class="icon-btn" id="readDownload" onclick="downloadReadDoc()" title="下载原文件">⬇️ 下载</button>
+      <button class="btn-secondary" onclick="closeReadModal()">关闭</button>
+    </div>
+    <div id="readBody" style="flex:1;overflow:auto;background:#525659">
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#cbd5e0">加载中…</div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -539,6 +647,8 @@ function showPage(id) {
   const nb = document.getElementById('nav-'+id);
   if (nb) nb.classList.add('active');
   if (id==='docs') loadSavedDocs();
+  if (id==='notes') loadNotes();
+  if (id==='hotnews') loadHotnews();
 }
 
 // ── 文件管理（已生成文档存档）──────────────────────────────────
@@ -1202,7 +1312,7 @@ async function loadKbDocs() {
     el.innerHTML = docs.map(d=>`
       <div class="kb-doc-item">
         <span style="font-size:14px">📄</span>
-        <span class="kb-doc-name" title="${esc(d.name)}">${esc(d.name)}</span>
+        <span class="kb-doc-name" title="点击在线阅读：${esc(d.name)}" style="cursor:pointer" onclick="readDoc('${d.doc_id}','${esc(d.name)}')">${esc(d.name)}</span>
         <span style="font-size:9px;background:#edf2f7;color:#718096;border-radius:6px;padding:0 5px;flex-shrink:0">${collLabel(d.collection)}</span>
         <button class="kb-doc-del" onclick="kbDel('${d.doc_id}','${esc(d.name)}')" title="删除">✕</button>
       </div>`).join('');
@@ -1278,11 +1388,12 @@ async function sendMsg(){
         let ev; try{ ev=JSON.parse(raw); }catch{ continue; }
         if(ev.type==='sources'&&!srcDone){
           removeThinking(thinkId);
-          ansEl=addAssistantBubble(ev.sources);
+          ansEl=addAssistantBubble(ev.sources, q);
           srcDone=true;
         } else if(ev.type==='delta'&&ansEl){
           fullAns+=ev.content;
           ansEl.innerHTML=marked.parse(fullAns);
+          ansEl.dataset.md=fullAns;
           scrollBottom();
         } else if(ev.type==='error'){
           chatDone=true;
@@ -1311,7 +1422,7 @@ function addUserBubble(text){
   scrollBottom();
 }
 
-function addAssistantBubble(sources){
+function addAssistantBubble(sources, question=''){
   const sid='src_'+Date.now();
   const srcHtml=sources.length?`
     <div class="src-area">
@@ -1327,6 +1438,13 @@ function addAssistantBubble(sources){
   const body=document.createElement('div'); body.className='mb';
   body.appendChild(bubble);
   if(srcHtml){const sd=document.createElement('div');sd.innerHTML=srcHtml;body.appendChild(sd);}
+  // 一键存为笔记
+  const noteBtn=document.createElement('button');
+  noteBtn.className='src-btn';
+  noteBtn.style.cssText='margin-top:6px;border-color:#c6f6d5;color:#276749';
+  noteBtn.textContent='📝 存为笔记';
+  noteBtn.onclick=()=>saveAnswerAsNote(question, bubble.dataset.md||bubble.innerText||'');
+  body.appendChild(noteBtn);
   wrapper.innerHTML=`<div class="av">⚕</div>`; wrapper.appendChild(body);
   document.getElementById('messages').appendChild(wrapper);
   scrollBottom();
@@ -1352,6 +1470,255 @@ function addThinking(){
 function removeThinking(id){document.getElementById(id)?.remove();}
 function scrollBottom(){const m=document.getElementById('messages');m.scrollTop=m.scrollHeight;}
 
+// ── Hot News ───────────────────────────────────────────────────
+async function loadHotnews(){
+  const body=document.getElementById('hotnewsBody');
+  try{
+    const d=await fetch('/api/hotnews').then(r=>r.json());
+    renderHotnews(d);
+  }catch{ body.innerHTML='<div style="text-align:center;padding:40px;color:#e53e3e">加载失败</div>'; }
+}
+
+function renderHotnews(d){
+  const body=document.getElementById('hotnewsBody');
+  const timeEl=document.getElementById('hotnewsTime');
+  const items=d&&d.items||[];
+  if(d&&d.fetched_at){
+    timeEl.textContent='· 更新于 '+new Date(d.fetched_at*1000).toLocaleString('zh-CN');
+  } else { timeEl.textContent=''; }
+  if(!items.length){
+    body.innerHTML='<div style="text-align:center;padding:40px;color:#a0aec0;line-height:1.8">今日尚未抓取到热点。<br>点右上角「🔄 立即刷新」联网搜索。</div>';
+    return;
+  }
+  body.innerHTML='<div class="dossier-grid" style="grid-template-columns:repeat(auto-fill,minmax(360px,1fr))">'+
+    items.map(it=>{
+      const point=it.point?`<div class="dossier-desc" style="color:#2d3748">💡 ${esc(it.point)}</div>`:'';
+      const summary=(!it.point&&it.summary)?`<div class="dossier-desc">${esc(it.summary)}</div>`:'';
+      const meta=[it.source,it.time].filter(Boolean).map(esc).join(' · ');
+      return `<div class="dossier-card" style="cursor:default">
+        <a href="${esc(it.url)}" target="_blank" rel="noopener" class="dossier-name" style="display:block;text-decoration:none">${esc(it.title)} ↗</a>
+        ${meta?`<div class="dossier-en">${meta}</div>`:''}
+        ${point}${summary}
+      </div>`;
+    }).join('')+'</div>';
+}
+
+async function refreshHotnews(){
+  const btn=document.getElementById('hotnewsRefreshBtn');
+  const old=btn.textContent;
+  btn.disabled=true; btn.textContent='⏳ 联网搜索中…';
+  document.getElementById('hotnewsBody').innerHTML='<div style="text-align:center;padding:40px;color:#a0aec0">正在联网搜索最新热点，请稍候（约 10-30 秒）…</div>';
+  try{
+    const d=await fetch('/api/hotnews/refresh',{method:'POST'}).then(r=>r.json());
+    renderHotnews(d);
+    toast((d.items&&d.items.length)?`✓ 已更新 ${d.items.length} 条热点`:'未抓到新内容');
+  }catch{ toast('刷新失败'); loadHotnews(); }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+
+// ── Document Reader ────────────────────────────────────────────
+let curReadDocId=null;
+
+async function readDoc(docId, name){
+  curReadDocId=docId;
+  document.getElementById('readTitle').textContent=name;
+  document.getElementById('readTitle').title=name;
+  document.getElementById('readMeta').textContent='';
+  const body=document.getElementById('readBody');
+  body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#cbd5e0">加载中…</div>';
+  document.getElementById('readModal').classList.add('open');
+
+  const url='/api/documents/'+encodeURIComponent(docId)+'/raw';
+  try{
+    const resp=await fetch(url);
+    if(!resp.ok){ let m='HTTP '+resp.status; try{m=(await resp.json()).detail||m;}catch{} throw new Error(m); }
+    const ct=resp.headers.get('Content-Type')||'';
+    if(ct.includes('application/pdf')){
+      // PDF：用浏览器内置 viewer 内联渲染
+      const blob=await resp.blob();
+      const objUrl=URL.createObjectURL(blob);
+      body.innerHTML=`<iframe src="${objUrl}" style="width:100%;height:100%;border:none"></iframe>`;
+      body._objUrl=objUrl;
+      document.getElementById('readMeta').textContent='PDF · 原版排版';
+    } else {
+      // 文本类（TXT/MD/DOCX 抽取）
+      const d=await resp.json();
+      document.getElementById('readMeta').textContent=`${(d.content||'').length} 字`;
+      body.style.background='#fff';
+      const isMd=/\.(md|markdown)$/i.test(d.name||'');
+      body.innerHTML=`<div class="doc-content" style="max-width:820px;margin:0 auto;padding:28px 32px">${
+        isMd?marked.parse(d.content||''):`<pre style="white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:14px;line-height:1.8;margin:0">${esc(d.content||'(空文件)')}</pre>`
+      }</div>`;
+    }
+  }catch(e){
+    body.style.background='#fff';
+    body.innerHTML=`<div style="padding:40px;text-align:center;color:#e53e3e">读取失败：${esc(e.message||String(e))}</div>`;
+  }
+}
+
+function closeReadModal(){
+  const body=document.getElementById('readBody');
+  if(body._objUrl){ URL.revokeObjectURL(body._objUrl); body._objUrl=null; }
+  document.getElementById('readModal').classList.remove('open');
+  body.style.background='#525659';
+  body.innerHTML='';
+  curReadDocId=null;
+}
+
+function downloadReadDoc(){
+  if(!curReadDocId) return;
+  // 复用 raw 接口；浏览器对 inline PDF 也会按 Content-Disposition 文件名下载
+  const a=document.createElement('a');
+  a.href='/api/documents/'+encodeURIComponent(curReadDocId)+'/raw';
+  a.download=''; document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ── Notes ──────────────────────────────────────────────────────
+let notes=[], curNoteId=null, noteAllTags=[], curNoteTag='', noteSearch='', noteSearchTimer=null;
+
+function fmtNoteTime(ts){
+  const t=new Date(ts*1000);
+  return `${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+}
+
+async function loadNotes(){
+  const el=document.getElementById('noteList');
+  const params=new URLSearchParams();
+  if(noteSearch) params.set('q',noteSearch);
+  if(curNoteTag) params.set('tag',curNoteTag);
+  try{
+    const d=await fetch('/api/notes'+(params.toString()?'?'+params:'')).then(r=>r.json());
+    notes=d.notes||[];
+    noteAllTags=d.tags||[];
+  }catch{ el.innerHTML='<div style="padding:12px;font-size:12px;color:#a0aec0">加载失败</div>'; return; }
+  renderNoteTags();
+  renderNoteList();
+}
+
+function renderNoteTags(){
+  const wrap=document.getElementById('noteTagTabs');
+  if(!noteAllTags.length){ wrap.innerHTML=''; return; }
+  const tabs=[{k:'',n:'全部'}].concat(noteAllTags.map(t=>({k:t,n:t})));
+  wrap.innerHTML=tabs.map(t=>
+    `<button class="dtab ${curNoteTag===t.k?'active':''}" onclick="setNoteTag('${esc(t.k)}')">${esc(t.n)}</button>`
+  ).join('');
+}
+
+function setNoteTag(tag){ curNoteTag=tag; loadNotes(); }
+
+function onNoteSearch(){
+  clearTimeout(noteSearchTimer);
+  noteSearchTimer=setTimeout(()=>{
+    noteSearch=document.getElementById('noteSearchBox').value.trim();
+    loadNotes();
+  },250);
+}
+
+function renderNoteList(){
+  const el=document.getElementById('noteList');
+  if(!notes.length){
+    el.innerHTML=`<div style="padding:16px;font-size:12px;color:#a0aec0;line-height:1.6">${(noteSearch||curNoteTag)?'没有匹配的笔记':'还没有笔记。<br>点上方「＋ 新建笔记」开始记录。'}</div>`;
+    return;
+  }
+  el.innerHTML=notes.map(n=>{
+    const tags=(n.tags||[]).map(t=>`<span style="font-size:9px;background:#e9d8fd;color:#6b46c1;border-radius:8px;padding:0 5px;margin-right:3px">${esc(t)}</span>`).join('');
+    return `<div class="gen-doc-item ${n.id===curNoteId?'active':''}" id="ni-${n.id}" onclick="selectNote('${n.id}')">
+      <div class="gdi-name">${esc(n.title)}</div>
+      <div class="gdi-id">${fmtNoteTime(n.updated_at)}</div>
+      ${tags?`<div style="margin-top:3px">${tags}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function showNotePane(which){
+  document.getElementById('noteEmpty').style.display = which==='empty'?'flex':'none';
+  document.getElementById('noteView').style.display  = which==='view'?'flex':'none';
+  document.getElementById('noteEdit').style.display  = which==='edit'?'flex':'none';
+}
+
+async function selectNote(id){
+  curNoteId=id;
+  document.querySelectorAll('#noteList .gen-doc-item').forEach(e=>e.classList.remove('active'));
+  document.getElementById('ni-'+id)?.classList.add('active');
+  showNotePane('view');
+  const body=document.getElementById('noteViewBody');
+  body.innerHTML='<div style="color:#a0aec0">加载中…</div>';
+  try{
+    const n=await fetch('/api/notes/'+id).then(r=>r.json());
+    document.getElementById('noteViewTitle').textContent=n.title;
+    document.getElementById('noteViewMeta').textContent=`更新于 ${new Date(n.updated_at*1000).toLocaleString('zh-CN')}`;
+    document.getElementById('noteViewTags').innerHTML=(n.tags||[]).map(t=>`<span class="tag tag-medium" style="margin-right:5px">${esc(t)}</span>`).join('');
+    body.dataset.md=n.content||'';
+    body.innerHTML=n.content?marked.parse(n.content):'<div style="color:#a0aec0">（无正文）</div>';
+  }catch{ body.innerHTML='<div style="color:#e53e3e">加载失败</div>'; }
+}
+
+function newNote(){
+  curNoteId=null;
+  document.getElementById('noteEditHead').textContent='新建笔记';
+  document.getElementById('noteTitle').value='';
+  document.getElementById('noteTagsInput').value='';
+  document.getElementById('noteBody').value='';
+  showNotePane('edit');
+  document.getElementById('noteTitle').focus();
+}
+
+async function editNote(){
+  if(!curNoteId) return;
+  let n=notes.find(x=>x.id===curNoteId);
+  if(!n){ try{ n=await fetch('/api/notes/'+curNoteId).then(r=>r.json()); }catch{ return; } }
+  document.getElementById('noteEditHead').textContent='编辑笔记';
+  document.getElementById('noteTitle').value=n.title||'';
+  document.getElementById('noteTagsInput').value=(n.tags||[]).join(', ');
+  document.getElementById('noteBody').value=n.content||'';
+  showNotePane('edit');
+}
+
+function cancelEdit(){
+  if(curNoteId) selectNote(curNoteId);
+  else showNotePane('empty');
+}
+
+async function saveNote(){
+  const title=document.getElementById('noteTitle').value.trim();
+  const content=document.getElementById('noteBody').value;
+  const tags=document.getElementById('noteTagsInput').value.split(',').map(t=>t.trim()).filter(Boolean);
+  if(!title && !content.trim()){ toast('标题和正文不能都为空'); return; }
+  try{
+    const r=await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:curNoteId,title,content,tags})}).then(r=>r.json());
+    curNoteId=r.id;
+    const ok=document.getElementById('noteSaveOk');
+    ok.style.display='inline'; setTimeout(()=>ok.style.display='none',1500);
+    await loadNotes();
+    selectNote(curNoteId);
+    toast('✓ 已保存');
+  }catch{ toast('保存失败'); }
+}
+
+async function deleteNote(){
+  if(!curNoteId) return;
+  if(!confirm('确定删除这条笔记？')) return;
+  try{
+    await fetch('/api/notes/'+curNoteId,{method:'DELETE'});
+    toast('✓ 已删除');
+    curNoteId=null;
+    showNotePane('empty');
+    loadNotes();
+  }catch{ toast('删除失败'); }
+}
+
+// 从问答一键存为笔记：预填编辑态并切到笔记页
+function saveAnswerAsNote(question, answerMd){
+  showPage('notes');
+  curNoteId=null;
+  document.getElementById('noteEditHead').textContent='新建笔记（来自问答）';
+  document.getElementById('noteTitle').value=(question||'').slice(0,80);
+  document.getElementById('noteTagsInput').value='法规顾问';
+  document.getElementById('noteBody').value=answerMd||'';
+  showNotePane('edit');
+}
+
 // ── Util ───────────────────────────────────────────────────────
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg){
@@ -1360,6 +1727,7 @@ function toast(msg){
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),3000);
 }
 document.getElementById('docModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+document.getElementById('readModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeReadModal();});
 
 init();
 </script>

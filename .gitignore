@@ -46,5 +46,7 @@ data/*.sqlite3
 *.pyc
 data/source_docs/industry_standards_yyt_20260603/
 data/company_profile.json
+# Hot-news runtime cache (refetched daily / on startup)
+data/hotnews.json
 医疗AI器械的QMS体系搭建.pdf
 data/source_docs/national_standards_20260603/
