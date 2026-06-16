@@ -1,9 +1,10 @@
 import uuid
 import shutil
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, Response
 
 from app.core.rag_engine import get_engine
 from app.core.config import settings
@@ -13,6 +14,14 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "documents"
 ALLOWED_TYPES = {".pdf", ".docx", ".txt", ".md"}
+
+
+def _find_raw_file(doc_id: str) -> Path | None:
+    """按 doc_id 前缀在 data/documents/ 找原始文件（命名为 {doc_id}_{原名}）。"""
+    if not doc_id or "/" in doc_id or "\\" in doc_id or ".." in doc_id:
+        return None
+    matches = sorted(UPLOAD_DIR.glob(f"{doc_id}_*"))
+    return matches[0] if matches else None
 
 
 @router.post("/upload", response_model=IngestResponse)
@@ -53,6 +62,44 @@ async def upload_document(
 async def list_documents(collection: str | None = None):
     engine = get_engine()
     return engine.list_documents(collection)
+
+
+@router.get("/{doc_id}/raw")
+async def read_document(doc_id: str):
+    """在线阅读原始文件。PDF 内联返回（浏览器内置 viewer 渲染）；
+    TXT/MD 返回纯文本；DOCX 抽取文本后返回（浏览器无法直接渲染 docx）。"""
+    path = _find_raw_file(doc_id)
+    if not path or not path.exists():
+        raise HTTPException(status_code=404, detail="原始文件不存在（可能是早期导入未保留原文件）")
+
+    suffix = path.suffix.lower()
+    # 原名 = 去掉 "{doc_id}_" 前缀
+    orig_name = path.name[len(doc_id) + 1:] if path.name.startswith(doc_id + "_") else path.name
+
+    if suffix == ".pdf":
+        disposition = f"inline; filename=\"doc.pdf\"; filename*=UTF-8''{quote(orig_name)}"
+        return FileResponse(
+            str(path), media_type="application/pdf",
+            headers={"Content-Disposition": disposition},
+        )
+
+    if suffix in (".txt", ".md"):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            text = path.read_text(encoding="gbk", errors="replace")
+        return JSONResponse({"type": "text", "name": orig_name, "content": text})
+
+    if suffix == ".docx":
+        try:
+            from docx import Document
+            doc = Document(str(path))
+            text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"DOCX 解析失败：{e}")
+        return JSONResponse({"type": "text", "name": orig_name, "content": text})
+
+    raise HTTPException(status_code=415, detail=f"不支持在线阅读的类型：{suffix}")
 
 
 @router.delete("/{doc_id}", response_model=DeleteResponse)
