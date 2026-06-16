@@ -348,7 +348,9 @@ class RAGEngine:
         # 跨库各取候选后，把每路分别拍平成【全局】列表再排名做 RRF——而非每库内部 rank。
         # 全局 rank 下，多路都靠前的 chunk（强相关法规原文）才会胜出，
         # 不会因「每库都贡献一个本地第一名」而被挤到同分并列、把真正相关的稀释掉。
-        pool = max(top_k * 4, 20)
+        # 候选池要足够深：向量命中的强相关 chunk 可能在某库 BM25 路里排名靠后，
+        # 池太小会在融合前就被截断。每路每库取较深候选，再做全局 RRF。
+        pool = max(top_k * 8, 60)
         bm25_all: list[tuple[dict, float]] = []
         vec_all: list[tuple[dict, float]] = []
         kw_all: list[tuple[dict, float]] = []
@@ -361,11 +363,17 @@ class RAGEngine:
 
         scores: dict[str, float] = {}
         chunks: dict[str, dict] = {}
-        for hits in (bm25_all, vec_all, kw_all):
+        # 加权 RRF + 自适应向量权重：查询含法条号时让关键词精确路主导（向量降权），
+        # 否则措辞失配只能靠向量语义顶（向量高权）。详见 config 注释。
+        w_vector = (settings.rrf_w_vector_article if _article_refs(question)
+                    else settings.rrf_w_vector)
+        for hits, weight in ((bm25_all, settings.rrf_w_bm25),
+                             (vec_all, w_vector),
+                             (kw_all, settings.rrf_w_keyword)):
             hits.sort(key=lambda x: x[1], reverse=True)
             for rank, (c, _s) in enumerate(hits):
                 key = f"{c['doc_id']}#{c['chunk_index']}"
-                scores[key] = scores.get(key, 0.0) + 1.0 / (settings.rrf_k + rank)
+                scores[key] = scores.get(key, 0.0) + weight / (settings.rrf_k + rank)
                 chunks[key] = c
 
         fused = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)[:top_k]
