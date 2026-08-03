@@ -50,3 +50,6 @@ data/company_profile.json
 data/hotnews.json
 医疗AI器械的QMS体系搭建.pdf
 data/source_docs/national_standards_20260603/
+# Generated training videos (Seedance output, can be large)
+static/videos/
+static/audio/

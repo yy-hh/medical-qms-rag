@@ -37,6 +37,103 @@ SYSTEM_PROMPT = """你是一位专业的医疗器械行业质量管理体系（Q
 注意：回答基于已上传的文件内容，如涉及最新法规变化，请以官方发布为准。"""
 
 
+class _CurlDelta:
+    """模拟 openai 流式 chunk 的最小结构：chunk.choices[0].delta.content。"""
+    __slots__ = ("content", "reasoning_content")
+
+    def __init__(self, content=None, reasoning_content=None):
+        self.content = content
+        self.reasoning_content = reasoning_content
+
+
+class _CurlChoice:
+    __slots__ = ("delta", "finish_reason")
+
+    def __init__(self, delta, finish_reason=None):
+        self.delta = delta
+        self.finish_reason = finish_reason
+
+
+class _CurlChunk:
+    __slots__ = ("choices",)
+
+    def __init__(self, choices):
+        self.choices = choices
+
+
+def curl_chat_stream(api_key, base_url, model, messages, max_tokens, connect_timeout=15, max_time=300, extra=None):
+    """用 curl 子进程做流式 chat completion，yield 出与 openai stream 兼容的 chunk 对象。
+
+    为什么不用 openai/httpx：本机 httpx 连 Poe 前置的 Cloudflare 时 HTTP/2 握手时好时坏
+    （curl 却 100% 稳定）。改用 curl --http2 子进程发起流式请求，逐行解析 SSE，绕开 httpx
+    连接层问题。每个 SSE chunk 解析成 _CurlChunk，调用方按 chunk.choices[0].delta.content 取字。
+
+    extra: 额外的顶层 payload 字段（如视频模型的 duration），合并进请求体。
+    """
+    import json as _json
+    import subprocess
+
+    url = base_url.rstrip("/") + "/chat/completions"
+    payload = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "stream": True,
+        "messages": messages,
+    }
+    if extra:
+        payload.update(extra)
+    # 不强制 --http2：让 curl 经 ALPN 自协商（仍会用上 HTTP/2）。实测在服务子进程里
+    # 强制 --http2 会偶发 curl 退出码 92（HTTP2 stream error），自协商则稳定。
+    cmd = [
+        "curl", "-sN", "--no-buffer",
+        "--connect-timeout", str(connect_timeout),
+        "--max-time", str(max_time),
+        url,
+        "-H", f"Authorization: Bearer {api_key}",
+        "-H", "Content-Type: application/json",
+        "-d", "@-",   # 从 stdin 读 body，避免命令行泄露/长度限制
+    ]
+    proc = subprocess.Popen(
+        cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    proc.stdin.write(_json.dumps(payload, ensure_ascii=False))
+    proc.stdin.close()
+    try:
+        for raw in proc.stdout:
+            line = raw.strip()
+            if not line or not line.startswith("data:"):
+                continue
+            data = line[5:].strip()
+            if data == "[DONE]":
+                break
+            try:
+                obj = _json.loads(data)
+            except Exception:
+                continue
+            choices = obj.get("choices") or []
+            if not choices:
+                continue
+            d = choices[0].get("delta") or {}
+            yield _CurlChunk([_CurlChoice(
+                _CurlDelta(content=d.get("content"), reasoning_content=d.get("reasoning_content")),
+                finish_reason=choices[0].get("finish_reason"),
+            )])
+    finally:
+        try:
+            proc.stdout.close()
+        except Exception:
+            pass
+        rc = proc.wait()
+        if rc not in (0, None):
+            err = ""
+            try:
+                err = proc.stderr.read()[:200]
+            except Exception:
+                pass
+            # 非 0 退出：curl 连接/超时失败，抛出让上层按断流处理（续写接力/报错）
+            raise RuntimeError(f"curl 退出码 {rc}: {err}")
+
+
 def _tokenize(text: str) -> list[str]:
     return [t for t in jieba.cut(text) if t.strip()]
 
@@ -247,12 +344,21 @@ class RAGEngine:
         api_key = settings.api_key or settings.anthropic_api_key
         # 用细粒度 httpx.Timeout：流式下若 Poe 端两次数据块之间卡住超过 read 超时即报错，
         # 让阻塞的 executor 线程能退出、归还线程池（否则大请求卡死会耗尽线程池拖垮整个服务）。
+        # http2=True 必须：Poe 前置的 Cloudflare 对 HTTP/1.1 会 SSL 握手超时（~15s 后 Connection
+        # error），只有走 HTTP/2 才能稳定建连。openai SDK 默认的 httpx client 不开 http2，
+        # 会导致所有生成/问答请求卡死握手——这是"生成超时/Connection error"的真正根因。
+        # trust_env=False：忽略环境里可能注入的代理变量，避免握手被代理劫持。
         import httpx
+        http_client = httpx.Client(
+            http2=True,
+            trust_env=False,
+            timeout=httpx.Timeout(connect=15.0, read=90.0, write=30.0, pool=15.0),
+        )
         self.llm = OpenAI(
             api_key=api_key,
             base_url=settings.api_base_url,
-            timeout=httpx.Timeout(connect=15.0, read=90.0, write=30.0, pool=15.0),
-            max_retries=1,
+            max_retries=2,
+            http_client=http_client,
         )
         logger.info("RAGEngine ready (model=%s)", settings.claude_model)
 

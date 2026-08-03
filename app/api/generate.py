@@ -231,16 +231,18 @@ async def generate_document_stream(request: GenerateRequest):
         def _open_stream(msgs):
             # 建立 Poe 流式连接会阻塞直到首响应，必须放到 executor，
             # 否则会卡住整个 asyncio 事件循环（导致 /api/health 等全部挂起）。
-            # 显式传 timeout（读 90s）：Poe 偶发不回首字节时让底层 httpx 抛超时、
-            # 释放 executor 线程，避免线程泄漏累积耗尽线程池。
-            import httpx
-            return engine.llm.chat.completions.create(
+            # 用 curl 子进程流式（curl_chat_stream）而非 openai/httpx：本机 httpx 连 Poe
+            # 前置 Cloudflare 时 HTTP/2 握手时好时坏，curl --http2 却 100% 稳定。
+            # --max-time 300：单轮最长 5 分钟，超时 curl 退出、上层按断流续写接力。
+            from app.core.rag_engine import curl_chat_stream
+            return curl_chat_stream(
+                api_key=settings.api_key or settings.anthropic_api_key,
+                base_url=settings.api_base_url,
                 model=settings.claude_model,
-                max_tokens=MAX_TOKENS_PER_ROUND,
                 messages=msgs,
-                stream=True,
-                extra_body=extra_body or None,
-                timeout=httpx.Timeout(connect=15.0, read=90.0, write=30.0, pool=15.0),
+                max_tokens=MAX_TOKENS_PER_ROUND,
+                connect_timeout=15,
+                max_time=300,
             )
 
         full_text = ""          # 累计已发给前端的正文（不含结束标记）

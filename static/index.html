@@ -84,6 +84,8 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .tag-procedure{background:#bee3f8;color:#2b6cb0}
 .tag-form{background:#e2e8f0;color:#4a5568}
 .tag-market{background:#fef3c7;color:#92400e}
+.tag-clickable{cursor:pointer;text-decoration:underline dotted}
+.tag-clickable:hover{background:#fde68a}
 /* ── Generator ── */
 .gen-layout{flex:1;display:flex;overflow:hidden}
 .gen-sidebar{width:260px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
@@ -121,12 +123,59 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .doc-content li{margin:.2em 0}
 .doc-content table{border-collapse:collapse;width:100%;margin:.6em 0;font-size:.9em}
 .doc-content th,.doc-content td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
+.doc-content figure{margin:1.2em 0;text-align:center}
+.doc-content figure svg{max-width:100%;height:auto}
+.doc-content figcaption{color:#718096;font-size:12px;margin-top:8px}
 .doc-content th{background:#f7fafc;font-weight:600}
 .doc-content code{background:#f0f4f8;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.9em}
 .doc-content pre{background:#f0f4f8;padding:12px;border-radius:7px;overflow-x:auto;margin:.5em 0}
 .doc-content pre code{background:none;padding:0}
 .doc-content strong{font-weight:600}
 .doc-content hr{border:none;border-top:1px solid #e2e8f0;margin:.8em 0}
+/* ── 体系培训：Tab 切换 ── */
+.tr-tabs{display:flex;gap:8px;padding:0 10px 12px}
+.tr-tab{border:1px solid #e2e8f0;background:#fff;color:#4a5568;font-size:13px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;transition:all .15s}
+.tr-tab:hover{border-color:#3182ce;color:#3182ce}
+.tr-tab.active{background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;border-color:transparent;box-shadow:0 2px 8px rgba(49,130,206,.3)}
+/* ── 图文课：PPT 幻灯片风格 ── */
+.slide-deck{max-width:960px;margin:0 auto}
+.slide{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(26,54,93,.10);border:1px solid #edf2f7;padding:44px 52px;margin-bottom:26px;position:relative;overflow:hidden;min-height:120px}
+.slide::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(180deg,#3182ce,#2b6cb0)}
+.slide.slide-cover{background:linear-gradient(135deg,#1a365d 0%,#2b6cb0 100%);color:#fff;text-align:center;padding:64px 52px;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:260px}
+.slide.slide-cover::before{display:none}
+.slide-cover .eyebrow{font-size:13px;letter-spacing:3px;text-transform:uppercase;opacity:.8;margin-bottom:18px}
+.slide-cover h1{font-size:34px;font-weight:800;line-height:1.3;margin:0;color:#fff;border:none;max-width:760px}
+.slide-cover .cover-sub{font-size:15px;opacity:.9;margin-top:22px;line-height:1.7;max-width:640px}
+.slide-cover .cover-badge{margin-top:28px;font-size:12px;background:rgba(255,255,255,.15);padding:6px 16px;border-radius:20px;backdrop-filter:blur(4px)}
+.slide .slide-no{position:absolute;top:20px;right:26px;font-size:12px;font-weight:700;color:#cbd5e0}
+.slide h2{display:flex;align-items:center;gap:12px;font-size:22px;font-weight:700;color:#1a365d;margin:0 0 22px;padding:0}
+.slide h2 .kicker{flex-shrink:0;width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;font-weight:800}
+.slide p{font-size:15px;line-height:1.85;color:#2d3748;margin:.5em 0}
+.slide ul,.slide ol{padding-left:1.4em;margin:.6em 0}
+.slide li{font-size:15px;line-height:1.8;color:#2d3748;margin:.35em 0}
+.slide strong{color:#1a365d;font-weight:700}
+.slide table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14px;border-radius:8px;overflow:hidden}
+.slide th{background:#1a365d;color:#fff;font-weight:600;padding:10px 14px;text-align:left}
+.slide td{border-bottom:1px solid #edf2f7;padding:9px 14px;color:#2d3748}
+.slide tr:nth-child(even) td{background:#f7fafc}
+.slide figure{margin:1.4em 0 .6em;text-align:center}
+.slide figure svg{max-width:100%;height:auto}
+.slide figcaption{color:#718096;font-size:12.5px;margin-top:10px;font-style:italic}
+.slide code{background:#ebf1f8;color:#2b6cb0;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:.9em}
+/* ── 左侧课程列表：类别分组 ── */
+.tr-cat-hd{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:11px;font-weight:700;color:#718096;letter-spacing:.5px;margin:14px 2px 6px;user-select:none}
+.tr-cat-hd:first-child{margin-top:2px}
+.tr-cat-hd:hover{color:#3182ce}
+.tr-cat-hd .chev{transition:transform .15s;font-size:9px;opacity:.7}
+.tr-cat-hd.collapsed .chev{transform:rotate(-90deg)}
+.tr-cat-hd .cnt{font-weight:600;color:#a0aec0}
+/* ── 课内章节目录（TOC 幻灯片）── */
+.slide-toc h2{margin-bottom:16px}
+.slide-toc .toc-list{list-style:none;padding:0;margin:0}
+.slide-toc .toc-list li{display:flex;align-items:center;gap:14px;padding:12px 16px;margin:8px 0;border:1px solid #edf2f7;border-radius:10px;cursor:pointer;font-size:15px;color:#2d3748;font-weight:600;transition:all .15s}
+.slide-toc .toc-list li:hover{border-color:#3182ce;background:#f7fbff;transform:translateX(4px)}
+.slide-toc .toc-n{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.slide h2 .kicker.wide{width:auto;padding:0 12px;font-size:13px}
 .gen-placeholder{color:#a0aec0;font-style:italic;text-align:center;padding:40px}
 /* ── Chat ── */
 .chat-wrap{flex:1;display:flex;overflow:hidden}
@@ -269,6 +318,9 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     </button>
     <button class="nav-btn" id="nav-hotnews" onclick="showPage('hotnews')" title="热点速递">
       <span class="icon">📰</span>热点速递
+    </button>
+    <button class="nav-btn" id="nav-training" onclick="showPage('training')" title="体系培训">
+      <span class="icon">🎓</span>体系培训
     </button>
     <button class="nav-btn" id="nav-settings" onclick="showPage('settings')" title="公司信息">
       <span class="icon">⚙️</span>公司信息
@@ -472,6 +524,35 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
       </div>
     </div>
 
+    <!-- ══ Page: Training ══ -->
+    <div class="page" id="page-training">
+      <div class="page-head">
+        <h2>🎓 体系培训</h2>
+        <p>医疗器械 SaMD 质量管理体系培训课程 · 视频课（黑板讲解 + 中文语音）与图文课（PPT 图文讲义）两种形式</p>
+      </div>
+      <div class="tr-tabs">
+        <button class="tr-tab active" data-tab="video" onclick="switchTrTab('video')">🎬 视频课</button>
+        <button class="tr-tab" data-tab="article" onclick="switchTrTab('article')">📄 图文课</button>
+      </div>
+      <div style="display:flex;gap:16px;padding:0 10px 10px;height:calc(100% - 118px);box-sizing:border-box">
+        <!-- 左：培训课程列表 -->
+        <div style="width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow:auto">
+          <div class="settings-card" style="margin:0;flex:1">
+            <h3 id="trListTitle">培训课程</h3>
+            <div id="trList" style="display:flex;flex-direction:column;gap:6px">
+              <div style="color:#a0aec0;font-size:12px">加载中…</div>
+            </div>
+          </div>
+        </div>
+        <!-- 右：内容展示 -->
+        <div style="flex:1;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:20px" id="trContent">
+          <div style="color:#a0aec0;text-align:center;padding:60px 20px">
+            从左侧选择一门培训课程开始学习。
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ Page: Settings ══ -->
     <div class="page" id="page-settings">
       <div class="page-head">
@@ -597,6 +678,18 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
   </div>
 </div>
 
+<!-- 法规依据清单 modal -->
+<div class="modal-bg" id="refsModal">
+  <div class="modal" style="max-width:520px">
+    <h2 id="refsTitle" style="font-size:17px">法规依据</h2>
+    <div class="meta" id="refsMeta" style="margin-bottom:14px"></div>
+    <div id="refsList"></div>
+    <div class="modal-btns" style="margin-top:18px">
+      <button class="btn-secondary" onclick="closeRefs()">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- Document reader modal -->
 <div class="modal-bg" id="readModal">
   <div class="modal" style="max-width:1000px;width:92%;height:88vh;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
@@ -649,6 +742,7 @@ function showPage(id) {
   if (id==='docs') loadSavedDocs();
   if (id==='notes') loadNotes();
   if (id==='hotnews') loadHotnews();
+  if (id==='training') loadTraining();
 }
 
 // ── 文件管理（已生成文档存档）──────────────────────────────────
@@ -935,7 +1029,7 @@ function renderRoadmap() {
               <div class="doc-desc">${doc.desc}</div>
               <div class="doc-tags">
                 <span class="tag tag-procedure">${TYPE_LABEL[doc.type]||doc.type}</span>
-                ${(doc.refs&&doc.refs.length)?`<span class="tag tag-market">📎 ${doc.refs.length} 法规依据</span>`:''}
+                ${(doc.refs&&doc.refs.length)?`<span class="tag tag-market tag-clickable" onclick="event.stopPropagation();showRefs('${doc.id}')" title="点击查看法规依据">📎 ${doc.refs.length} 法规依据</span>`:''}
               </div>
             </div>`).join('')}
         </div>
@@ -1029,7 +1123,7 @@ function openDocModal(docId) {
   document.getElementById('modalMeta').textContent = doc.id+' · '+(doc.standards||[]).join('、');
   document.getElementById('modalDesc').textContent = doc.desc||'';
   const refsHtml = (doc.refs&&doc.refs.length)
-    ? `<span class="tag tag-market">📎 ${doc.refs.length} 条法规依据将自动检索</span>` : '';
+    ? `<span class="tag tag-market tag-clickable" onclick="showRefs('${doc.id}')" title="点击查看法规依据">📎 ${doc.refs.length} 条法规依据将自动检索</span>` : '';
   document.getElementById('modalTags').innerHTML = [
     `<span class="tag tag-procedure">${TYPE_LABEL[doc.type]||'档案汇编'}</span>`, refsHtml
   ].join('');
@@ -1039,6 +1133,34 @@ function openDocModal(docId) {
 
 function closeModal() {
   document.getElementById('docModal').classList.remove('open');
+}
+
+// collection → 中文友好名（与知识库集合对应）
+const COLLECTION_LABEL = {
+  regulations: '法规', standards: '标准', 'guidance-software': '软件指导原则',
+  'guidance-ai': 'AI 指导原则', 'guidance-ai-clinical': 'AI 临床指导原则',
+  'guidance-clinical': '临床指导原则', 'guidance-qms-software': '软件 QMS 指导原则',
+  'guidance-usability': '可用性指导原则', 'guidance-software-traceability': '软件可追溯指导原则',
+  'guidance-cybersecurity': '网络安全指导原则', 'guidance-registration': '注册指导原则',
+  classification: '分类目录', cybersecurity: '网络安全/数据',
+};
+
+function showRefs(docId) {
+  const doc = findDoc(docId);
+  if (!doc || !doc.refs || !doc.refs.length) return;
+  document.getElementById('refsTitle').textContent = doc.name + ' · 法规依据';
+  document.getElementById('refsMeta').textContent =
+    doc.id + ' · 生成时将自动检索以下法规/标准原文作为依据';
+  document.getElementById('refsList').innerHTML = doc.refs.map(r => `
+    <div style="display:flex;align-items:center;gap:8px;padding:9px 11px;margin-bottom:7px;background:#f7fafc;border-radius:8px;border:1px solid #edf2f7">
+      <span class="tag tag-procedure" style="flex-shrink:0">${COLLECTION_LABEL[r.collection]||r.collection}</span>
+      <span style="font-size:13px;color:#2d3748">${r.match}</span>
+    </div>`).join('');
+  document.getElementById('refsModal').classList.add('open');
+}
+
+function closeRefs() {
+  document.getElementById('refsModal').classList.remove('open');
 }
 
 function confirmGenerate() {
@@ -1727,7 +1849,174 @@ function toast(msg){
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),3000);
 }
 document.getElementById('docModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+document.getElementById('refsModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeRefs();});
 document.getElementById('readModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeReadModal();});
+
+// ── 体系培训：纯观看，课程列表 + 分段小节导航 ─────────────────────
+// 左侧课程列表，点开某课展开其小节；右侧一次只播放选中的一段（黑板板书 + 中文旁白）。
+let trCurId=null;      // 当前课程
+let trSegs=[];         // 当前课程的已就绪分段
+let trSegIdx=0;        // 当前播放的分段序号
+let trTab='video';        // 当前 tab：video / article
+let trAll=[];             // 全部 ready 教程
+async function loadTraining(){ await loadTrData(); }
+async function loadTrData(){
+  try{
+    const d=await fetch('/api/training/list').then(r=>r.json());
+    trAll=(d.tutorials||[]).filter(t=>t.status==='ready');
+  }catch(e){ trAll=[]; }
+  loadTrList();
+}
+// 课程分类体系：按主题名归类（与视频/图文两个 tab 共用）
+const TR_CATEGORIES=[
+  {name:'国际标准', topics:['ISO 13485 质量管理体系概览','ISO 14971 风险管理流程','IEC 62304 医疗器械软件生命周期','IEC 62366 可用性工程与人因']},
+  {name:'中国法规（NMPA）', topics:['医疗器械监督管理条例','医疗器械注册与备案管理办法','医疗器械生产质量管理规范','医疗器械经营质量管理规范','医疗器械临床试验质量管理规范']},
+  {name:'国外法规（FDA · MDR）', topics:['FDA 21 CFR Part 820 医疗器械质量体系','欧盟医疗器械法规 MDR 2017/745']},
+];
+let trCatCollapsed={};   // 分类折叠状态：key=`${tab}:${catName}`
+function _catOf(topic){
+  for(const c of TR_CATEGORIES){ if(c.topics.includes(topic)) return c.name; }
+  return '其他';
+}
+function toggleTrCat(name){
+  const k=trTab+':'+name;
+  trCatCollapsed[k]=!trCatCollapsed[k];
+  loadTrList();
+}
+function switchTrTab(tab){
+  if(trTab===tab) return;
+  trTab=tab; trCurId=null; trSegs=[]; trSegIdx=0;
+  document.querySelectorAll('.tr-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  loadTrList();
+}
+async function loadTrList(){
+  const box=document.getElementById('trList');
+  const title=document.getElementById('trListTitle');
+  const isVideo=trTab==='video';
+  if(title) title.textContent=isVideo?'🎬 视频课程':'📄 图文课程';
+  const arr=trAll.filter(t=> isVideo ? t.kind==='video' : t.kind!=='video');
+  if(!arr.length){
+    box.innerHTML='<div style="color:#a0aec0;font-size:12px;line-height:1.6">该分类课程准备中，请稍后再来。</div>';
+    document.getElementById('trContent').innerHTML='<div style="color:#a0aec0;text-align:center;padding:60px 20px">课程正在准备中，敬请期待。</div>';
+    return;
+  }
+  const icon=isVideo?'🎬':'📄';
+  // 归类
+  const groups={};
+  arr.forEach(t=>{ const cat=_catOf(t.topic); (groups[cat]=groups[cat]||[]).push(t); });
+  const order=TR_CATEGORIES.map(c=>c.name).concat(['其他']).filter(n=>groups[n]);
+  const courseItem=t=>{
+    const on=t.id===trCurId;
+    const head=`<div onclick="openTutorial('${t.id}')" style="cursor:pointer;padding:8px 10px;border:1px solid ${on?'#3182ce':'#e2e8f0'};border-radius:6px;font-size:12px;font-weight:600;line-height:1.4;${on?'background:#ebf8ff;':''}">${icon} ${esc(t.topic)}</div>`;
+    const subs = (on && isVideo) ? `<div style="display:flex;flex-direction:column;gap:4px;margin:4px 0 4px 8px">`+
+      trSegs.map((s,i)=>`<div onclick="playSeg(${i})" style="cursor:pointer;padding:6px 9px;border-radius:5px;font-size:12px;line-height:1.3;${i===trSegIdx?'background:#3182ce;color:#fff;':'color:#4a5568;'}" ${i===trSegIdx?'':'onmouseover="this.style.background=\'#f7fafc\'" onmouseout="this.style.background=\'transparent\'"'}>${i+1}. ${esc(s.title)}</div>`).join('')+
+      `</div>` : '';
+    return head+subs;
+  };
+  box.innerHTML=order.map(cat=>{
+    const collapsed=!!trCatCollapsed[trTab+':'+cat];
+    const hd=`<div class="tr-cat-hd${collapsed?' collapsed':''}" onclick="toggleTrCat('${cat.replace(/'/g,"\\'")}')"><span><span class="chev">▼</span> ${esc(cat)}</span><span class="cnt">${groups[cat].length}</span></div>`;
+    const body=collapsed?'':`<div style="display:flex;flex-direction:column;gap:6px">${groups[cat].map(courseItem).join('')}</div>`;
+    return hd+body;
+  }).join('');
+  if(!trCurId){ openTutorial(arr[0].id); }
+}
+// 把图文 markdown 渲染成 PPT 幻灯片：# 标题→封面页，每个 ## →一张幻灯片
+function renderSlides(topic, md){
+  const lines=(md||'').split('\n');
+  const blocks=[]; let cur=null;
+  for(const ln of lines){
+    const m=ln.match(/^##\s+(.*)$/);
+    if(m){ cur={heading:m[1].trim(),body:[]}; blocks.push(cur); }
+    else if(ln.match(/^#\s+/)){ /* 主标题，忽略（用 topic） */ }
+    else if(cur){ cur.body.push(ln); }
+    else { (blocks._intro=blocks._intro||[]).push(ln); }
+  }
+  const intro=(blocks._intro||[]).join('\n').trim();
+  let html=`<div class="slide-deck">`;
+  // 封面
+  html+=`<div class="slide slide-cover"><div class="eyebrow">QMS 体系培训 · 图文讲义</div>`+
+    `<h1>${esc(topic)}</h1>`+
+    (intro?`<div class="cover-sub">${esc(intro)}</div>`:'')+
+    `<div class="cover-badge">共 ${blocks.length} 章 · 点击左侧切换课程</div></div>`;
+  // 章节目录
+  if(blocks.length>1){
+    html+=`<div class="slide slide-toc"><h2><span class="kicker wide">目录</span><span>本课共 ${blocks.length} 章</span></h2>`+
+      `<ul class="toc-list">`+blocks.map((b,i)=>
+        `<li onclick="gotoSlide(${i})"><span class="toc-n">${i+1}</span><span>${esc(b.heading)}</span></li>`).join('')+
+      `</ul></div>`;
+  }
+  // 内容页
+  blocks.forEach((b,i)=>{
+    const bodyHtml=marked.parse(b.body.join('\n').trim());
+    html+=`<div class="slide" id="tr-slide-${i}"><div class="slide-no">${i+1} / ${blocks.length}</div>`+
+      `<h2><span class="kicker">${i+1}</span><span>${esc(b.heading)}</span></h2>`+
+      `<div class="slide-body">${bodyHtml}</div></div>`;
+  });
+  html+=`</div>`;
+  return html;
+}
+// 点击目录跳到对应章节幻灯片
+function gotoSlide(i){
+  const el=document.getElementById('tr-slide-'+i);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function openTutorial(id){
+  if(trCurId===id && (trTab!=='video' || trSegs.length)){ return; }
+  trCurId=id; trSegIdx=0; trSegs=[];
+  const c=document.getElementById('trContent');
+  c.innerHTML='<div style="color:#a0aec0;text-align:center;padding:40px">加载中…</div>';
+  try{
+    const t=await fetch('/api/training/'+id).then(r=>r.json());
+    if(t.kind==='video'){
+      const sd=await fetch('/api/training/'+id+'/segments').then(r=>r.json());
+      trSegs=(sd.segments||[]).filter(s=>s.status==='ready'&&s.final_path);
+      trTopicName=t.topic;
+      if(trSegs.length){ showVideoToc(); } else { c.innerHTML=`<h2 style="margin-top:0">🎬 ${esc(t.topic)}</h2><div style="color:#a0aec0;padding:12px">本课程内容准备中。</div>`; }
+    } else {
+      trTopicName=t.topic;
+      c.scrollTop=0;
+      c.innerHTML=t.lecture?renderSlides(t.topic,t.lecture):'<div style="color:#a0aec0">（内容为空）</div>';
+    }
+    loadTrList();
+  }catch(e){ c.innerHTML='<div style="color:#e53e3e">加载失败</div>'; }
+}
+let trTopicName='';
+// 视频课章节目录：封面 + 可点击章节列表（与图文课目录同风格）
+function showVideoToc(){
+  trSegIdx=-1;
+  const c=document.getElementById('trContent'); c.scrollTop=0;
+  let html=`<div class="slide-deck">`+
+    `<div class="slide slide-cover"><div class="eyebrow">QMS 体系培训 · 视频课</div>`+
+    `<h1>${esc(trTopicName)}</h1>`+
+    `<div class="cover-sub">黑板讲解 + 中文语音，共 ${trSegs.length} 章逐节精讲。</div>`+
+    `<div class="cover-badge">共 ${trSegs.length} 章 · 点击下方章节开始学习</div></div>`+
+    `<div class="slide slide-toc"><h2><span class="kicker wide">目录</span><span>本课共 ${trSegs.length} 章</span></h2>`+
+    `<ul class="toc-list">`+trSegs.map((s,i)=>
+      `<li onclick="playSeg(${i})"><span class="toc-n">${i+1}</span><span>${esc(s.title)}</span></li>`).join('')+
+    `</ul></div></div>`;
+  c.innerHTML=html;
+  loadTrList();
+}
+// 播放选中的某一段：右侧只显示这一段的视频 + 讲解词 + 上/下一段导航
+function playSeg(i){
+  if(i<0||i>=trSegs.length) return;
+  trSegIdx=i;
+  const s=trSegs[i], c=document.getElementById('trContent'); c.scrollTop=0;
+  const prev=i>0?`<button class="icon-btn" onclick="playSeg(${i-1})" style="font-size:12px">← 上一章</button>`:'<span></span>';
+  const next=i<trSegs.length-1?`<button class="icon-btn" onclick="playSeg(${i+1})" style="font-size:12px">下一章 →</button>`:'<span></span>';
+  c.innerHTML=`<div style="max-width:760px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="color:#718096;font-size:12px">🎬 ${esc(trTopicName)} · 第 ${i+1}/${trSegs.length} 章</div>
+      <button class="icon-btn" onclick="showVideoToc()" style="font-size:12px">☰ 目录</button>
+    </div>
+    <h2 style="margin:0 0 12px">${esc(s.title)}</h2>
+    <video controls autoplay preload="metadata" style="width:100%;border-radius:8px;background:#000" src="/static/${esc(s.final_path)}"></video>
+    <div style="color:#4a5568;font-size:14px;line-height:1.7;margin-top:12px">${esc(s.narration)}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">${prev}${next}</div>
+  </div>`;
+  loadTrList();  // 刷新左侧小节高亮
+}
 
 init();
 </script>
