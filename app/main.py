@@ -18,6 +18,7 @@ from app.api.compliance import router as compliance_router
 from app.api.docs import router as docs_router
 from app.api.notes import router as notes_router
 from app.api.hotnews import router as hotnews_router
+from app.api.training import router as training_router
 from app.core.rag_engine import get_engine
 from app.core import hotnews
 
@@ -99,6 +100,7 @@ app.include_router(compliance_router)
 app.include_router(docs_router)
 app.include_router(notes_router)
 app.include_router(hotnews_router)
+app.include_router(training_router)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

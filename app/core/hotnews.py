@@ -4,6 +4,7 @@
 抓取 → 去重 → 可选 LLM 提炼要点 → 写 data/hotnews.json 缓存。前端读缓存，调度每天 10:00 刷新。
 """
 import json
+import re
 import time
 import logging
 from datetime import datetime
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 STORE_PATH = BASE_DIR / "data" / "hotnews.json"
+
+# 超过此天数的新闻视为过期，从热点速递中剔除（Bing 结果常混入数年前旧闻）。
+MAX_AGE_DAYS = 90
 
 KEYWORDS = [
     "医疗器械注册",
@@ -66,6 +70,69 @@ def _fetch_bing(keyword: str) -> list[dict]:
     except Exception as e:
         logger.warning("热点抓取失败 keyword=%s: %s", keyword, e)
     return items
+
+
+def _age_days(time_str: str, now: datetime | None = None) -> float | None:
+    """把 Bing 新闻的时间字段解析成「距今天数」。无法解析返回 None（调用方按宁漏勿杀保留）。
+
+    Bing 时间格式很杂，需覆盖：
+    - 相对：「15 小时前」「7 天前」「3 周前」「2 个月前」「1 年前」，以及无「前」的「1 天」
+    - 绝对：「8/6/2026」「1/6/2021」（D/M/YYYY）
+    - 带源后缀：「格隆汇 on MSN1 天」「雷达财经网 on MSN15 小时」——取末尾的相对时间片段
+    """
+    if not time_str:
+        return None
+    now = now or datetime.now()
+    s = time_str.strip()
+
+    # 相对时间：抓取「数字 + 单位(+可选 前)」，单位含 分钟/小时/天/周/月/年。
+    # 带源后缀的形如「…MSN15 小时」也能被这个正则从尾部匹配到。
+    m = re.search(r"(\d+)\s*(分钟|小时|天|周|个月|月|年)\s*前?", s)
+    if m:
+        n = int(m.group(1))
+        unit = m.group(2)
+        per = {"分钟": 1 / 1440, "小时": 1 / 24, "天": 1,
+               "周": 7, "个月": 30, "月": 30, "年": 365}[unit]
+        return n * per
+    if "刚刚" in s or "分钟前" in s:
+        return 0.0
+
+    # 绝对日期 D/M/YYYY（Bing 中文区常用此序）。
+    m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", s)
+    if m:
+        d, mon, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        try:
+            return (now - datetime(y, mon, d)).total_seconds() / 86400
+        except ValueError:
+            return None
+    # 绝对日期 YYYY-MM-DD / YYYY年MM月DD日
+    m = re.search(r"(\d{4})[-年/](\d{1,2})[-月/](\d{1,2})", s)
+    if m:
+        y, mon, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        try:
+            return (now - datetime(y, mon, d)).total_seconds() / 86400
+        except ValueError:
+            return None
+    return None
+
+
+def _filter_recent(items: list[dict], max_age_days: int = MAX_AGE_DAYS) -> list[dict]:
+    """剔除超过 max_age_days 的旧闻；时间解析不出的保留（宁漏勿杀）。
+    按距今天数升序排列（新的在前），解析不出时间的排在最后。"""
+    now = datetime.now()
+    kept = []
+    for it in items:
+        age = _age_days(it.get("time", ""), now)
+        if age is not None and age > max_age_days:
+            continue
+        it = dict(it)
+        it["_age"] = age
+        kept.append(it)
+    # 排序键：有 age 的按 age 升序；None 视为很大值排末尾。
+    kept.sort(key=lambda x: (x["_age"] is None, x["_age"] if x["_age"] is not None else 0))
+    for it in kept:
+        it.pop("_age", None)
+    return kept
 
 
 def _summarize(items: list[dict]) -> list[dict]:
@@ -126,7 +193,8 @@ def fetch_all() -> list[dict]:
                 continue
             seen.add(it["url"])
             merged.append(it)
-    merged = merged[:MAX_ITEMS]
+    # 先剔除过期旧闻并按时间排序（新的在前），再截断，保证 MAX_ITEMS 都是较新的条目。
+    merged = _filter_recent(merged)[:MAX_ITEMS]
     return _summarize(merged)
 
 
