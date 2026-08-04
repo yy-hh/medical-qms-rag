@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QMS 体系搭建助手</title>
+<title>医械注册助手</title>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -288,9 +288,36 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 </head>
 <body>
 
+<!-- 登录门禁 -->
+<div id="loginGate" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#eef2f7,#dfe7f0);align-items:center;justify-content:center;">
+  <div style="width:360px;max-width:92vw;background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.15);padding:32px 28px;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:22px;font-weight:700;color:#1f2d3d;">医械注册助手</div>
+      <div style="font-size:13px;color:#8a97a8;margin-top:6px;">医疗器械注册与合规 · 飞书验证码登录</div>
+    </div>
+    <div id="lgStep1">
+      <label style="font-size:13px;color:#5a6b7f;">飞书姓名 / 邮箱</label>
+      <input id="lgName" type="text" placeholder="须为管理员的飞书联系人" autocomplete="off"
+        style="width:100%;box-sizing:border-box;margin:6px 0 14px;padding:10px 12px;border:1px solid #d4dce6;border-radius:8px;font-size:14px;">
+      <select id="lgCandidates" style="display:none;width:100%;box-sizing:border-box;margin-bottom:14px;padding:10px 12px;border:1px solid #d4dce6;border-radius:8px;font-size:14px;"></select>
+      <button id="lgSendBtn" onclick="requestCode()"
+        style="width:100%;padding:11px;border:0;border-radius:8px;background:#2b6cb0;color:#fff;font-size:15px;cursor:pointer;">获取验证码</button>
+    </div>
+    <div id="lgStep2" style="display:none;">
+      <label style="font-size:13px;color:#5a6b7f;">验证码（已发送到你的飞书）</label>
+      <input id="lgCode" type="text" inputmode="numeric" maxlength="6" placeholder="6 位验证码" autocomplete="off"
+        style="width:100%;box-sizing:border-box;margin:6px 0 14px;padding:10px 12px;border:1px solid #d4dce6;border-radius:8px;font-size:18px;letter-spacing:4px;text-align:center;">
+      <button id="lgLoginBtn" onclick="doLogin()"
+        style="width:100%;padding:11px;border:0;border-radius:8px;background:#2b6cb0;color:#fff;font-size:15px;cursor:pointer;">登录</button>
+      <div style="text-align:center;margin-top:10px;"><a href="#" onclick="lgReset();return false;" style="font-size:12px;color:#8a97a8;">重新输入</a></div>
+    </div>
+    <div id="lgMsg" style="margin-top:14px;font-size:13px;text-align:center;min-height:18px;"></div>
+  </div>
+</div>
+
 <header>
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-  <h1>QMS 体系搭建助手</h1>
+  <h1>医械注册助手</h1>
   <div class="company-tag" onclick="showPage('settings')" id="companyTag">⚙ 配置公司信息</div>
   <div id="headerStats"></div>
 </header>
@@ -375,6 +402,7 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
               <span id="docMeta" style="font-size:11px;color:#a0aec0;margin-right:auto"></span>
               <button class="icon-btn" onclick="copySavedDoc()">📋 复制</button>
               <button class="icon-btn" onclick="downloadSavedDoc()">⬇️ 下载 Word</button>
+              <button class="icon-btn" id="btnOrig" onclick="downloadOriginal()" style="display:none">📎 下载原件</button>
               <button class="icon-btn" onclick="deleteSavedDoc()" style="border-color:#feb2b2;color:#e53e3e">🗑 删除</button>
             </div>
             <div class="gen-output">
@@ -712,6 +740,109 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 <script>
 marked.setOptions({breaks:true,gfm:true});
 
+// ── Auth：会话 token + fetch 包装 ───────────────────────────────
+let SESSION_TOKEN = localStorage.getItem('qms_token') || '';
+let ACCOUNT = null;               // {open_id, display_name}
+let _lgPendingOpenId = null;      // request-code 后待验证的 open_id
+
+const _origFetch = window.fetch.bind(window);
+window.fetch = (url, opts={}) => {
+  const isApi = typeof url === 'string' && url.startsWith('/api');
+  if (isApi && SESSION_TOKEN) {
+    opts.headers = { ...(opts.headers||{}), 'Authorization': 'Bearer ' + SESSION_TOKEN };
+  }
+  return _origFetch(url, opts).then(r => {
+    // /api/auth/* 自身的 401 由各自流程处理，不弹门禁
+    if (isApi && r.status === 401 && !url.startsWith('/api/auth/')) showLoginGate();
+    return r;
+  });
+};
+
+function showLoginGate(){ document.getElementById('loginGate').style.display='flex'; }
+function hideLoginGate(){ document.getElementById('loginGate').style.display='none'; }
+function lgMsg(t,ok){ const e=document.getElementById('lgMsg'); e.textContent=t||''; e.style.color=ok?'#2f855a':'#c53030'; }
+function lgReset(){
+  _lgPendingOpenId=null;
+  document.getElementById('lgStep1').style.display='block';
+  document.getElementById('lgStep2').style.display='none';
+  document.getElementById('lgCandidates').style.display='none';
+  document.getElementById('lgCode').value='';
+  lgMsg('');
+}
+
+async function requestCode(){
+  const name = document.getElementById('lgName').value.trim();
+  const sel = document.getElementById('lgCandidates');
+  if (!name){ lgMsg('请输入飞书姓名或邮箱'); return; }
+  const btn = document.getElementById('lgSendBtn'); btn.disabled=true; lgMsg('正在核对身份…',true);
+  // 若候选下拉已展开并选中，带上其 open_id 精确定位
+  const body = { name };
+  if (sel.style.display!=='none' && sel.value) body.open_id = sel.value;
+  try {
+    const r = await fetch('/api/auth/request-code', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if (!r.ok){ lgMsg(d.detail||'请求失败'); btn.disabled=false; return; }
+    if (d.multiple){
+      sel.innerHTML = d.candidates.map(c=>`<option value="${c.open_id}">${c.name}</option>`).join('');
+      sel.style.display='block';
+      lgMsg('存在多个同名联系人，请选择后再次点击「获取验证码」');
+      btn.disabled=false;
+      return;
+    }
+    _lgPendingOpenId = d.open_id;
+    document.getElementById('lgStep1').style.display='none';
+    document.getElementById('lgStep2').style.display='block';
+    lgMsg('验证码已发送到「'+d.name+'」的飞书',true);
+    document.getElementById('lgCode').focus();
+  } catch(e){ lgMsg('网络错误'); }
+  btn.disabled=false;
+}
+
+async function doLogin(){
+  const code = document.getElementById('lgCode').value.trim();
+  if (!/^\d{6}$/.test(code)){ lgMsg('请输入 6 位验证码'); return; }
+  const btn=document.getElementById('lgLoginBtn'); btn.disabled=true; lgMsg('登录中…',true);
+  try {
+    const r = await fetch('/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({open_id:_lgPendingOpenId, code})});
+    const d = await r.json();
+    if (!r.ok){ lgMsg(d.detail||'验证失败'); btn.disabled=false; return; }
+    SESSION_TOKEN = d.token; localStorage.setItem('qms_token', d.token);
+    ACCOUNT = d.account;
+    hideLoginGate(); lgReset();
+    renderAccount();
+    init();
+  } catch(e){ lgMsg('网络错误'); btn.disabled=false; }
+}
+
+async function logout(){
+  try { await fetch('/api/auth/logout',{method:'POST'}); } catch {}
+  SESSION_TOKEN=''; ACCOUNT=null; localStorage.removeItem('qms_token');
+  showLoginGate();
+}
+
+function renderAccount(){
+  if (!ACCOUNT) return;
+  let el = document.getElementById('acctTag');
+  if (!el){
+    el = document.createElement('div');
+    el.id='acctTag'; el.style.cssText='font-size:12px;color:#fff;background:rgba(255,255,255,.18);border-radius:12px;padding:3px 10px;cursor:pointer;margin-left:12px;white-space:nowrap;';
+    el.onclick = logout;
+    document.getElementById('headerStats').after(el);
+  }
+  el.textContent = '👤 '+ACCOUNT.display_name+'（登出）';
+}
+
+// 启动：有 token 先验证，否则弹门禁
+async function boot(){
+  if (!SESSION_TOKEN){ showLoginGate(); return; }
+  try {
+    const r = await fetch('/api/auth/me');
+    if (r.ok){ ACCOUNT = await r.json(); hideLoginGate(); renderAccount(); init(); }
+    else { SESSION_TOKEN=''; localStorage.removeItem('qms_token'); showLoginGate(); }
+  } catch { showLoginGate(); }
+}
+
 // ── State ──────────────────────────────────────────────────────
 let profile = {};
 let framework = {phases:[]};
@@ -822,9 +953,49 @@ async function viewSavedDoc(id){
     document.getElementById('docTitle').textContent=d.doc_name;
     const t=new Date(d.updated_at*1000);
     document.getElementById('docMeta').textContent=`${d.product_name||''} · ${d.char_count}字 · ${t.toLocaleString('zh-CN')}`;
-    view.dataset.md=d.content;
-    view.innerHTML=marked.parse(d.content);
+    const content=(d.content||'').replace(/^﻿/,'');   // 去掉开头 BOM
+    view.dataset.md=content;
+    // 系统生成的是 Markdown；从 Word 导入的是纯文本（无 md 标记）——纯文本用 <pre> 保留换行，避免被 marked 渲染成一坨
+    view.innerHTML=looksLikeMarkdown(content)
+      ? marked.parse(content)
+      : `<pre style="white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:14px;line-height:1.9;margin:0">${esc(content)}</pre>`;
+    // 有原始 Word 文件才显示"下载原件"
+    const btnOrig=document.getElementById('btnOrig');
+    if(btnOrig){
+      btnOrig.style.display='none';
+      try{
+        const h=await fetch('/api/docs/'+id+'/has-original').then(r=>r.json());
+        if(h.has_original) btnOrig.style.display='';
+      }catch{}
+    }
   }catch{ view.innerHTML='<div style="color:#e53e3e">加载失败</div>'; }
+}
+
+async function downloadOriginal(){
+  if(!curSavedId) return;
+  try{
+    const r=await fetch('/api/docs/'+curSavedId+'/original');
+    if(!r.ok) throw new Error('下载失败');
+    const blob=await r.blob();
+    const cd=r.headers.get('Content-Disposition')||'';
+    let name='原件.docx';
+    const m=cd.match(/filename\*=UTF-8''([^;]+)/); if(m) name=decodeURIComponent(m[1]);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000);
+  }catch{ toast('原件下载失败'); }
+}
+
+// 粗略判断内容是否为 Markdown：含标题/表格/加粗/列表/代码块等标记才算
+function looksLikeMarkdown(s){
+  if(!s) return false;
+  return /^#{1,6}\s/m.test(s)      // 标题
+    || /^\s*\|.*\|/m.test(s)        // 表格
+    || /\*\*[^*]+\*\*/.test(s)      // 加粗
+    || /^\s*[-*+]\s+/m.test(s)      // 无序列表
+    || /^\s*\d+\.\s/m.test(s)       // 有序列表
+    || /```/.test(s);               // 代码块
 }
 
 function copySavedDoc(){
@@ -2018,7 +2189,7 @@ function playSeg(i){
   loadTrList();  // 刷新左侧小节高亮
 }
 
-init();
+boot();
 </script>
 </body>
 </html>

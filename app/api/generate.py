@@ -3,13 +3,14 @@ import json
 import re
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Optional
 
 from app.core.qms_framework import get_document_by_id, get_framework as build_framework
 from app.api.company import load_profile
+from app.api.deps import get_current_account
 from app.core.rag_engine import get_engine
 from app.core.config import settings
 from app.core.docx_export import markdown_to_docx
@@ -186,7 +187,8 @@ GENERATE_SYSTEM = """你是一位拥有 15 年经验的医疗器械 QMS 咨询�
 
 
 @router.post("/stream")
-async def generate_document_stream(request: GenerateRequest):
+async def generate_document_stream(request: GenerateRequest,
+                                   account_id: str = Depends(get_current_account)):
     doc = None
     if request.doc_id:
         doc = get_document_by_id(request.doc_id)
@@ -195,7 +197,7 @@ async def generate_document_stream(request: GenerateRequest):
     if not doc:
         raise HTTPException(status_code=404, detail="未找到可生成的文档")
 
-    profile = load_profile()
+    profile = load_profile(account_id)
     engine = get_engine()
     ref_context, ref_sources = _retrieve_refs(engine, doc)
     user_prompt = _build_prompt(
@@ -353,7 +355,8 @@ OUTLINE_SYSTEM = """你是医疗器械 QMS 文档架构师。只输出该文件�
 
 
 @router.post("/outline")
-async def generate_outline(request: OutlineRequest):
+async def generate_outline(request: OutlineRequest,
+                           account_id: str = Depends(get_current_account)):
     """为某个文件生成章节大纲（章节标题列表），供前端分章节逐章生成。单轮小输出，快。"""
     doc = None
     if request.doc_id:
@@ -365,7 +368,7 @@ async def generate_outline(request: OutlineRequest):
 
     standards = "、".join(doc.get("standards") or [])
     desc = doc.get("desc") or doc.get("description") or ""
-    profile = load_profile()
+    profile = load_profile(account_id)
     pctx_fields = [
         ("产品名称", profile.get("product_name")),
         ("核心功能", profile.get("core_functions")),

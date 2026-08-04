@@ -29,7 +29,8 @@
 
 | 组件 | 技术 |
 |------|------|
-| 检索引擎 | BM25Okapi + jieba（中文医疗词典），**非向量检索** |
+| 检索引擎 | BM25Okapi + jieba（中文医疗词典）+ 向量语义召回，RRF 融合 |
+| 向量 embedding | 本地 bge-large-zh-v1.5（sentence-transformers，首次自动下载约 1.3GB，无外部依赖）|
 | 知识图谱 | networkx MultiDiGraph（自包含，不依赖图数据库）|
 | 存储 | SQLite（知识库 qms.db / 文档存档 generated_docs.db）|
 | LLM | OpenAI 兼容 API（默认 Poe + Claude Opus 4）|

@@ -23,10 +23,13 @@ from app.api.company import load_profile
 from app.core.rag_engine import get_engine, curl_chat_stream
 from app.core.config import settings
 from app.core import doc_store
+from app.core.account_store import DEFAULT_ACCOUNT
 from app.api.generate import (
     _build_prompt, _retrieve_refs, _parse_outline,
     GENERATE_SYSTEM, OUTLINE_SYSTEM, DOC_END_MARKER,
 )
+
+ACCOUNT_ID = DEFAULT_ACCOUNT   # 归属账号，main() 可用 --account=<open_id> 覆盖
 
 MAX_TOKENS_PER_ROUND = 16384
 MAX_ROUNDS = 8
@@ -151,6 +154,7 @@ def generate_one(engine, profile, doc):
     if not content:
         raise RuntimeError("生成内容为空")
     doc_store.save_doc(
+        account_id=ACCOUNT_ID,
         doc_id=doc["id"], doc_name=doc["name"], content=content,
         product_name=profile.get("product_name", ""),
         company_name=profile.get("company_name", ""),
@@ -159,21 +163,31 @@ def generate_one(engine, profile, doc):
 
 
 def main():
-    profile = load_profile()
+    global ACCOUNT_ID
+    from app.core.account_store import DEFAULT_ACCOUNT
+    argv = sys.argv[1:]
+    ACCOUNT_ID = DEFAULT_ACCOUNT
+    want_ids = []
+    for a in argv:
+        if a.startswith("--account="):
+            ACCOUNT_ID = a.split("=", 1)[1]
+        else:
+            want_ids.append(a)
+
+    profile = load_profile(ACCOUNT_ID)
     product = profile.get("product_name", "")
-    print(f"当前产品：{product} / {profile.get('company_name')}")
+    print(f"账号：{ACCOUNT_ID}　当前产品：{product} / {profile.get('company_name')}")
     if not product:
         print("!! profile 未选中产品，已中止。")
         sys.exit(1)
 
     engine = get_engine()
-    want_ids = sys.argv[1:]
     alldocs = get_all_documents()
     by_id = {d["id"]: d for d in alldocs}
     if want_ids:
         targets = [by_id[d] for d in want_ids if d in by_id]
     else:
-        done = {r["doc_id"] for r in doc_store.list_docs(product_name=product) if r.get("doc_id")}
+        done = {r["doc_id"] for r in doc_store.list_docs(ACCOUNT_ID, product_name=product) if r.get("doc_id")}
         targets = [d for d in alldocs if d["id"] not in done]
 
     print(f"待生成 {len(targets)} 篇：{[d['id'] for d in targets]}\n")

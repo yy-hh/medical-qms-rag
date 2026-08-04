@@ -1,18 +1,19 @@
 import asyncio
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 
 from app.core.rag_engine import get_engine
 from app.core.config import settings
 from app.models.schemas import QueryRequest, StreamQueryRequest, QueryResponse, HealthResponse
+from app.api.deps import get_current_account
 
 router = APIRouter(tags=["query"])
 
 
 @router.post("/api/query", response_model=QueryResponse)
-async def query(request: QueryRequest):
+async def query(request: QueryRequest, account_id: str = Depends(get_current_account)):
     engine = get_engine()
     history = [m.model_dump() for m in (request.history or [])]
     try:
@@ -27,7 +28,8 @@ async def query(request: QueryRequest):
 
 
 @router.post("/api/query/stream")
-async def stream_query(request: StreamQueryRequest):
+async def stream_query(request: StreamQueryRequest,
+                       account_id: str = Depends(get_current_account)):
     """SSE streaming endpoint — emits: sources → delta* → [DONE]"""
     engine = get_engine()
     history = [m.model_dump() for m in (request.history or [])]

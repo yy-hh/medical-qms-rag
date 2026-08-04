@@ -31,6 +31,10 @@ def _db():
                 updated_at REAL NOT NULL
             )
         """)
+        # 幂等补列：账号隔离维度
+        cols = [r[1] for r in _conn.execute("PRAGMA table_info(notes)").fetchall()]
+        if "account_id" not in cols:
+            _conn.execute("ALTER TABLE notes ADD COLUMN account_id TEXT NOT NULL DEFAULT ''")
         _conn.commit()
     return _conn
 
@@ -39,14 +43,16 @@ def _split_tags(tags: str) -> list[str]:
     return [t for t in (x.strip() for x in (tags or "").split(",")) if t]
 
 
-def save_note(note_id, title, content="", tags="", ts=None):
-    """保存一条笔记。note_id 为空=新建，否则更新已存在的笔记。返回 rid（不存在则当新建）。"""
+def save_note(account_id, note_id, title, content="", tags="", ts=None):
+    """保存一条笔记。note_id 为空=新建，否则更新该账号下已存在的笔记。返回 rid。"""
     now = ts if ts is not None else time.time()
     db = _db()
     with _lock:
         row = None
         if note_id:
-            row = db.execute("SELECT id FROM notes WHERE id=?", (note_id,)).fetchone()
+            row = db.execute(
+                "SELECT id FROM notes WHERE id=? AND account_id=?", (note_id, account_id)
+            ).fetchone()
         if row:
             rid = row[0]
             db.execute(
@@ -56,19 +62,19 @@ def save_note(note_id, title, content="", tags="", ts=None):
         else:
             rid = uuid.uuid4().hex[:12]
             db.execute(
-                "INSERT INTO notes (id, title, content, tags, created_at, updated_at) "
-                "VALUES (?,?,?,?,?,?)",
-                (rid, title, content or "", tags or "", now, now),
+                "INSERT INTO notes (id, account_id, title, content, tags, created_at, updated_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (rid, account_id, title, content or "", tags or "", now, now),
             )
         db.commit()
     return rid
 
 
-def list_notes(q=None, tag=None):
-    """列出笔记（含正文，笔记体量小）。q 关键词匹配标题/正文，tag 匹配标签。按更新时间倒序。"""
+def list_notes(account_id, q=None, tag=None):
+    """列出某账号的笔记（含正文）。q 关键词匹配标题/正文，tag 匹配标签。按更新时间倒序。"""
     db = _db()
-    sql = "SELECT id, title, content, tags, created_at, updated_at FROM notes"
-    clauses, params = [], []
+    sql = "SELECT id, title, content, tags, created_at, updated_at FROM notes WHERE account_id=?"
+    clauses, params = [], [account_id]
     if q:
         clauses.append("(title LIKE ? OR content LIKE ?)")
         params += [f"%{q}%", f"%{q}%"]
@@ -76,7 +82,7 @@ def list_notes(q=None, tag=None):
         clauses.append("(',' || tags || ',') LIKE ?")
         params.append(f"%,{tag},%")
     if clauses:
-        sql += " WHERE " + " AND ".join(clauses)
+        sql += " AND " + " AND ".join(clauses)
     sql += " ORDER BY updated_at DESC"
     rows = db.execute(sql, params).fetchall()
     cols = ["id", "title", "content", "tags", "created_at", "updated_at"]
@@ -88,11 +94,11 @@ def list_notes(q=None, tag=None):
     return out
 
 
-def get_note(rid):
+def get_note(rid, account_id):
     db = _db()
     r = db.execute(
-        "SELECT id, title, content, tags, created_at, updated_at FROM notes WHERE id=?",
-        (rid,),
+        "SELECT id, title, content, tags, created_at, updated_at FROM notes WHERE id=? AND account_id=?",
+        (rid, account_id),
     ).fetchone()
     if not r:
         return None
@@ -102,18 +108,21 @@ def get_note(rid):
     return d
 
 
-def delete_note(rid):
+def delete_note(rid, account_id):
     db = _db()
     with _lock:
-        cur = db.execute("DELETE FROM notes WHERE id=?", (rid,))
+        cur = db.execute("DELETE FROM notes WHERE id=? AND account_id=?", (rid, account_id))
         db.commit()
     return cur.rowcount > 0
 
 
-def all_tags():
-    """汇总去重所有标签，按字母排序。"""
+def all_tags(account_id):
+    """汇总去重某账号的所有标签，按字母排序。"""
     db = _db()
-    rows = db.execute("SELECT tags FROM notes WHERE tags IS NOT NULL AND tags != ''").fetchall()
+    rows = db.execute(
+        "SELECT tags FROM notes WHERE account_id=? AND tags IS NOT NULL AND tags != ''",
+        (account_id,),
+    ).fetchall()
     seen = set()
     for (t,) in rows:
         seen.update(_split_tags(t))

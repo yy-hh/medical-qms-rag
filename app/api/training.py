@@ -11,7 +11,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -20,6 +20,7 @@ from app.core import video_gen
 from app.core.rag_engine import get_engine
 from app.core.config import settings
 from app.api.company import load_profile
+from app.api.deps import get_current_account
 
 router = APIRouter(prefix="/api/training", tags=["training"])
 
@@ -89,8 +90,8 @@ async def delete_tutorial(tutorial_id: str):
     return {"ok": True}
 
 
-def _lecture_prompt(topic: str) -> str:
-    profile = load_profile()
+def _lecture_prompt(topic: str, account_id: str) -> str:
+    profile = load_profile(account_id)
     pfields = [
         ("产品名称", profile.get("product_name")),
         ("核心功能", profile.get("core_functions")),
@@ -103,14 +104,15 @@ def _lecture_prompt(topic: str) -> str:
 
 
 @router.post("/lecture")
-async def generate_lecture(request: LectureRequest):
+async def generate_lecture(request: LectureRequest,
+                           account_id: str = Depends(get_current_account)):
     """SSE 流式生成培训讲义 markdown，并落库（status=draft）。"""
     topic = (request.topic or "").strip()
     if not topic:
         raise HTTPException(status_code=400, detail="主题不能为空")
 
     engine = get_engine()
-    prompt = _lecture_prompt(topic)
+    prompt = _lecture_prompt(topic, account_id)
 
     async def event_gen():
         # 先建/占位一条记录，拿到 id 回传前端（图文教程）
