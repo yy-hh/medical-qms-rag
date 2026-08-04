@@ -53,3 +53,12 @@ data/source_docs/national_standards_20260603/
 # Generated training videos (Seedance output, can be large)
 static/videos/
 static/audio/
+
+# 用户账号与产品档案（含隐私，按账号隔离，不入库）
+data/accounts/
+# 数据库备份文件
+data/*.bak_*
+data/*.bak
+# QMS 原始 Word 文件（data/qms_originals）随仓库入库，供文件管理页下载原件——不忽略
+!data/qms_originals/
+!data/qms_originals/**

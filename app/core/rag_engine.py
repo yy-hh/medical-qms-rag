@@ -155,9 +155,12 @@ def _is_toc_noise(text: str) -> bool:
 
 
 # ── 向量 embedding（中文语义召回路）─────────────────────────────────────────
-# 走远程 Xinference（OpenAI 兼容 /v1/embeddings）。不在本地加载模型，
-# 故无需 GPU / 模型下载；编码是网络调用，按 batch 分批发送。
+# 默认 local：本地 sentence-transformers 加载 bge，无外部依赖（首次自动下载模型）。
+# remote：走远程 OpenAI 兼容 /v1/embeddings（旧方案，需外部服务在线）。
+# 两种模式产出统一做 L2 归一化，与 DB 缓存向量同口径（归一化后内积=余弦相似度）。
 _embed_client = None
+_embed_model = None
+_embed_model_lock = Lock()   # 只保护「加载一次」；encode 后无锁并发
 _EMBED_BATCH = 64
 
 
@@ -176,18 +179,67 @@ def _get_embed_client():
     return _embed_client
 
 
+def _resolve_device() -> str:
+    if settings.embedding_device != "auto":
+        return settings.embedding_device
+    try:
+        import torch
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    except Exception:
+        return "cpu"
+
+
+def _get_embed_model():
+    """本地 sentence-transformers 模型（双检锁懒加载）。加载失败/维度不符则 fail fast，
+    不静默回退远程（用户就是要摆脱外部依赖）。"""
+    global _embed_model
+    if _embed_model is None:
+        with _embed_model_lock:
+            if _embed_model is None:
+                import os
+                if settings.hf_endpoint:
+                    os.environ.setdefault("HF_ENDPOINT", settings.hf_endpoint)
+                from sentence_transformers import SentenceTransformer
+                device = _resolve_device()
+                logger.info("Embedding via local: %s (device=%s，首次下载约 1.3GB)",
+                            settings.embedding_hf_name, device)
+                try:
+                    model = SentenceTransformer(settings.embedding_hf_name, device=device)
+                except Exception as e:
+                    raise RuntimeError(
+                        f"本地 embedding 模型加载失败：{settings.embedding_hf_name}"
+                        f"（device={device}，首次需联网下载，可设 HF_ENDPOINT 镜像）：{e}"
+                    ) from e
+                dim = model.get_sentence_embedding_dimension()
+                if dim != settings.embedding_dim:
+                    raise RuntimeError(
+                        f"本地 embedding 维度 {dim} != 期望 {settings.embedding_dim}，"
+                        f"请确认 {settings.embedding_hf_name} 是 {settings.embedding_dim} 维模型"
+                    )
+                _embed_model = model
+                logger.info("本地 embedding 就绪：dim=%d device=%s", dim, device)
+    return _embed_model
+
+
 def _embed(texts: list[str]) -> np.ndarray:
-    """编码为 L2 归一化的 float32 矩阵 [N, dim]，归一化后内积即余弦相似度。
-    bge 服务不保证返回归一化向量，这里统一做 L2 归一化。"""
-    client = _get_embed_client()
-    out: list[list[float]] = []
-    for i in range(0, len(texts), _EMBED_BATCH):
-        resp = client.embeddings.create(
-            model=settings.embedding_model,
-            input=texts[i:i + _EMBED_BATCH],
-        )
-        out.extend(d.embedding for d in resp.data)
-    arr = np.asarray(out, dtype=np.float32)
+    """编码为 L2 归一化的 float32 矩阵 [N, dim]，归一化后内积即余弦相似度。"""
+    if settings.embedding_mode == "local":
+        model = _get_embed_model()
+        # normalize_embeddings=False：归一化交给末尾统一做，避免双重归一化，与 DB 同口径
+        arr = model.encode(
+            texts, batch_size=_EMBED_BATCH, normalize_embeddings=False,
+            convert_to_numpy=True, show_progress_bar=False,
+        ).astype(np.float32)
+    else:
+        client = _get_embed_client()
+        out: list[list[float]] = []
+        for i in range(0, len(texts), _EMBED_BATCH):
+            resp = client.embeddings.create(
+                model=settings.embedding_model,
+                input=texts[i:i + _EMBED_BATCH],
+            )
+            out.extend(d.embedding for d in resp.data)
+        arr = np.asarray(out, dtype=np.float32)
     norms = np.linalg.norm(arr, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     return arr / norms

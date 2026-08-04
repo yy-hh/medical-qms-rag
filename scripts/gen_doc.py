@@ -22,9 +22,10 @@ MAX_ROUNDS = 8
 MAX_TOTAL_CHARS = 80000
 
 
-def gen(doc, out_path, extra=""):
+def gen(doc, out_path, extra="", account_id=None):
+    from app.core.account_store import DEFAULT_ACCOUNT
     eng = get_engine()
-    profile = load_profile()
+    profile = load_profile(account_id or DEFAULT_ACCOUNT)
     ref_context, _ = _retrieve_refs(eng, doc)
     user_prompt = _build_prompt(doc, profile, extra, ref_context)
     messages = [
@@ -73,9 +74,10 @@ if __name__ == "__main__":
     ap.add_argument("--doc_id")
     ap.add_argument("--out", required=True)
     ap.add_argument("--extra", default="")
+    ap.add_argument("--account", default=None, help="账号 open_id（默认属主账号）")
     a = ap.parse_args()
     doc = get_document_by_id(a.doc_id) if a.doc_id else _doc_from_checklist_seq(a.seq)
     if not doc:
         print("doc not found"); sys.exit(1)
     print(f"生成: {doc['name']}", flush=True)
-    gen(doc, a.out, a.extra)
+    gen(doc, a.out, a.extra, account_id=a.account)

@@ -1,13 +1,20 @@
 import json
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
+from app.api.deps import get_current_account
+
 router = APIRouter(prefix="/api/company", tags=["company"])
 
-PROFILE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "company_profile.json"
+ACCOUNTS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "accounts"
+
+
+def _profile_path(account_id: str) -> Path:
+    """某账号的公司档案文件路径。"""
+    return ACCOUNTS_DIR / account_id / "company_profile.json"
 
 # 产品级字段（每个产品独立一份）
 PRODUCT_FIELDS = [
@@ -36,13 +43,14 @@ def _default_store() -> dict:
     return {"company_name": "", "products": [p], "current_product_id": p["id"]}
 
 
-def _load_store() -> dict:
-    """读取原始存储结构（{company_name, products[], current_product_id}）。
+def _load_store(account_id: str) -> dict:
+    """读取某账号的原始存储结构（{company_name, products[], current_product_id}）。
     自动把旧的单产品平铺结构迁移成多产品结构。"""
-    if not PROFILE_PATH.exists():
+    path = _profile_path(account_id)
+    if not path.exists():
         return _default_store()
     try:
-        data = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return _default_store()
     # 已是新结构
@@ -63,9 +71,10 @@ def _load_store() -> dict:
             "products": [prod], "current_product_id": prod["id"]}
 
 
-def _save_store(store: dict):
-    PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PROFILE_PATH.write_text(json.dumps(store, ensure_ascii=False, indent=2), encoding="utf-8")
+def _save_store(account_id: str, store: dict):
+    path = _profile_path(account_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(store, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _current_product(store: dict) -> dict:
@@ -76,16 +85,16 @@ def _current_product(store: dict) -> dict:
     return store["products"][0]
 
 
-def load_profile() -> dict:
-    """供生成/问答使用：把公司信息 + 当前选中产品的字段合并到一层（向后兼容旧读法）。"""
-    store = _load_store()
+def load_profile(account_id: str) -> dict:
+    """供生成/问答使用：把某账号的公司信息 + 当前选中产品字段合并到一层。"""
+    store = _load_store(account_id)
     cur = _current_product(store)
     return {"company_name": store.get("company_name", ""), **cur,
             "current_product_id": store.get("current_product_id")}
 
 
-def current_product_name() -> str:
-    return _current_product(_load_store()).get("product_name", "")
+def current_product_name(account_id: str) -> str:
+    return _current_product(_load_store(account_id)).get("product_name", "")
 
 
 # ── 数据模型 ────────────────────────────────────────────────────────────────
@@ -119,29 +128,29 @@ class CompanyStore(BaseModel):
 # ── 接口 ────────────────────────────────────────────────────────────────────
 
 @router.get("")
-async def get_company():
+async def get_company(account_id: str = Depends(get_current_account)):
     """完整公司+多产品结构（前端用）。"""
-    return _load_store()
+    return _load_store(account_id)
 
 
 @router.get("/current")
-async def get_current():
+async def get_current(account_id: str = Depends(get_current_account)):
     """当前选中产品的合并视图（公司信息+当前产品字段）。"""
-    return load_profile()
+    return load_profile(account_id)
 
 
 @router.post("/company-name")
-async def set_company_name(payload: dict):
-    store = _load_store()
+async def set_company_name(payload: dict, account_id: str = Depends(get_current_account)):
+    store = _load_store(account_id)
     store["company_name"] = (payload.get("company_name") or "").strip()
-    _save_store(store)
+    _save_store(account_id, store)
     return store
 
 
 @router.post("/product")
-async def upsert_product(product: Product):
+async def upsert_product(product: Product, account_id: str = Depends(get_current_account)):
     """新增或更新产品（id 为空=新增）。"""
-    store = _load_store()
+    store = _load_store(account_id)
     data = product.model_dump()
     if not data.get("id"):
         data["id"] = uuid.uuid4().hex[:8]
@@ -154,42 +163,42 @@ async def upsert_product(product: Product):
                 break
         else:
             store["products"].append(data)
-    _save_store(store)
+    _save_store(account_id, store)
     return store
 
 
 @router.post("/current/{product_id}")
-async def switch_current(product_id: str):
+async def switch_current(product_id: str, account_id: str = Depends(get_current_account)):
     """切换当前选中产品。"""
-    store = _load_store()
+    store = _load_store(account_id)
     if not any(p["id"] == product_id for p in store["products"]):
         raise HTTPException(status_code=404, detail="产品不存在")
     store["current_product_id"] = product_id
-    _save_store(store)
+    _save_store(account_id, store)
     return store
 
 
 @router.delete("/product/{product_id}")
-async def delete_product(product_id: str):
-    store = _load_store()
+async def delete_product(product_id: str, account_id: str = Depends(get_current_account)):
+    store = _load_store(account_id)
     if len(store["products"]) <= 1:
         raise HTTPException(status_code=400, detail="至少保留一个产品")
     store["products"] = [p for p in store["products"] if p["id"] != product_id]
     if store["current_product_id"] == product_id:
         store["current_product_id"] = store["products"][0]["id"]
-    _save_store(store)
+    _save_store(account_id, store)
     return store
 
 
 # 兼容旧前端：POST / 仍可整体保存当前产品（把传入字段写回当前产品）
 @router.post("")
-async def update_profile_legacy(payload: dict):
-    store = _load_store()
+async def update_profile_legacy(payload: dict, account_id: str = Depends(get_current_account)):
+    store = _load_store(account_id)
     if "company_name" in payload:
         store["company_name"] = payload.get("company_name", "")
     cur = _current_product(store)
     for f in PRODUCT_FIELDS:
         if f in payload:
             cur[f] = payload[f]
-    _save_store(store)
-    return load_profile()
+    _save_store(account_id, store)
+    return load_profile(account_id)

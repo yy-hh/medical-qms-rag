@@ -34,12 +34,16 @@ def _db():
                 updated_at REAL NOT NULL
             )
         """)
+        # 幂等补列：账号隔离维度（仿 chunks.is_active 补列套路）
+        cols = [r[1] for r in _conn.execute("PRAGMA table_info(generated_docs)").fetchall()]
+        if "account_id" not in cols:
+            _conn.execute("ALTER TABLE generated_docs ADD COLUMN account_id TEXT NOT NULL DEFAULT ''")
         _conn.commit()
     return _conn
 
 
-def save_doc(doc_id, doc_name, content, product_name="", company_name="", ts=None):
-    """保存一份生成文档。同一 (doc_id, product_name) 已存在则更新（视为重新生成）。"""
+def save_doc(account_id, doc_id, doc_name, content, product_name="", company_name="", ts=None):
+    """保存一份生成文档。同一 (account_id, doc_id, product_name) 已存在则更新（视为重新生成）。"""
     if not (content or "").strip():
         return None
     now = ts if ts is not None else time.time()
@@ -48,8 +52,8 @@ def save_doc(doc_id, doc_name, content, product_name="", company_name="", ts=Non
         row = None
         if doc_id:
             row = db.execute(
-                "SELECT id FROM generated_docs WHERE doc_id=? AND product_name=?",
-                (doc_id, product_name or ""),
+                "SELECT id FROM generated_docs WHERE account_id=? AND doc_id=? AND product_name=?",
+                (account_id, doc_id, product_name or ""),
             ).fetchone()
         if row:
             rid = row[0]
@@ -61,41 +65,38 @@ def save_doc(doc_id, doc_name, content, product_name="", company_name="", ts=Non
         else:
             rid = uuid.uuid4().hex[:12]
             db.execute(
-                "INSERT INTO generated_docs (id, doc_id, doc_name, product_name, "
+                "INSERT INTO generated_docs (id, account_id, doc_id, doc_name, product_name, "
                 "company_name, content, char_count, created_at, updated_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?)",
-                (rid, doc_id or "", doc_name, product_name or "", company_name or "",
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (rid, account_id, doc_id or "", doc_name, product_name or "", company_name or "",
                  content, len(content), now, now),
             )
         db.commit()
     return rid
 
 
-def list_docs(product_name=None):
-    """列出存档（不含正文，轻量）。传 product_name 则只返回该产品的文档（按产品隔离）。"""
+def list_docs(account_id, product_name=None):
+    """列出某账号的存档（不含正文，轻量）。传 product_name 则再按产品过滤。"""
     db = _db()
+    sql = ("SELECT id, doc_id, doc_name, product_name, company_name, char_count, "
+           "created_at, updated_at FROM generated_docs WHERE account_id=?")
+    params = [account_id]
     if product_name is not None:
-        rows = db.execute(
-            "SELECT id, doc_id, doc_name, product_name, company_name, char_count, "
-            "created_at, updated_at FROM generated_docs WHERE product_name=? ORDER BY updated_at DESC",
-            (product_name,),
-        ).fetchall()
-    else:
-        rows = db.execute(
-            "SELECT id, doc_id, doc_name, product_name, company_name, char_count, "
-            "created_at, updated_at FROM generated_docs ORDER BY updated_at DESC"
-        ).fetchall()
+        sql += " AND product_name=?"
+        params.append(product_name)
+    sql += " ORDER BY updated_at DESC"
+    rows = db.execute(sql, params).fetchall()
     cols = ["id", "doc_id", "doc_name", "product_name", "company_name",
             "char_count", "created_at", "updated_at"]
     return [dict(zip(cols, r)) for r in rows]
 
 
-def get_doc(rid):
+def get_doc(rid, account_id):
     db = _db()
     r = db.execute(
         "SELECT id, doc_id, doc_name, product_name, company_name, content, "
-        "char_count, created_at, updated_at FROM generated_docs WHERE id=?",
-        (rid,),
+        "char_count, created_at, updated_at FROM generated_docs WHERE id=? AND account_id=?",
+        (rid, account_id),
     ).fetchone()
     if not r:
         return None
@@ -104,9 +105,9 @@ def get_doc(rid):
     return dict(zip(cols, r))
 
 
-def delete_doc(rid):
+def delete_doc(rid, account_id):
     db = _db()
     with _lock:
-        cur = db.execute("DELETE FROM generated_docs WHERE id=?", (rid,))
+        cur = db.execute("DELETE FROM generated_docs WHERE id=? AND account_id=?", (rid, account_id))
         db.commit()
     return cur.rowcount > 0

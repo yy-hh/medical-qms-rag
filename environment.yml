@@ -23,3 +23,8 @@ dependencies:
       - httpx==0.27.2
       - networkx==3.6.1
       - requests==2.34.2
+      # 本地向量 embedding（bge-large-zh-v1.5，首次自动下载约 1.3GB）
+      # torch 用 CPU 版（查询编码量小，CPU 足够；有 GPU 的机器 embedding_device=auto 仍走 CUDA）
+      - --extra-index-url https://download.pytorch.org/whl/cpu
+      - torch==2.12.0
+      - sentence-transformers==3.3.1

@@ -19,8 +19,10 @@ from app.api.docs import router as docs_router
 from app.api.notes import router as notes_router
 from app.api.hotnews import router as hotnews_router
 from app.api.training import router as training_router
+from app.api.auth import router as auth_router
 from app.core.rag_engine import get_engine
 from app.core import hotnews
+from app.core.migrate_accounts import run_migration
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,6 +71,8 @@ async def _hotnews_scheduler():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Running account migration...")
+    run_migration()
     logger.info("Warming up RAG engine...")
     get_engine()
     logger.info("RAG engine ready")
@@ -78,7 +82,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="QMS 体系搭建助手",
+    title="医械注册助手",
     description="医疗器械软件（SaMD）质量管理体系搭建平台",
     version="1.0.0",
     lifespan=lifespan,
@@ -101,6 +105,7 @@ app.include_router(docs_router)
 app.include_router(notes_router)
 app.include_router(hotnews_router)
 app.include_router(training_router)
+app.include_router(auth_router)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
