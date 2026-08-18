@@ -7,7 +7,7 @@ from urllib.parse import quote
 from app.core import doc_store
 from app.core.docx_export import markdown_to_docx
 from app.api.company import load_profile
-from app.api.deps import get_current_account
+from app.api.deps import get_shared_account
 
 router = APIRouter(prefix="/api/docs", tags=["docs"])
 
@@ -16,6 +16,11 @@ class SaveDocRequest(BaseModel):
     doc_id: Optional[str] = None
     doc_name: str
     content: str
+    # True=质量体系模板(存 __template__ 命名空间)；False=某产品注册申报实例(存当前产品名)
+    as_template: bool = False
+
+# 质量体系模板的存储命名空间(product_name)
+TEMPLATE_NS = "__template__"
 
 
 import re as _re
@@ -44,15 +49,16 @@ def _qms_prefix_dossiers(doc_id: str) -> list[str]:
 
 
 @router.post("/save")
-async def save(req: SaveDocRequest, account_id: str = Depends(get_current_account)):
+async def save(req: SaveDocRequest, account_id: str = Depends(get_shared_account)):
     """生成完成后存档（同一账号+文档+产品视为重新生成，覆盖更新）。"""
     if not (req.content or "").strip():
         raise HTTPException(status_code=400, detail="内容为空")
     profile = load_profile(account_id)
+    pname = TEMPLATE_NS if req.as_template else profile.get("product_name", "")
     rid = doc_store.save_doc(
         account_id=account_id,
         doc_id=req.doc_id, doc_name=req.doc_name, content=req.content,
-        product_name=profile.get("product_name", ""),
+        product_name=pname,
         company_name=profile.get("company_name", ""),
     )
     return {"id": rid, "ok": True}
@@ -60,7 +66,7 @@ async def save(req: SaveDocRequest, account_id: str = Depends(get_current_accoun
 
 @router.get("")
 async def list_all(product: str | None = None, all: bool = False,
-                   account_id: str = Depends(get_current_account)):
+                   account_id: str = Depends(get_shared_account)):
     """已生成文档列表（不含正文）。默认只返回【当前选中产品】的文档（按账号+产品隔离）；
     传 all=true 返回该账号全部、或 product=<名称> 指定产品。每份按 checklist 子类推断档案。"""
     from app.core.qms_framework import DOSSIERS
@@ -95,24 +101,58 @@ async def list_all(product: str | None = None, all: bool = False,
 
 
 @router.get("/{rid}")
-async def detail(rid: str, account_id: str = Depends(get_current_account)):
+async def detail(rid: str, account_id: str = Depends(get_shared_account)):
     d = doc_store.get_doc(rid, account_id)
     if not d:
         raise HTTPException(status_code=404, detail="文档不存在")
     return d
 
 
-@router.get("/{rid}/download")
-async def download(rid: str, account_id: str = Depends(get_current_account)):
-    """下载存档文档为 .docx。"""
+def _doc_meta(d: dict) -> dict:
+    """从存档记录构造公文渲染 meta（标题/编号/版本/公司）。"""
+    import re
+    doc_id = d.get("doc_id") or ""
+    doc_no = doc_id if re.match(r"^(QMS|AI)[-A-Z0-9]*$", doc_id) else (doc_id or "")
+    return {
+        "title": (d.get("doc_name") or "").replace(".txt", ""),
+        "doc_no": doc_no, "version": "A00",
+        "company": d.get("company_name") or "", "date": "", "controlled": "受控",
+    }
+
+
+def _render_docx(d: dict) -> bytes:
+    from app.core.docx_export import render_gwdocx
+    return render_gwdocx(d["content"], _doc_meta(d))
+
+
+@router.get("/{rid}/docx")
+async def get_docx(rid: str, account_id: str = Depends(get_shared_account)):
+    """实时渲染公文 docx（inline，供网页 docx-preview 预览；与下载同一产物）。"""
     d = doc_store.get_doc(rid, account_id)
     if not d:
         raise HTTPException(status_code=404, detail="文档不存在")
     try:
-        data = markdown_to_docx(d["content"], title=d["doc_name"])
+        data = _render_docx(d)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"渲染失败：{e}")
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "inline; filename=\"preview.docx\""},
+    )
+
+
+@router.get("/{rid}/download")
+async def download(rid: str, account_id: str = Depends(get_shared_account)):
+    """下载公文格式 .docx（与预览同一产物）。"""
+    d = doc_store.get_doc(rid, account_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    try:
+        data = _render_docx(d)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"导出失败：{e}")
-    filename = f"{d['doc_name']}.docx"
+    filename = f"{(d['doc_name'] or '').replace('.txt','')}.docx"
     disposition = f"attachment; filename=\"document.docx\"; filename*=UTF-8''{quote(filename)}"
     return Response(
         content=data,
@@ -127,7 +167,7 @@ _ORIG_DIR = _Path(__file__).resolve().parent.parent.parent / "data" / "qms_origi
 
 
 @router.get("/{rid}/has-original")
-async def has_original(rid: str, account_id: str = Depends(get_current_account)):
+async def has_original(rid: str, account_id: str = Depends(get_shared_account)):
     """该文档是否有可下载的原始 Word 文件（导入的 QMS 文档才有）。"""
     d = doc_store.get_doc(rid, account_id)
     if not d:
@@ -136,7 +176,7 @@ async def has_original(rid: str, account_id: str = Depends(get_current_account))
 
 
 @router.get("/{rid}/original")
-async def download_original(rid: str, account_id: str = Depends(get_current_account)):
+async def download_original(rid: str, account_id: str = Depends(get_shared_account)):
     """下载原始 Word 文件（保留完整格式/表格）。仅导入的 QMS 文档有。"""
     d = doc_store.get_doc(rid, account_id)
     if not d:
@@ -154,7 +194,7 @@ async def download_original(rid: str, account_id: str = Depends(get_current_acco
 
 
 @router.delete("/{rid}")
-async def remove(rid: str, account_id: str = Depends(get_current_account)):
+async def remove(rid: str, account_id: str = Depends(get_shared_account)):
     if not doc_store.delete_doc(rid, account_id):
         raise HTTPException(status_code=404, detail="文档不存在")
     # 一并清理原始文件

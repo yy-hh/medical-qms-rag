@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
-from app.api.deps import get_current_account
+from app.api.deps import get_shared_account
 
 router = APIRouter(prefix="/api/company", tags=["company"])
 
@@ -85,11 +85,17 @@ def _current_product(store: dict) -> dict:
     return store["products"][0]
 
 
+# 公司级字段（全公司一份，与具体产品无关）——用于质量手册等公司级文件
+COMPANY_FIELDS = ["company_name", "company_address", "contact",
+                  "business_scope", "qms_scope"]
+
+
 def load_profile(account_id: str) -> dict:
     """供生成/问答使用：把某账号的公司信息 + 当前选中产品字段合并到一层。"""
     store = _load_store(account_id)
     cur = _current_product(store)
-    return {"company_name": store.get("company_name", ""), **cur,
+    company = {f: store.get(f, "") for f in COMPANY_FIELDS}
+    return {**company, **cur,
             "current_product_id": store.get("current_product_id")}
 
 
@@ -128,19 +134,19 @@ class CompanyStore(BaseModel):
 # ── 接口 ────────────────────────────────────────────────────────────────────
 
 @router.get("")
-async def get_company(account_id: str = Depends(get_current_account)):
+async def get_company(account_id: str = Depends(get_shared_account)):
     """完整公司+多产品结构（前端用）。"""
     return _load_store(account_id)
 
 
 @router.get("/current")
-async def get_current(account_id: str = Depends(get_current_account)):
+async def get_current(account_id: str = Depends(get_shared_account)):
     """当前选中产品的合并视图（公司信息+当前产品字段）。"""
     return load_profile(account_id)
 
 
 @router.post("/company-name")
-async def set_company_name(payload: dict, account_id: str = Depends(get_current_account)):
+async def set_company_name(payload: dict, account_id: str = Depends(get_shared_account)):
     store = _load_store(account_id)
     store["company_name"] = (payload.get("company_name") or "").strip()
     _save_store(account_id, store)
@@ -148,7 +154,7 @@ async def set_company_name(payload: dict, account_id: str = Depends(get_current_
 
 
 @router.post("/product")
-async def upsert_product(product: Product, account_id: str = Depends(get_current_account)):
+async def upsert_product(product: Product, account_id: str = Depends(get_shared_account)):
     """新增或更新产品（id 为空=新增）。"""
     store = _load_store(account_id)
     data = product.model_dump()
@@ -168,7 +174,7 @@ async def upsert_product(product: Product, account_id: str = Depends(get_current
 
 
 @router.post("/current/{product_id}")
-async def switch_current(product_id: str, account_id: str = Depends(get_current_account)):
+async def switch_current(product_id: str, account_id: str = Depends(get_shared_account)):
     """切换当前选中产品。"""
     store = _load_store(account_id)
     if not any(p["id"] == product_id for p in store["products"]):
@@ -179,7 +185,7 @@ async def switch_current(product_id: str, account_id: str = Depends(get_current_
 
 
 @router.delete("/product/{product_id}")
-async def delete_product(product_id: str, account_id: str = Depends(get_current_account)):
+async def delete_product(product_id: str, account_id: str = Depends(get_shared_account)):
     store = _load_store(account_id)
     if len(store["products"]) <= 1:
         raise HTTPException(status_code=400, detail="至少保留一个产品")
@@ -192,7 +198,7 @@ async def delete_product(product_id: str, account_id: str = Depends(get_current_
 
 # 兼容旧前端：POST / 仍可整体保存当前产品（把传入字段写回当前产品）
 @router.post("")
-async def update_profile_legacy(payload: dict, account_id: str = Depends(get_current_account)):
+async def update_profile_legacy(payload: dict, account_id: str = Depends(get_shared_account)):
     store = _load_store(account_id)
     if "company_name" in payload:
         store["company_name"] = payload.get("company_name", "")

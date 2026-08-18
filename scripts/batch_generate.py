@@ -25,7 +25,7 @@ from app.core.config import settings
 from app.core import doc_store
 from app.core.account_store import DEFAULT_ACCOUNT
 from app.api.generate import (
-    _build_prompt, _retrieve_refs, _parse_outline,
+    _build_prompt, _retrieve_refs, _parse_outline, _build_dep_context,
     GENERATE_SYSTEM, OUTLINE_SYSTEM, DOC_END_MARKER,
 )
 
@@ -127,8 +127,13 @@ def _gen_outline(doc, profile):
     return _parse_outline(content) or None
 
 
-def generate_one(engine, profile, doc):
+TEMPLATE_NS = "__template__"
+
+def generate_one(engine, profile, doc, as_template=False):
     ref_context, _ = _retrieve_refs(engine, doc)
+    dep_context = "" if as_template else _build_dep_context(ACCOUNT_ID, profile.get("product_name") or "", doc)
+    if dep_context:
+        print(f"      依赖上下文：{len(doc.get('depends_docs') or [])} 份关联文件")
     failed_sections = []
 
     if doc["id"] in LONG_DOC_IDS:
@@ -138,7 +143,7 @@ def generate_one(engine, profile, doc):
             parts = []
             for i, sec in enumerate(sections, 1):
                 print(f"      [{i}/{len(sections)}] {sec}")
-                prompt = _build_prompt(doc, profile, "", ref_context, section=sec, outline=sections)
+                prompt = _build_prompt(doc, profile, "", ref_context, section=sec, outline=sections, dep_context=dep_context)
                 try:
                     parts.append(_generate_full(prompt).strip())
                 except Exception as e:
@@ -146,9 +151,9 @@ def generate_one(engine, profile, doc):
                     failed_sections.append(sec)
             content = "\n\n".join(p for p in parts if p)
         else:
-            content = _generate_full(_build_prompt(doc, profile, "", ref_context))
+            content = _generate_full(_build_prompt(doc, profile, "", ref_context, dep_context=dep_context))
     else:
-        content = _generate_full(_build_prompt(doc, profile, "", ref_context))
+        content = _generate_full(_build_prompt(doc, profile, "", ref_context, dep_context=dep_context))
 
     content = content.strip()
     if not content:
@@ -156,7 +161,7 @@ def generate_one(engine, profile, doc):
     doc_store.save_doc(
         account_id=ACCOUNT_ID,
         doc_id=doc["id"], doc_name=doc["name"], content=content,
-        product_name=profile.get("product_name", ""),
+        product_name=(TEMPLATE_NS if as_template else profile.get("product_name", "")),
         company_name=profile.get("company_name", ""),
     )
     return len(content), failed_sections
@@ -167,19 +172,30 @@ def main():
     from app.core.account_store import DEFAULT_ACCOUNT
     argv = sys.argv[1:]
     ACCOUNT_ID = DEFAULT_ACCOUNT
+    as_template = False
     want_ids = []
     for a in argv:
         if a.startswith("--account="):
             ACCOUNT_ID = a.split("=", 1)[1]
+        elif a == "--template":
+            as_template = True
         else:
             want_ids.append(a)
 
-    profile = load_profile(ACCOUNT_ID)
-    product = profile.get("product_name", "")
-    print(f"账号：{ACCOUNT_ID}　当前产品：{product} / {profile.get('company_name')}")
-    if not product:
-        print("!! profile 未选中产品，已中止。")
-        sys.exit(1)
+    full_profile = load_profile(ACCOUNT_ID)
+    if as_template:
+        # 生成质量体系模板：带公司信息(名称/地址/经营范围/体系范围)、不带具体产品(走占位符)，存 __template__
+        from app.api.company import COMPANY_FIELDS
+        profile = {f: full_profile.get(f, "") for f in COMPANY_FIELDS}
+        product = TEMPLATE_NS
+        print(f"账号：{ACCOUNT_ID}　模式：质量体系模板(__template__) / {profile.get('company_name')}")
+    else:
+        profile = full_profile
+        product = profile.get("product_name", "")
+        print(f"账号：{ACCOUNT_ID}　当前产品：{product} / {profile.get('company_name')}")
+        if not product:
+            print("!! profile 未选中产品，已中止。")
+            sys.exit(1)
 
     engine = get_engine()
     alldocs = get_all_documents()
@@ -197,7 +213,7 @@ def main():
         mode = "分章节" if doc["id"] in LONG_DOC_IDS else "整篇"
         print(f"[{idx}/{len(targets)}] {doc['id']} {doc['name']}（{mode}）…")
         try:
-            n, failed = generate_one(engine, profile, doc)
+            n, failed = generate_one(engine, profile, doc, as_template=as_template)
             tag = "ok" if not failed else f"ok(缺章:{failed})"
             print(f"    OK {n} 字，{time.time()-t0:.0f}s {('缺章节:'+str(failed)) if failed else ''}\n")
             results.append((doc["id"], doc["name"], n, tag))

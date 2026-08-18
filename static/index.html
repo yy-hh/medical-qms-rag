@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>医械注册助手</title>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>if(window.mermaid)mermaid.initialize({startOnLoad:false,theme:'default',securityLevel:'loose'});</script>
+<script src="/static/vendor/x6.min.js"></script>
+<script src="/static/vendor/dagre.min.js"></script>
+<script src="/static/vendor/jszip.min.js"></script>
+<script src="/static/vendor/docx-preview.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f4f8;color:#1a202c;height:100vh;display:flex;flex-direction:column;overflow:hidden}
@@ -69,6 +76,9 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .phase-badge{margin-left:auto;background:rgba(255,255,255,.2);border-radius:10px;padding:2px 8px;font-size:11px;white-space:nowrap}
 .doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1px;background:#f0f4f8}
 .level-row .doc-grid{flex:1}
+.subtype-group{margin-bottom:10px}
+.subtype-hd{font-size:12px;font-weight:700;color:#dd6b20;padding:6px 10px;background:#fffaf0;border-left:3px solid #f6ad55;border-radius:4px;margin:8px 8px 6px;display:flex;align-items:center;gap:6px}
+.subtype-hd .st-n{font-size:10px;font-weight:600;color:#a0aec0;background:#fff;border-radius:9px;padding:1px 7px}
 .doc-card{background:#fff;padding:12px 14px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:5px}
 .doc-card:hover{background:#ebf8ff}
 .doc-card-top{display:flex;align-items:flex-start;gap:8px}
@@ -84,6 +94,11 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .tag-procedure{background:#bee3f8;color:#2b6cb0}
 .tag-form{background:#e2e8f0;color:#4a5568}
 .tag-market{background:#fef3c7;color:#92400e}
+.tag-ai{background:#e9d8fd;color:#6b46c1;font-weight:600}
+.tag-sw{background:#c6f6d5;color:#276749;font-weight:600}
+.scope-badge{font-size:10px;font-weight:600;border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle;white-space:nowrap}
+.sb-ai{background:#e9d8fd;color:#6b46c1}
+.sb-sw{background:#c6f6d5;color:#276749}
 .tag-clickable{cursor:pointer;text-decoration:underline dotted}
 .tag-clickable:hover{background:#fde68a}
 /* ── Generator ── */
@@ -242,6 +257,13 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 .send-btn:hover:not(:disabled){background:#2b6cb0}
 .send-btn:disabled{background:#a0aec0;cursor:not-allowed}
 .new-chat{background:none;border:1px solid #e2e8f0;color:#718096;border-radius:7px;padding:0 8px;height:40px;font-size:11px;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.attach-btn{background:none;border:1px solid #e2e8f0;color:#718096;border-radius:9px;width:40px;height:40px;font-size:17px;cursor:pointer;flex-shrink:0}
+.attach-btn:hover{background:#f0f4f8}
+.attach-chips{display:none;gap:6px;flex-wrap:wrap;padding:6px 14px 0}
+.attach-chips.show{display:flex}
+.attach-chips .chip{display:inline-flex;align-items:center;gap:5px;background:#ebf4ff;color:#2b6cb0;border:1px solid #bee3f8;border-radius:12px;padding:2px 8px;font-size:11px;max-width:180px}
+.attach-chips .chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.attach-chips .chip b{cursor:pointer;color:#3182ce;font-weight:700}
 .new-chat:hover{border-color:#3182ce;color:#3182ce}
 /* ── Settings ── */
 .settings-body{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
@@ -284,6 +306,210 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 ::-webkit-scrollbar-thumb{background:#a0aec0;border-radius:7px;border:3px solid #f0f4f8;background-clip:padding-box;min-height:40px}
 ::-webkit-scrollbar-thumb:hover{background:#718096;border:3px solid #f0f4f8;background-clip:padding-box}
 *{scrollbar-width:auto;scrollbar-color:#a0aec0 #f0f4f8}
+/* ══ 注册路线图 (merged from roadmap.html) ══ */
+#page-regroadmap .rm-body{flex:1;overflow-y:auto;padding:16px 20px}
+#page-regroadmap #rmFlowBody{overflow:auto}
+/* 自绘横向行泳道流程图 */
+.rf-node{position:absolute;z-index:2;background:#fff;border:1px solid #d0ccc4;border-radius:8px;padding:7px 9px;display:flex;flex-direction:column;gap:3px;box-shadow:0 1px 3px rgba(20,30,45,.08)}
+.rf-node.ext{background:#eef0f2;border-style:dashed}
+.rf-act{font-size:11.5px;font-weight:650;line-height:1.28;color:#1b2430}
+.rf-out{font-size:9.5px;color:#5a6572;line-height:1.3}
+.rf-extbadge{font-size:9px;font-weight:650;color:#7a8592;background:#e2e6ea;border-radius:10px;padding:0 6px;align-self:flex-start}
+.rf-dia{position:absolute;z-index:2;background:#fbf3e2;border:1.5px solid #c99a3a;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);display:flex;align-items:center;justify-content:center;text-align:center}
+.rf-dia span{font-size:10px;font-weight:700;color:#8a5a00;line-height:1.2;padding:0 4px}
+.rf-term{position:absolute;z-index:2;border-radius:20px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:650;background:#fff;border:1px solid #7a8592;color:#5a6572}
+.rf-term.start{border-color:#2b6cb0;color:#2b6cb0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .rf-node{background:#1b2128;border-color:#333b45}
+ :root:not([data-theme="light"]) .rf-act{color:#e7ebef} :root:not([data-theme="light"]) .rf-out{color:#a3adb9}
+ :root:not([data-theme="light"]) .rf-node.ext{background:#242b33} :root:not([data-theme="light"]) .rf-term{background:#1b2128}}
+/* timeline phase (scoped to avoid clashing with 体系搭建地图 的 .phase-*) */
+#page-regroadmap .phase{position:relative;margin-bottom:18px;padding-left:34px}
+#page-regroadmap .phase::before{content:"";position:absolute;left:13px;top:30px;bottom:-18px;width:2px;background:#cbd5e0}
+#page-regroadmap .phase:last-child::before{display:none}
+#page-regroadmap .phase-dot{position:absolute;left:0;top:2px;width:28px;height:28px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+#page-regroadmap .rm-phase-head{margin-bottom:10px}
+#page-regroadmap .rm-phase-head h3{font-size:15px;font-weight:700;color:#1a365d;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+#page-regroadmap .rm-phase-head .en{font-size:11px;color:#a0aec0;font-weight:500}
+#page-regroadmap .rm-phase-head .dur{font-size:11px;background:#edf2f7;color:#4a5568;border-radius:10px;padding:1px 9px;margin-left:auto}
+#page-regroadmap .rm-phase-head .goal{font-size:12px;color:#718096;margin-top:3px}
+#page-regroadmap .sub-group{margin-bottom:14px}
+#page-regroadmap .sub-label{font-size:12px;font-weight:700;color:#4a5568;background:#edf2f7;border-radius:6px;padding:4px 10px;display:inline-block;margin-bottom:8px}
+#page-regroadmap .task-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+#page-regroadmap .task-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:7px}
+#page-regroadmap .task-card:hover{border-color:#4299e1;box-shadow:0 3px 10px rgba(66,153,225,.15);transform:translateY(-1px)}
+#page-regroadmap .tc-top{display:flex;align-items:flex-start;gap:8px}
+#page-regroadmap .tc-id{font-size:10px;font-family:monospace;color:#a0aec0;flex-shrink:0;margin-top:2px}
+#page-regroadmap .tc-title{font-size:14px;font-weight:700;color:#2d3748;line-height:1.3}
+#page-regroadmap .tc-what{font-size:12px;color:#4a5568;line-height:1.5}
+#page-regroadmap .tc-io{display:flex;gap:6px;font-size:11px;color:#718096}
+#page-regroadmap .tc-io .io-box{flex:1;background:#f7fafc;border-radius:6px;padding:5px 8px;line-height:1.4}
+#page-regroadmap .tc-io .io-box b{display:block;font-size:10px;color:#a0aec0;font-weight:600;margin-bottom:1px}
+#page-regroadmap .tc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:1px}
+#page-regroadmap .tag{font-size:10px;padding:1px 7px;border-radius:10px;font-weight:500}
+#page-regroadmap .tag-doc{background:#bee3f8;color:#2b6cb0}
+#page-regroadmap .tag-dossier{background:#fef3c7;color:#92400e}
+#page-regroadmap .tag-none{background:#edf2f7;color:#a0aec0}
+#page-regroadmap .tc-foot{font-size:11px;color:#3182ce;font-weight:600;margin-top:2px}
+/* task detail modal (unique names, global so #taskModal outside #page-regroadmap works) */
+.rm-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center}
+.rm-modal-bg.open{display:flex}
+.rm-modal{background:#fff;border-radius:14px;width:92%;max-width:680px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.rm-modal .modal-head{padding:18px 22px 14px;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+.rm-modal .modal-head h2{font-size:17px;font-weight:700;color:#1a365d}
+.rm-modal .modal-head .mh-meta{font-size:11px;color:#a0aec0;margin-top:3px}
+.rm-modal .modal-scroll{overflow-y:auto;padding:18px 22px}
+.rm-modal .m-section{margin-bottom:14px}
+.rm-modal .m-section .lab{font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.rm-modal .m-section .val{font-size:13px;color:#2d3748;line-height:1.6}
+.rm-modal .m-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rm-modal .m-box{background:#f7fafc;border-radius:8px;padding:10px 12px}
+.rm-modal .m-box .lab{margin-bottom:3px}
+.rm-modal .m-tags{display:flex;gap:5px;flex-wrap:wrap}
+.rm-modal .doc-pick{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.rm-modal .doc-pick-item{display:flex;align-items:center;gap:8px;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;cursor:pointer;transition:.15s}
+.rm-modal .doc-pick-item:hover{border-color:#4299e1;background:#ebf8ff}
+.rm-modal .doc-pick-item .dp-name{font-size:13px;font-weight:600;color:#2c5282;flex:1}
+.rm-modal .doc-pick-item .dp-id{font-size:10px;font-family:monospace;color:#a0aec0}
+.rm-modal .doc-pick-item .dp-go{font-size:11px;color:#3182ce;font-weight:600}
+.rm-modal .no-doc{font-size:12px;color:#a0aec0;background:#f7fafc;border-radius:8px;padding:10px 12px;line-height:1.5}
+.rm-modal .gen-wrap{display:none;flex-direction:column;flex:1;overflow:hidden}
+.rm-modal .gen-wrap.show{display:flex}
+.rm-modal .gen-bar{padding:10px 22px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;background:#fafbfc}
+.rm-modal .gen-bar h4{font-size:13px;font-weight:600;color:#1a365d;flex:1}
+.rm-modal .gen-out{flex:1;overflow-y:auto;padding:18px 22px;background:#fafbfc}
+.rm-modal .gen-out .doc-content{background:#fff;border-radius:10px;padding:22px;box-shadow:0 1px 4px rgba(0,0,0,.06);min-height:120px;font-size:13px;line-height:1.7}
+.rm-modal .gen-out .doc-content.streaming{border-left:3px solid #3182ce}
+/* ══ 合规图谱 (merged from compliance.html, scoped to #page-compliance) ══ */
+#page-compliance{overflow:hidden}
+#page-compliance #hstats{opacity:.9}
+#page-compliance .cmp-tabs{display:flex;gap:0;background:#fff;border-bottom:1px solid #e2e8f0;padding:0 20px;flex-shrink:0}
+#page-compliance .cmp-tab{padding:12px 18px;font-size:13px;font-weight:600;color:#718096;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+#page-compliance .cmp-tab.active{color:#2b6cb0;border-bottom-color:#2b6cb0}
+#page-compliance .cmp-tab:hover:not(.active){color:#4a5568}
+#page-compliance .cmp-toolbar{padding:10px 20px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0;display:flex;align-items:center;gap:10px}
+#page-compliance .cmp-toolbar input{flex:1;max-width:420px;border:1px solid #cbd5e0;border-radius:8px;padding:7px 12px;font-size:13px;outline:none}
+#page-compliance .cmp-toolbar input:focus{border-color:#3182ce}
+#page-compliance .cmp-hint{font-size:11px;color:#a0aec0}
+#page-compliance .cmp-body{flex:1;overflow-y:auto;padding:16px 20px}
+/* 阶段视图 */
+#page-compliance .stage-block{background:#fff;border-radius:12px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden}
+#page-compliance .stage-hd{padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;border-left:4px solid #ccc}
+#page-compliance .stage-hd .no{width:26px;height:26px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+#page-compliance .stage-hd h3{font-size:14px;font-weight:700;color:#1a365d}
+#page-compliance .stage-hd .meta{font-size:11px;color:#a0aec0;margin-left:auto}
+#page-compliance .stage-body{padding:0 16px 12px;display:none}
+#page-compliance .stage-body.open{display:block}
+#page-compliance .row{display:grid;grid-template-columns:1.4fr 1fr 1.4fr auto;gap:10px;padding:9px 10px;border-top:1px solid #edf2f7;font-size:12px;align-items:center}
+#page-compliance .row:hover{background:#f7fafc}
+#page-compliance .row .col-lab{font-size:10px;color:#a0aec0;display:block;margin-bottom:2px}
+#page-compliance .row .doc{font-weight:600;color:#2c5282}
+#page-compliance .row .act{color:#4a5568}
+#page-compliance .row .basis{color:#718096;line-height:1.4}
+#page-compliance .row .clause{color:#a0aec0;font-size:11px}
+#page-compliance .gen-btn{background:#3182ce;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;white-space:nowrap}
+#page-compliance .gen-btn:hover{background:#2b6cb0}
+#page-compliance .gen-btn.none{background:#edf2f7;color:#a0aec0;cursor:default}
+#page-compliance .rowhead{font-size:10px;color:#a0aec0;font-weight:600;padding:6px 10px;display:grid;grid-template-columns:1.4fr 1fr 1.4fr auto;gap:10px;border-bottom:1px solid #e2e8f0}
+/* 法规/文档列表卡片 */
+#page-compliance .card{background:#fff;border-radius:10px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden}
+#page-compliance .card-hd{padding:11px 14px;cursor:pointer;display:flex;align-items:flex-start;gap:10px}
+#page-compliance .card-hd:hover{background:#f7fafc}
+#page-compliance .card-hd .ic{font-size:16px;flex-shrink:0}
+#page-compliance .card-hd .main{flex:1;min-width:0}
+#page-compliance .card-hd .t{font-size:13px;font-weight:700;color:#2d3748;line-height:1.35}
+#page-compliance .card-hd .s{font-size:11px;color:#a0aec0;margin-top:2px}
+#page-compliance .card-hd .badge{font-size:10px;background:#bee3f8;color:#2b6cb0;border-radius:10px;padding:1px 8px;flex-shrink:0;white-space:nowrap}
+#page-compliance .card-body{display:none;padding:0 14px 12px 40px}
+#page-compliance .card-body.open{display:block}
+#page-compliance .link-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px dashed #edf2f7;font-size:12px}
+#page-compliance .link-item .stage-pill{font-size:10px;border-radius:8px;padding:1px 7px;color:#fff;flex-shrink:0}
+#page-compliance .link-item .lname{flex:1;color:#4a5568}
+#page-compliance .link-item .lname b{color:#2c5282}
+#page-compliance .cmp-empty{text-align:center;color:#a0aec0;font-size:13px;padding:40px}
+/* 图谱视图 */
+#page-compliance .graph-wrap{position:relative;width:100%;flex:1;min-height:calc(100vh - 180px)}
+#page-compliance #graphCanvas{width:100%;height:100%;background:radial-gradient(circle at 50% 40%,#0f1b2d 0%,#0a1422 70%,#070d18 100%)}
+#page-compliance .graph-legend{position:absolute;top:14px;left:14px;background:rgba(15,27,45,.82);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;font-size:11px;color:#cbd5e0;backdrop-filter:blur(6px)}
+#page-compliance .graph-legend .lg{display:flex;align-items:center;gap:7px;margin:4px 0}
+#page-compliance .graph-legend .dot{width:11px;height:11px;border-radius:50%;box-shadow:0 0 6px currentColor}
+#page-compliance .graph-hint{position:absolute;bottom:14px;left:14px;font-size:11px;color:#64748b;background:rgba(15,27,45,.6);padding:5px 10px;border-radius:8px}
+#page-compliance .node-panel{position:absolute;top:14px;right:14px;width:300px;max-height:calc(100% - 28px);overflow-y:auto;background:rgba(17,28,46,.95);border:1px solid rgba(120,160,220,.25);border-radius:12px;padding:14px;color:#e2e8f0;font-size:12px;box-shadow:0 8px 30px rgba(0,0,0,.4);display:none}
+#page-compliance .node-panel.show{display:block}
+#page-compliance .node-panel .np-type{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7dd3fc;font-weight:700}
+#page-compliance .node-panel .np-title{font-size:14px;font-weight:700;color:#fff;margin:4px 0 8px;line-height:1.4}
+#page-compliance .node-panel .np-sub{font-size:11px;color:#94a3b8;margin-bottom:10px;line-height:1.5}
+#page-compliance .node-panel .np-sec{font-size:10px;color:#64748b;font-weight:700;margin:10px 0 5px;text-transform:uppercase}
+#page-compliance .np-nb{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:.12s;margin-bottom:3px}
+#page-compliance .np-nb:hover{background:rgba(120,160,220,.16)}
+#page-compliance .np-nb .nb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+#page-compliance .np-nb .nb-lab{flex:1;color:#cbd5e0;line-height:1.35}
+#page-compliance .np-nb .nb-rel{font-size:9px;color:#64748b}
+#page-compliance .req-group{margin-top:4px}
+#page-compliance .req-group-hd{font-size:11px;color:#cbd5e0;cursor:pointer;padding:5px 6px;border-radius:6px;background:rgba(120,160,220,.08)}
+#page-compliance .req-group-hd:hover{background:rgba(120,160,220,.16)}
+#page-compliance .req-group-body{padding-left:6px}
+#page-compliance .np-gen{width:100%;margin-top:10px;background:#3182ce;color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;cursor:pointer;font-weight:600}
+#page-compliance .np-gen:hover{background:#2b6cb0}
+#page-compliance .np-close{position:absolute;top:10px;right:12px;cursor:pointer;color:#64748b;font-size:16px}
+#page-compliance .np-close:hover{color:#fff}
+#page-compliance .graph-search{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:5}
+#page-compliance .graph-search input{width:320px;background:rgba(17,28,46,.92);border:1px solid rgba(120,160,220,.3);border-radius:20px;padding:8px 16px;font-size:13px;color:#fff;outline:none}
+#page-compliance .graph-search input::placeholder{color:#64748b}
+#page-compliance .graph-search input:focus{border-color:#3182ce;box-shadow:0 0 0 3px rgba(49,130,206,.2)}
+#page-compliance .gs-results{margin-top:6px;background:rgba(17,28,46,.97);border:1px solid rgba(120,160,220,.25);border-radius:10px;max-height:300px;overflow-y:auto;display:none}
+#page-compliance .gs-results.show{display:block}
+#page-compliance .gs-item{padding:8px 14px;font-size:12px;color:#cbd5e0;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)}
+#page-compliance .gs-item:hover{background:rgba(120,160,220,.16)}
+#page-compliance .gs-item .gi-type{font-size:9px;color:#7dd3fc;margin-right:6px}
+/* 体系搭建地图·视图切换（分段控件，居中） */
+.bm-viewtabs-wrap{display:flex;justify-content:center;margin:2px 0 0}
+#page-roadmap #roadmapBody{padding-top:6px}
+.bm-viewtabs{display:inline-flex;background:#eef2f7;border-radius:10px;padding:3px;gap:2px}
+.bm-vtab{border:none;background:transparent;color:#5a6b7f;border-radius:7px;padding:7px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:.18s;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px;line-height:1.2}
+.bm-vtab:hover:not(.active){color:#2b6cb0}
+.bm-vtab.active{background:#fff;color:#1a365d;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.bm-vtab .vt-sub{font-size:11px;font-weight:400;color:#a0aec0}
+.bm-vtab.active .vt-sub{color:#718096}
+#page-roadmap .bf-phase{position:relative;padding-left:36px;margin-bottom:20px}
+#page-roadmap .bf-phase::before{content:"";position:absolute;left:14px;top:30px;bottom:-20px;width:2px;background:#cbd5e0}
+#page-roadmap .bf-phase:last-child::before{display:none}
+#page-roadmap .bf-dot{position:absolute;left:0;top:2px;width:30px;height:30px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+#page-roadmap .bf-head h3{font-size:15px;font-weight:700;color:#1a365d;margin:0}
+#page-roadmap .bf-head .bf-goal{font-size:12px;color:#718096;margin:3px 0 10px}
+#page-roadmap .bf-tasks{list-style:none;padding:0;margin:0 0 10px}
+#page-roadmap .bf-tasks li{font-size:12.5px;color:#4a5568;padding:5px 0 5px 18px;position:relative}
+#page-roadmap .bf-tasks li::before{content:"◇";position:absolute;left:0;color:#a0aec0}
+#page-roadmap .bf-docgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+#page-roadmap .bf-steps{list-style:none;padding:0;margin:0 0 10px;counter-reset:bfstep}
+#page-roadmap .bf-steps li{font-size:12.5px;color:#2d3748;padding:5px 0 5px 26px;position:relative;line-height:1.5}
+#page-roadmap .bf-steps li::before{counter-increment:bfstep;content:counter(bfstep);position:absolute;left:0;top:4px;width:17px;height:17px;border-radius:50%;background:#e2e8f0;color:#4a5568;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+#page-roadmap .bf-meta{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+#page-roadmap .bf-chip{font-size:11px;padding:3px 9px;border-radius:6px;line-height:1.4}
+#page-roadmap .bf-chip b{font-weight:700}
+#page-roadmap .bf-chip.out{background:#f0fff4;color:#276749;border:1px solid #c6f6d5}
+#page-roadmap .bf-chip.dep{background:#ebf8ff;color:#2c5282;border:1px solid #bee3f8}
+#page-roadmap .bf-chip.std{background:#faf5ff;color:#553c9a;border:1px solid #e9d8fd}
+#page-roadmap .bf-pit{font-size:12px;color:#9b2c2c;background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:7px 11px;margin:0 0 10px}
+#page-roadmap .bf-pit::before{content:"⚠ 常见坑：";font-weight:700}
+.pgroup{margin-bottom:10px}
+.pgroup-hd{font-size:12.5px;font-weight:700;color:#2d3748;padding:7px 10px;display:flex;align-items:center;gap:7px;background:#f7fafc;border-radius:6px;cursor:pointer;user-select:none}
+.pgroup-hd:hover{background:#edf2f7}
+.pgroup-n{font-size:10px;font-weight:600;color:#718096;background:#e2e8f0;border-radius:9px;padding:1px 7px;margin-left:auto}
+.pg-caret{font-size:10px;color:#a0aec0;transition:transform .15s;transform:rotate(90deg)}
+.pgroup.collapsed .pg-caret{transform:rotate(0deg)}
+.pgroup.collapsed .doc-grid{display:none}
+.pgroup .doc-grid{margin-top:8px}
+.dhf-stage{margin-bottom:10px}
+.dhf-stage-hd{font-size:11px;font-weight:700;color:#6b46c1;background:#faf5ff;border-left:3px solid #9f7aea;padding:4px 9px;border-radius:4px;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+#page-roadmap .bf-doctoggle{font-size:12px;color:#3182ce;font-weight:600;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:5px;margin-bottom:8px}
+#page-roadmap .bf-doctoggle:hover{text-decoration:underline}
+#page-roadmap .bf-docwrap.collapsed .bf-docgrid{display:none}
+.module-card.clickable{cursor:pointer;transition:.15s}
+.module-card.clickable:hover{box-shadow:0 2px 10px rgba(49,130,206,.18);transform:translateY(-1px)}
+.m-badge{font-size:10px;font-weight:600;color:#3182ce;background:#ebf8ff;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+.m-badge-empty{color:#a0aec0;background:#f7fafc}
+.module-doc-panel{margin-top:14px;padding:14px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:10px}
+.module-doc-panel .mdp-head{font-size:13px;font-weight:700;color:#2b6cb0;margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -319,19 +545,20 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
   <h1>医械注册助手</h1>
   <div class="company-tag" onclick="showPage('settings')" id="companyTag">⚙ 配置公司信息</div>
+  <div class="company-tag" onclick="showPage('settings')" id="productTag" style="background:rgba(255,255,255,.12);cursor:pointer" title="当前选中产品(点击切换)">📦 —</div>
   <div id="headerStats"></div>
 </header>
 
 <div class="app">
   <!-- Nav -->
   <nav>
-    <button class="nav-btn active" id="nav-roadmap" onclick="showPage('roadmap')" title="体系地图">
-      <span class="icon">🗺️</span>体系地图
+    <button class="nav-btn active" id="nav-roadmap" onclick="showPage('roadmap')" title="体系搭建地图">
+      <span class="icon">🗺️</span>体系搭建
     </button>
-    <button class="nav-btn" id="nav-roadmapPage" onclick="location.href='/static/roadmap.html'" title="实施路线图">
-      <span class="icon">🚀</span>实施路线图
+    <button class="nav-btn" id="nav-regroadmap" onclick="showPage('regroadmap')" title="注册流程">
+      <span class="icon">🚀</span>注册流程
     </button>
-    <button class="nav-btn" id="nav-compliance" onclick="location.href='/static/compliance.html'" title="合规图谱">
+    <button class="nav-btn" id="nav-compliance" onclick="showPage('compliance')" title="合规图谱">
       <span class="icon">🔗</span>合规图谱
     </button>
     <button class="nav-btn" id="nav-docs" onclick="showPage('docs')" title="文件管理">
@@ -349,6 +576,9 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     <button class="nav-btn" id="nav-training" onclick="showPage('training')" title="体系培训">
       <span class="icon">🎓</span>体系培训
     </button>
+    <button class="nav-btn" id="nav-review" onclick="showPage('review')" title="体系审查（红队）">
+      <span class="icon">🔍</span>体系审查
+    </button>
     <button class="nav-btn" id="nav-settings" onclick="showPage('settings')" title="公司信息">
       <span class="icon">⚙️</span>公司信息
     </button>
@@ -360,13 +590,91 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     <div class="page active" id="page-roadmap">
       <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div>
-          <h2>🗺️ QMS 体系地图</h2>
+          <h2>🗺️ 体系搭建地图</h2>
           <p>SaMD 医疗器械软件 · 二/三类 · 多市场（NMPA / CE / FDA）· 点击任意文件可生成模板</p>
         </div>
-        <a class="icon-btn" href="/static/roadmap.html" style="white-space:nowrap;border-color:#3182ce;color:#3182ce;font-weight:600">🚀 查看实施路线图 →</a>
+        <button class="icon-btn" onclick="showPage('regroadmap')" style="white-space:nowrap;border-color:#3182ce;color:#3182ce;font-weight:600">🚀 查看注册流程 →</button>
+      </div>
+      <div class="bm-viewtabs-wrap" style="position:relative">
+        <div class="bm-viewtabs">
+          <button class="bm-vtab active" data-bmview="framework" onclick="switchBmView('framework')">📚 框架视图</button>
+          <button class="bm-vtab" data-bmview="flow" onclick="switchBmView('flow')">🧭 搭建流程</button>
+        </div>
+        <div id="bmSearchWrap" style="position:absolute;right:0;top:50%;transform:translateY(-50%)">
+          <input id="bmSearch" type="text" placeholder="🔍 搜索文件（编号/名称/说明）" autocomplete="off"
+            oninput="bmFilter=this.value.trim(); renderRoadmap();"
+            style="width:240px;box-sizing:border-box;padding:6px 26px 6px 10px;border:1px solid #d4dce6;border-radius:7px;font-size:12px">
+          <span id="bmSearchClear" onclick="document.getElementById('bmSearch').value='';bmFilter='';renderRoadmap();"
+            style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:#a0aec0;font-size:13px">✕</span>
+        </div>
       </div>
       <div class="roadmap-body" id="roadmapBody">
         <div style="text-align:center;padding:40px;color:#a0aec0">加载中…</div>
+      </div>
+    </div>
+
+    <!-- ══ Page: 注册路线图 (merged from roadmap.html) ══ -->
+    <div class="page" id="page-regroadmap">
+      <div class="page-head">
+        <h2>🚀 医疗器械注册流程（6 阶段）</h2>
+        <p>SaMD 医疗器械软件 · 从产品定义到上市后监督 · 「文件框架」查看应产出文件清单并生成模板，「注册流程」查看全流程图</p>
+      </div>
+      <div class="bm-viewtabs-wrap" style="padding:8px 0 4px">
+        <div class="bm-viewtabs">
+        <button class="bm-vtab active" data-rrview="frame" onclick="switchRegView('frame')">📋 文件框架</button>
+        <button class="bm-vtab" data-rrview="flow" onclick="switchRegView('flow')">🔀 注册流程</button>
+        </div>
+      </div>
+      <div class="rm-body" id="rmBody">
+        <div style="text-align:center;padding:40px;color:#a0aec0">加载中…</div>
+      </div>
+      <div class="rm-body" id="rmFlowBody" style="display:none">
+        <div style="text-align:center;padding:40px;color:#a0aec0">加载流程图…</div>
+      </div>
+    </div>
+
+    <!-- ══ Page: 合规图谱 (merged from compliance.html) ══ -->
+    <div class="page" id="page-compliance">
+      <div class="page-head">
+        <h2>🔗 合规知识图谱 · 法规 × 文档 × 阶段</h2>
+        <p>力导向图谱可视化法规要求、输出文档与注册阶段的关联 · 单击节点查看详情 · 双击聚焦 · <span id="hstats"></span></p>
+      </div>
+      <div class="cmp-tabs">
+        <div class="cmp-tab active" data-view="graph" onclick="switchView('graph')">🌐 图谱视图</div>
+        <div class="cmp-tab" data-view="stage" onclick="switchView('stage')">按注册阶段</div>
+        <div class="cmp-tab" data-view="requirement" onclick="switchView('requirement')">按法规要求</div>
+        <div class="cmp-tab" data-view="document" onclick="switchView('document')">按文档/证据</div>
+      </div>
+      <div class="cmp-toolbar" id="toolbar">
+        <input id="searchBox" placeholder="搜索法规名 / 条款 / 文档关键词…" oninput="onSearch()">
+        <span class="cmp-hint" id="viewHint"></span>
+      </div>
+      <!-- 列表视图 -->
+      <div class="cmp-body" id="body" style="display:none"><div class="cmp-empty">加载中…</div></div>
+      <!-- 图谱视图 -->
+      <div class="graph-wrap" id="graphWrap">
+        <div class="graph-search">
+          <input id="graphSearch" placeholder="🔍 搜索节点（法规 / 文档 / 阶段）…" oninput="onGraphSearch()" autocomplete="off">
+          <div class="gs-results" id="gsResults"></div>
+        </div>
+        <div id="graphCanvas"></div>
+        <div class="graph-legend">
+          <div class="lg"><span class="dot" style="background:#f6ad55;color:#f6ad55"></span>注册阶段 Stage</div>
+          <div class="lg"><span class="dot" style="background:#4fd1c5;color:#4fd1c5"></span>文档/证据 Document</div>
+          <div class="lg"><span class="dot" style="background:#90cdf4;color:#90cdf4"></span>法规要求 Requirement</div>
+          <div class="lg"><span class="dot" style="background:#f687b3;color:#f687b3"></span>法规文件 Regulation</div>
+          <div class="lg"><span class="dot" style="background:#b794f4;color:#b794f4"></span>归档档案 Dossier</div>
+        </div>
+        <div class="graph-hint">单击节点查看详情并高亮关联 · 双击聚焦 · 滚轮缩放 · 拖拽平移</div>
+        <div class="node-panel" id="nodePanel">
+          <span class="np-close" onclick="closePanel()">✕</span>
+          <div class="np-type" id="npType"></div>
+          <div class="np-title" id="npTitle"></div>
+          <div class="np-sub" id="npSub"></div>
+          <div id="npGenWrap"></div>
+          <div class="np-sec">关联节点（点击跳转）</div>
+          <div id="npNeighbors"></div>
+        </div>
       </div>
     </div>
 
@@ -377,7 +685,13 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
           <h2>📁 文件管理</h2>
           <p>当前产品：<b id="docsCurProd" style="color:#2b6cb0">—</b>　·　仅显示该产品已生成的文档（在「公司信息」切换产品）</p>
         </div>
-        <a class="icon-btn" href="/static/roadmap.html" style="white-space:nowrap;border-color:#3182ce;color:#3182ce;font-weight:600">🚀 去实施路线图生成文档 →</a>
+        <button class="icon-btn" onclick="showPage('regroadmap')" style="white-space:nowrap;border-color:#3182ce;color:#3182ce;font-weight:600">🚀 去注册流程生成文档 →</button>
+      </div>
+      <div class="bm-viewtabs-wrap" style="justify-content:flex-start;margin:0 0 12px">
+        <div class="bm-viewtabs">
+          <button class="bm-vtab active" data-doctab="template" onclick="switchDocTab('template')">📐 质量体系文件</button>
+          <button class="bm-vtab" data-doctab="product" onclick="switchDocTab('product')">📋 注册申报文件</button>
+        </div>
       </div>
       <div class="gen-layout">
         <div class="gen-sidebar">
@@ -394,7 +708,7 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
           <div class="gen-empty" id="docEmpty">
             <div class="icon">📁</div>
             <div style="font-size:14px;color:#718096">从左侧选择已生成的文档查看</div>
-            <div style="font-size:12px">还没有文档？到实施路线图点任务生成</div>
+            <div style="font-size:12px">还没有文档？到注册流程点任务生成</div>
           </div>
           <div class="gen-panel" id="docPanel" style="display:none">
             <div class="gen-toolbar">
@@ -456,8 +770,13 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
               </div>
             </div>
           </div>
+          <div id="attachChips" class="attach-chips"></div>
           <div class="input-bar">
             <button class="new-chat" onclick="newChat()">新对话</button>
+            <input type="file" id="qaAttachInput" accept="image/*,.pdf,.docx,.txt,.md" multiple
+              style="display:none" onchange="onAttachPick(this.files); this.value='';">
+            <button class="attach-btn" title="上传图片/文件（仅用于本次提问）"
+              onclick="document.getElementById('qaAttachInput').click()">📎</button>
             <textarea id="inputBox" rows="1" placeholder="提问法规、体系、文件相关问题…  Enter 发送"
               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"
               oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,90)+'px'"></textarea>
@@ -581,6 +900,22 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
       </div>
     </div>
 
+    <!-- ══ Page: 体系审查（红队）══ -->
+    <div class="page" id="page-review">
+      <div class="page-head">
+        <h2>🔍 体系审查（红队）</h2>
+        <p>AI 模拟 NMPA/FDA 核查员，对已生成的整套 QMS 文档做整体审查 · 结构缺失/断点秒出 + 分阶段对抗性质询</p>
+      </div>
+      <div style="padding:12px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0">
+        <button class="send-btn" id="reviewStartBtn" style="width:auto;padding:0 18px;border-radius:8px" onclick="startReview()">开始审查</button>
+        <span id="reviewStatus" style="font-size:12px;color:#718096"></span>
+      </div>
+      <div id="reviewSummary" style="padding:0 20px 8px;display:none;gap:10px;flex-wrap:wrap"></div>
+      <div id="reviewResults" style="flex:1;overflow:auto;padding:4px 20px 20px">
+        <div style="color:#a0aec0;text-align:center;padding:60px 20px">点「开始审查」，先秒出结构性缺陷，再按注册阶段逐批给出核查员质询。</div>
+      </div>
+    </div>
+
     <!-- ══ Page: Settings ══ -->
     <div class="page" id="page-settings">
       <div class="page-head">
@@ -700,8 +1035,31 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     <div class="modal-tags" id="modalTags"></div>
     <div style="font-size:13px;color:#4a5568;margin-bottom:12px" id="modalDesc"></div>
     <div class="modal-btns">
-      <button class="btn-primary" onclick="location.href='/static/roadmap.html'">🚀 去实施路线图生成</button>
+      <button class="btn-primary" onclick="closeModal();showPage('regroadmap')">🚀 去注册流程生成</button>
       <button class="btn-secondary" onclick="closeModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 注册路线图 · 任务详情 modal (merged from roadmap.html) -->
+<div class="rm-modal-bg" id="taskModal">
+  <div class="rm-modal">
+    <div class="modal-head">
+      <h2 id="mTitle">—</h2>
+      <div class="mh-meta" id="mMeta"></div>
+    </div>
+    <div class="modal-scroll" id="mScroll"></div>
+    <div class="gen-wrap" id="genWrap">
+      <div class="gen-bar">
+        <h4 id="genTitle">—</h4>
+        <button class="icon-btn" id="genRegen" onclick="rmRunGenerate()">↻ 重新生成</button>
+        <button class="icon-btn" onclick="rmCopyGen()">📋 复制</button>
+        <button class="icon-btn" onclick="rmCloseGen()">✕ 关闭</button>
+      </div>
+      <div class="gen-out"><div class="doc-content" id="genOut"></div></div>
+    </div>
+    <div style="padding:14px 22px;border-top:1px solid #e2e8f0;flex-shrink:0" id="modalFoot">
+      <div class="modal-btns"><button class="btn-secondary" onclick="closeTaskModal()">关闭</button></div>
     </div>
   </div>
 </div>
@@ -738,7 +1096,49 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
 <div class="toast" id="toast"></div>
 
 <script>
+const APP_BUILD = "2026-08-04-auth-fix-3";
+console.log("[医械注册助手] 前端版本:", APP_BUILD);
 marked.setOptions({breaks:true,gfm:true});
+
+// 把容器内 marked 输出的 mermaid 代码块渲染成图。渲染失败保留原代码文本。
+let _mmSeq=0;
+async function renderMermaidIn(el){
+  if(!window.mermaid||!el) return;
+  const blocks=el.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+  for(const code of blocks){
+    const pre=code.closest('pre')||code;
+    const src=code.textContent||'';
+    if(!src.trim()) continue;
+    try{
+      const {svg}=await mermaid.render('mm'+(++_mmSeq), src);
+      const div=document.createElement('div');
+      div.className='mermaid-fig'; div.style.textAlign='center'; div.innerHTML=svg;
+      pre.replaceWith(div);
+    }catch(e){ /* 语法错：保留源码文本不动 */ }
+  }
+}
+// 渲染 markdown 到容器并出图（页内预览统一入口）
+function renderMd(el, mdText){
+  if(!el) return;
+  el.innerHTML=marked.parse((mdText||'').replace(/^﻿/,''));
+  renderMermaidIn(el);
+}
+// 用 docx-preview 渲染公文格式 docx（呈现=下载：拉 /api/docs/{rid}/docx 同一产物）。
+// 成功返回 true；失败(库未加载/渲染错)返回 false，调用方回退 renderMd。
+async function renderDocx(el, rid){
+  if(!el || !rid || !window.docx) return false;
+  try{
+    const resp = await fetch('/api/docs/'+rid+'/docx');   // 全局 fetch 包装自动加 token
+    if(!resp.ok) return false;
+    const buf = await resp.arrayBuffer();
+    el.innerHTML='';
+    await window.docx.renderAsync(buf, el, null, {
+      className:'docx', inWrapper:true, ignoreWidth:false, ignoreHeight:false,
+      breakPages:true, experimental:true, useBase64URL:true,
+    });
+    return true;
+  }catch(e){ console.warn('docx预览失败,回退md',e); return false; }
+}
 
 // ── Auth：会话 token + fetch 包装 ───────────────────────────────
 let SESSION_TOKEN = localStorage.getItem('qms_token') || '';
@@ -815,6 +1215,10 @@ async function doLogin(){
   } catch(e){ lgMsg('网络错误'); btn.disabled=false; }
 }
 
+function confirmLogout(){
+  if (confirm('确定要退出登录吗？')) logout();
+}
+
 async function logout(){
   try { await fetch('/api/auth/logout',{method:'POST'}); } catch {}
   SESSION_TOKEN=''; ACCOUNT=null; localStorage.removeItem('qms_token');
@@ -826,11 +1230,18 @@ function renderAccount(){
   let el = document.getElementById('acctTag');
   if (!el){
     el = document.createElement('div');
-    el.id='acctTag'; el.style.cssText='font-size:12px;color:#fff;background:rgba(255,255,255,.18);border-radius:12px;padding:3px 10px;cursor:pointer;margin-left:12px;white-space:nowrap;';
-    el.onclick = logout;
+    el.id='acctTag'; el.style.cssText='font-size:12px;color:#fff;margin-left:12px;white-space:nowrap;display:flex;align-items:center;gap:8px;';
     document.getElementById('headerStats').after(el);
   }
-  el.textContent = '👤 '+ACCOUNT.display_name+'（登出）';
+  // 账号名只做展示；登出单独一个小按钮，避免整块误触秒登出
+  el.innerHTML = '';
+  const name = document.createElement('span');
+  name.textContent = '👤 ' + ACCOUNT.display_name;
+  const btn = document.createElement('span');
+  btn.textContent = '登出';
+  btn.style.cssText = 'background:rgba(255,255,255,.18);border-radius:10px;padding:2px 8px;font-size:11px;cursor:pointer;';
+  btn.onclick = confirmLogout;
+  el.appendChild(name); el.appendChild(btn);
 }
 
 // 启动：有 token 先验证，否则弹门禁
@@ -846,6 +1257,7 @@ async function boot(){
 // ── State ──────────────────────────────────────────────────────
 let profile = {};
 let framework = {phases:[]};
+let bmFilter = '';   // 体系地图·框架视图搜索过滤词
 let chatHistory = [];
 let isLoading = false;
 let selectedDocId = null;
@@ -857,10 +1269,8 @@ async function init() {
 }
 
 async function checkHealth() {
-  try {
-    const d = await fetch('/api/health').then(r=>r.json());
-    document.getElementById('headerStats').textContent = `${d.total_documents} 篇文档 · ${d.total_chunks} 块`;
-  } catch {}
+  // 顶部改为显示"生成文档统计"(见 updateTopbar);知识库chunk数不在顶部展示
+  try{ updateTopbar(); }catch(_){}
 }
 
 // ── Navigation ─────────────────────────────────────────────────
@@ -874,6 +1284,8 @@ function showPage(id) {
   if (id==='notes') loadNotes();
   if (id==='hotnews') loadHotnews();
   if (id==='training') loadTraining();
+  if (id==='regroadmap' && !regRoadmapLoaded) { regRoadmapLoaded=true; loadRegRoadmap(); }
+  if (id==='compliance' && !complianceInited) { complianceInited=true; initCompliance(); }
 }
 
 // ── 文件管理（已生成文档存档）──────────────────────────────────
@@ -881,32 +1293,73 @@ let savedDocs = [];
 let curSavedId = null;
 let dossierMeta = [];     // [{key,name}]
 let curDossier = 'ALL';   // 当前选中的档案分组
+// DHF 开发阶段二级分组：按文档名关键词判定所属阶段（参照真实 DHF 清单的生命周期阶段）
+const DHF_STAGES = [
+  {key:'立项',   kw:['立项','市场调研','可行性']},
+  {key:'开发策划', kw:['开发计划','配置管理计划','风险管理计划','测试验证计划','维护计划','SOUP','策划']},
+  {key:'需求分析', kw:['需求规格','需求评审','安全特征','初始危害','环境评估','数据安全','标注操作','输入清单','输入评审','需求']},
+  {key:'软件设计', kw:['概要设计','详细设计','算法设计','数据集分析','设计评审']},
+  {key:'软件编码', kw:['代码评审','单元测试','编码']},
+  {key:'软件验证', kw:['集成测试','系统测试','缺陷','兼容性','测量功能','风险控制','发布说明','输出清单','输出评审','漏洞评估','测试报告','测试记录','测试用例']},
+  {key:'软件确认', kw:['用户测试','培训','临床评价','风险管理报告','可追溯性','配置表','配置审计','确认评审','确认']},
+];
+function dhfStageOf(name){
+  for(const s of DHF_STAGES) if(s.kw.some(k=>name.includes(k))) return s.key;
+  return '其他';
+}
+let curDocTab='template';   // template=质量体系文件(模板) / product=注册申报文件(产品实例)
+function switchDocTab(t){
+  curDocTab=t; curDossier='ALL';
+  document.querySelectorAll('.bm-vtab[data-doctab]').forEach(b=>b.classList.toggle('active', b.dataset.doctab===t));
+  loadSavedDocs();
+}
 async function loadSavedDocs(){
   const el=document.getElementById('savedDocList');
   const cp=document.getElementById('docsCurProd');
-  if(cp) cp.textContent=(curProduct().product_name)||'(未设置)';
+  // 模板 tab 拉 __template__；产品 tab 拉当前产品
+  const url = curDocTab==='template' ? '/api/docs?product=__template__' : '/api/docs';
+  if(cp) cp.textContent = curDocTab==='template' ? '通用模板（全公司复用）' : ((curProduct().product_name)||'(未设置)');
   try{
-    const d=await fetch('/api/docs').then(r=>r.json());
+    const d=await fetch(url).then(r=>r.json());
     savedDocs=d.docs||[];
     dossierMeta=d.dossiers||[];
   }catch{ el.innerHTML='<div style="padding:12px;font-size:12px;color:#a0aec0">加载失败</div>'; return; }
   document.getElementById('docCount').textContent=savedDocs.length?`${savedDocs.length} 份`:'';
   renderDossierTabs();
   renderSavedList();
+  try{updateTopbar();}catch(_){}
 }
 
+// 质量体系文件 tab：按体系地图分级(doc_id前缀)分类
+const LEVEL_TABS=[
+  {key:'QMS-QM',name:'质量手册'},{key:'QMS-QP',name:'程序文件'},
+  {key:'QMS-SMP',name:'管理制度与规程'},{key:'QMS-WI|QMS-TD',name:'技术文件'},
+  {key:'QMS-REC',name:'记录与表单'},{key:'AI',name:'AI特有'},
+];
+function docLevelKey(id){
+  if(!id) return '';
+  if(id.startsWith('QMS-WI')||id.startsWith('QMS-TD')) return 'QMS-WI|QMS-TD';
+  const m=id.match(/^(QMS-[A-Z]+|AI)/); return m?m[1]:'';
+}
 function renderDossierTabs(){
   const wrap=document.getElementById('dossierTabs');
-  const cnt=key=>key==='ALL'?savedDocs.length:savedDocs.filter(d=>(d.dossiers||[]).some(x=>x.key===key)).length;
-  const tabs=[{key:'ALL',name:'全部'}].concat(dossierMeta);
-  // 未归入任何档案的文档(如纯清单类),给个"未归档"分组
-  const unfiled=savedDocs.filter(d=>!(d.dossiers||[]).length).length;
-  if(unfiled) tabs.push({key:'NONE',name:'未归档'});
-  wrap.innerHTML=tabs.map(t=>{
-    const n=t.key==='NONE'?unfiled:cnt(t.key);
-    const short=t.name.split(' ')[0].split('·')[0].split('（')[0];
-    return `<button class="dtab ${curDossier===t.key?'active':''}" onclick="setDossier('${t.key}')" title="${esc(t.name)}">${esc(short)}<span class="dt-n">${n}</span></button>`;
-  }).join('');
+  if(curDocTab==='template'){
+    // 按层级分
+    const cnt=key=>key==='ALL'?savedDocs.length:savedDocs.filter(d=>docLevelKey(d.doc_id)===key).length;
+    const tabs=[{key:'ALL',name:'全部'}].concat(LEVEL_TABS.filter(t=>savedDocs.some(d=>docLevelKey(d.doc_id)===t.key)));
+    wrap.innerHTML=tabs.map(t=>`<button class="dtab ${curDossier===t.key?'active':''}" onclick="setDossier('${t.key}')" title="${esc(t.name)}">${esc(t.name)}<span class="dt-n">${cnt(t.key)}</span></button>`).join('');
+  }else{
+    // 注册申报：按 DHF/DMR/DHR 档案分
+    const cnt=key=>key==='ALL'?savedDocs.length:savedDocs.filter(d=>(d.dossiers||[]).some(x=>x.key===key)).length;
+    const tabs=[{key:'ALL',name:'全部'}].concat(dossierMeta);
+    const unfiled=savedDocs.filter(d=>!(d.dossiers||[]).length).length;
+    if(unfiled) tabs.push({key:'NONE',name:'未归档'});
+    wrap.innerHTML=tabs.map(t=>{
+      const n=t.key==='NONE'?unfiled:cnt(t.key);
+      const short=t.name.split(' ')[0].split('·')[0].split('（')[0];
+      return `<button class="dtab ${curDossier===t.key?'active':''}" onclick="setDossier('${t.key}')" title="${esc(t.name)}">${esc(short)}<span class="dt-n">${n}</span></button>`;
+    }).join('');
+  }
 }
 
 function setDossier(key){
@@ -918,26 +1371,41 @@ function setDossier(key){
 function renderSavedList(){
   const el=document.getElementById('savedDocList');
   let list=savedDocs;
-  if(curDossier==='NONE') list=savedDocs.filter(d=>!(d.dossiers||[]).length);
-  else if(curDossier!=='ALL') list=savedDocs.filter(d=>(d.dossiers||[]).some(x=>x.key===curDossier));
+  if(curDossier==='ALL'){ /* 全部 */ }
+  else if(curDocTab==='template'){ list=savedDocs.filter(d=>docLevelKey(d.doc_id)===curDossier); }
+  else if(curDossier==='NONE'){ list=savedDocs.filter(d=>!(d.dossiers||[]).length); }
+  else{ list=savedDocs.filter(d=>(d.dossiers||[]).some(x=>x.key===curDossier)); }
   if(!savedDocs.length){
-    el.innerHTML='<div style="padding:16px;font-size:12px;color:#a0aec0;line-height:1.6">暂无已生成文档。<br>到「实施路线图」点击任务即可生成并自动归档到这里。</div>';
+    el.innerHTML='<div style="padding:16px;font-size:12px;color:#a0aec0;line-height:1.6">暂无已生成文档。<br>到「注册流程」点击任务即可生成并自动归档到这里。</div>';
     return;
   }
   if(!list.length){
     el.innerHTML='<div style="padding:16px;font-size:12px;color:#a0aec0">该档案下暂无已生成文档</div>';
     return;
   }
-  el.innerHTML=list.map(d=>{
-    const t=new Date(d.updated_at*1000); const ds=`${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
-    const DOSSHORT={'DOSSIER-DHF':'DHF','DOSSIER-DMR':'DMR','DOSSIER-DHR':'DHR','DOSSIER-TF':'技术文档','DOSSIER-NMPA':'NMPA','DOSSIER-PLAN':'注册策划'};
-    const tags=(d.dossiers||[]).map(x=>`<span style="font-size:9px;background:#e9d8fd;color:#6b46c1;border-radius:8px;padding:0 5px;margin-right:3px">${esc(DOSSHORT[x.key]||x.name)}</span>`).join('');
-    return `<div class="gen-doc-item" id="sdi-${d.id}" onclick="viewSavedDoc('${d.id}')">
-      <div class="gdi-name">${esc(d.doc_name)}</div>
-      <div class="gdi-id">${d.product_name?esc(d.product_name)+' · ':''}${(d.char_count||0)}字 · ${ds}</div>
-      ${tags?`<div style="margin-top:3px">${tags}</div>`:''}
-    </div>`;
-  }).join('');
+  // DHF 档案下按开发阶段分二级组；其余档案平铺
+  if(curDossier==='DOSSIER-DHF'){
+    const buckets={}; DHF_STAGES.forEach(s=>buckets[s.key]=[]); buckets['其他']=[];
+    list.forEach(d=>buckets[dhfStageOf(d.doc_name)].push(d));
+    const order=DHF_STAGES.map(s=>s.key).concat('其他');
+    el.innerHTML=order.filter(k=>buckets[k].length).map(k=>`
+      <div class="dhf-stage">
+        <div class="dhf-stage-hd">${k}<span class="dt-n">${buckets[k].length}</span></div>
+        ${buckets[k].map(savedDocItemHtml).join('')}
+      </div>`).join('');
+    return;
+  }
+  el.innerHTML=list.map(savedDocItemHtml).join('');
+}
+function savedDocItemHtml(d){
+  const t=new Date(d.updated_at*1000); const ds=`${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+  const DOSSHORT={'DOSSIER-DHF':'DHF','DOSSIER-DMR':'DMR','DOSSIER-DHR':'DHR','DOSSIER-TF':'技术文档','DOSSIER-NMPA':'NMPA','DOSSIER-PLAN':'注册策划'};
+  const tags=(d.dossiers||[]).map(x=>`<span style="font-size:9px;background:#e9d8fd;color:#6b46c1;border-radius:8px;padding:0 5px;margin-right:3px">${esc(DOSSHORT[x.key]||x.name)}</span>`).join('');
+  return `<div class="gen-doc-item" id="sdi-${d.id}" onclick="viewSavedDoc('${d.id}')">
+    <div class="gdi-name">${esc(d.doc_name)}</div>
+    <div class="gdi-id">${d.product_name?esc(d.product_name)+' · ':''}${(d.char_count||0)}字 · ${ds}</div>
+    ${tags?`<div style="margin-top:3px">${tags}</div>`:''}
+  </div>`;
 }
 
 async function viewSavedDoc(id){
@@ -955,10 +1423,13 @@ async function viewSavedDoc(id){
     document.getElementById('docMeta').textContent=`${d.product_name||''} · ${d.char_count}字 · ${t.toLocaleString('zh-CN')}`;
     const content=(d.content||'').replace(/^﻿/,'');   // 去掉开头 BOM
     view.dataset.md=content;
-    // 系统生成的是 Markdown；从 Word 导入的是纯文本（无 md 标记）——纯文本用 <pre> 保留换行，避免被 marked 渲染成一坨
-    view.innerHTML=looksLikeMarkdown(content)
-      ? marked.parse(content)
-      : `<pre style="white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:14px;line-height:1.9;margin:0">${esc(content)}</pre>`;
+    // 优先用 docx-preview 渲染公文格式(呈现=下载)；失败/纯文本回退
+    const okDocx = await renderDocx(view, id);
+    if(!okDocx){
+      // 系统生成的是 Markdown；从 Word 导入的是纯文本——纯文本用 <pre> 保留换行
+      if(looksLikeMarkdown(content)){ renderMd(view, content); }
+      else { view.innerHTML=`<pre style="white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:14px;line-height:1.9;margin:0">${esc(content)}</pre>`; }
+    }
     // 有原始 Word 文件才显示"下载原件"
     const btnOrig=document.getElementById('btnOrig');
     if(btnOrig){
@@ -1002,9 +1473,20 @@ function copySavedDoc(){
   const v=document.getElementById('docView');
   navigator.clipboard.writeText(v.innerText).then(()=>toast('✓ 已复制'));
 }
-function downloadSavedDoc(){
+async function downloadSavedDoc(){
   if(!curSavedId) return;
-  window.location.href='/api/docs/'+curSavedId+'/download';
+  try{
+    const r=await fetch('/api/docs/'+curSavedId+'/download');   // 走 fetch 才会带上鉴权 token（location.href 直跳会丢 token → 未登录）
+    if(!r.ok) throw new Error('下载失败');
+    const blob=await r.blob();
+    const cd=r.headers.get('Content-Disposition')||'';
+    let name='文档.docx';
+    const m=cd.match(/filename\*=UTF-8''([^;]+)/); if(m) name=decodeURIComponent(m[1]);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000);
+  }catch{ toast('下载失败'); }
 }
 async function deleteSavedDoc(){
   if(!curSavedId) return;
@@ -1021,6 +1503,20 @@ async function deleteSavedDoc(){
 // ── Profile ────────────────────────────────────────────────────
 let store = {company_name:'', products:[], current_product_id:''};
 function curProduct(){ return (store.products||[]).find(p=>p.id===store.current_product_id) || (store.products||[])[0] || {}; }
+
+// 顶部导航：当前产品 + 生成文档统计(已生成 + 生成中)
+let genInFlight = 0;   // 正在生成中的文档数
+function updateTopbar(){
+  const pt=document.getElementById('productTag');
+  if(pt){ const pn=(curProduct().product_name)||'(未选产品)'; pt.textContent='📦 '+pn; }
+  const hs=document.getElementById('headerStats');
+  if(hs){
+    const done=(typeof savedDocs!=='undefined'&&savedDocs)?savedDocs.length:0;
+    let s=`已生成 ${done} 份`;
+    if(genInFlight>0) s+=` · ⏳ ${genInFlight} 份生成中`;
+    hs.textContent=s;
+  }
+}
 
 async function loadProfile() {
   try {
@@ -1063,6 +1559,7 @@ function applyStoreToUI() {
   document.getElementById('mktNMPA').checked=mk.includes('NMPA');
   document.getElementById('mktCE').checked=mk.includes('CE');
   document.getElementById('mktFDA').checked=mk.includes('FDA');
+  try{updateTopbar();}catch(_){}   // 顶部产品标签
 }
 
 async function saveCompanyName(){
@@ -1132,34 +1629,90 @@ async function loadFramework() {
   try {
     const d = await fetch('/api/generate/framework').then(r=>r.json());
     framework = d;
+    await refreshTemplateDone();   // 拉已生成模板清单，供体系地图判断"生成/查看"
     renderRoadmap();
     renderGenSidebar();
   } catch { toast('加载体系框架失败'); }
 }
 
-const TYPE_LABEL = {manual:'质量手册',procedure:'程序文件',wi:'作业指导书',record:'记录表单',ai:'AI特有'};
+const TYPE_LABEL = {manual:'质量手册',procedure:'程序文件',wi:'作业指导书',system:'管理制度/规程',tech:'技术文件',record:'记录表单',ai:'AI特有'};
 const GROUP_LABEL = {base:'核心', ai:'AI专项', support:'支持', registration:'注册'};
 const GROUP_COLOR = {base:'#38a169', ai:'#dd6b20', support:'#718096', registration:'#e53e3e'};
+// 文件 id → 所属模块色（用模块 color 给文件卡片染色区分）；一个文件可能属多模块，取第一个
+let _docColorMap = null;
+function docColor(docId){
+  if(!_docColorMap){
+    _docColorMap={};
+    for(const m of (framework.core_modules||[]))
+      for(const d of (m.docs||[])) if(!_docColorMap[d]) _docColorMap[d]=m.color||'#cbd5e0';
+  }
+  return _docColorMap[docId]||'#cbd5e0';
+}
+// L2 程序 id → 程序名（给 L3/L4 按父程序分组用）
+let _l2NameMap = null;
+function l2Name(id){
+  if(!_l2NameMap){
+    _l2NameMap={};
+    for(const lvl of (framework.doc_levels||[])) if(lvl.level===2)
+      for(const d of lvl.documents) _l2NameMap[d.id]=d.name;
+  }
+  return _l2NameMap[id]||id;
+}
+// 文件 id → 所属模块 {name,color}（按模块分组用）
+let _docModMap = null;
+function docModule(id){
+  if(!_docModMap){
+    _docModMap={};
+    for(const m of (framework.core_modules||[]))
+      for(const d of (m.docs||[])) if(!_docModMap[d]) _docModMap[d]={name:m.name,color:m.color||'#a0aec0'};
+  }
+  return _docModMap[id]||{name:'其他',color:'#a0aec0'};
+}
+function docCardHtml(doc){
+  const scopeBadge = doc.scope==='ai'?'<span class="scope-badge sb-ai">AI 专用</span>'
+    : doc.scope==='sw'?'<span class="scope-badge sb-sw">独立软件</span>' : '';
+  return `<div class="doc-card" onclick="openDocModal('${doc.id}')">
+    <div class="doc-card-top"><div class="doc-id">${doc.id}</div><div class="doc-name">${doc.name}${scopeBadge}</div></div>
+    <div class="doc-desc">${doc.desc}</div>
+    <div class="doc-tags">
+      <span class="tag tag-procedure">${TYPE_LABEL[doc.type]||doc.type}</span>
+      ${(doc.refs&&doc.refs.length)?`<span class="tag tag-market tag-clickable" onclick="event.stopPropagation();showRefs('${doc.id}')" title="点击查看法规依据">📎 ${doc.refs.length} 法规依据</span>`:''}
+    </div>
+  </div>`;
+}
+// 各层文件卡片一律平铺，不再按 category 加子标题分组。
+function renderDocsByParent(docs, levelName){
+  return `<div class="doc-grid">${docs.map(docCardHtml).join('')}</div>`;
+}
 
 function renderRoadmap() {
   const body = document.getElementById('roadmapBody');
   let html = '';
 
-  // ── 第一层：核心工作框架 ──
+  // ── 第一层：核心工作框架 —— 已移出框架视图（按用户要求）；数据保留于后端 ──
+  // 如需恢复展示模块卡片，把 SHOW_MODULES 改为 true。
+  const SHOW_MODULES = false;
+  if (SHOW_MODULES) {
   html += `<div class="layer-block">
     <div class="layer-head" style="background:linear-gradient(135deg,#1a365d,#2b6cb0)">
-      <h3>① 核心工作框架</h3><span>法规与标准基础 · 9+ 大模块</span>
+      <h3>① 核心工作框架</h3><span>质量管理体系核心模块 · 点模块查看并生成其文件</span>
     </div>
     <div class="module-grid">
-      ${framework.core_modules.map(m=>`
-        <div class="module-card" style="border-left:3px solid ${GROUP_COLOR[m.group]||'#999'}">
-          <div class="m-name">${m.name}</div>
+      ${framework.core_modules.filter(m=>m.group!=='registration').map(m=>{
+        const n=(m.docs||[]).length;
+        return `<div class="module-card${n?' clickable':''}" style="border-left:3px solid ${GROUP_COLOR[m.group]||'#999'}" ${n?`onclick="openModuleDocs('${m.id}')"`:''}>
+          <div class="m-name">${m.name}${n?`<span class="m-badge">${n} 份文件</span>`:'<span class="m-badge m-badge-empty">暂无模板</span>'}</div>
           <div class="m-sub">${m.sub}</div>
-        </div>`).join('')}
+        </div>`;}).join('')}
     </div>
+    <div id="moduleDocPanel" class="module-doc-panel" style="display:none"></div>
   </div>`;
+  }
 
-  // ── 第二层：三国法规对照 ──
+  // ── 第二层：三国法规对照 —— 已移出体系搭建地图（法规参考非体系内容）；数据保留于后端 ──
+  // 如需恢复展示，把 SHOW_REG_MATRIX 改为 true。
+  const SHOW_REG_MATRIX = false;
+  if (SHOW_REG_MATRIX) {
   html += `<div class="layer-block">
     <div class="layer-head" style="background:linear-gradient(135deg,#5a67d8,#7f9cf5)">
       <h3>② 法规与标准基础（三国对照）</h3><span>NMPA · FDA · EU</span>
@@ -1177,38 +1730,35 @@ function renderRoadmap() {
       </tbody>
     </table>
   </div>`;
+  }
 
-  // ── 第三层：四级文件体系 ──
+  // ── 第三层：四级文件体系（支持搜索过滤：按 编号/名称/说明）──
+  const _q = (bmFilter||'').toLowerCase();
+  const _match = d => !_q || `${d.id} ${d.name} ${d.desc||''}`.toLowerCase().includes(_q);
+  const _levels = framework.doc_levels
+    .map(lvl => ({...lvl, documents: (lvl.documents||[]).filter(_match)}))
+    .filter(lvl => lvl.documents.length);
+  const _hitN = _levels.reduce((s,l)=>s+l.documents.length,0);
+  const clr=document.getElementById('bmSearchClear'); if(clr) clr.style.display=_q?'block':'none';
   html += `<div class="layer-block">
     <div class="layer-head" style="background:linear-gradient(135deg,#dd6b20,#f6ad55)">
-      <h3>③ 四级文件体系</h3><span>点击任意文件可生成模板（自动检索法规依据）</span>
+      <h3>四级文件体系</h3><span>${_q?`搜索「${esc(bmFilter)}」命中 ${_hitN} 份`:'点击任意文件可生成模板（自动检索法规依据）'}</span>
     </div>
-    ${framework.doc_levels.map(lvl=>`
+    ${_levels.length ? _levels.map(lvl=>`
       <div class="level-row">
         <div class="level-label" style="background:${lvl.color}">
           <div class="ll-name">${lvl.name}</div>
           <div class="ll-en">${lvl.en}</div>
           <div class="ll-desc">${lvl.desc}</div>
         </div>
-        <div class="doc-grid">
-          ${lvl.documents.map(doc=>`
-            <div class="doc-card" onclick="openDocModal('${doc.id}')">
-              <div class="doc-card-top">
-                <div class="doc-id">${doc.id}</div>
-                <div class="doc-name">${doc.name}</div>
-              </div>
-              <div class="doc-desc">${doc.desc}</div>
-              <div class="doc-tags">
-                <span class="tag tag-procedure">${TYPE_LABEL[doc.type]||doc.type}</span>
-                ${(doc.refs&&doc.refs.length)?`<span class="tag tag-market tag-clickable" onclick="event.stopPropagation();showRefs('${doc.id}')" title="点击查看法规依据">📎 ${doc.refs.length} 法规依据</span>`:''}
-              </div>
-            </div>`).join('')}
-        </div>
-      </div>`).join('')}
+        ${renderDocsByParent(lvl.documents, lvl.name)}
+      </div>`).join('') : `<div style="padding:30px;text-align:center;color:#a0aec0">未找到匹配「${esc(bmFilter)}」的文件</div>`}
   </div>`;
 
   // ── 第四层：档案汇编（DHF/DMR/DHR/技术文档/注册资料）──
-  if (framework.dossiers && framework.dossiers.length) {
+  // 档案汇编属注册成果物（非 QMS 体系），已从"体系搭建地图"移除展示；数据保留于后端，待挪至注册路线图。
+  const SHOW_DOSSIERS = false;
+  if (SHOW_DOSSIERS && framework.dossiers && framework.dossiers.length) {
     html += `<div class="layer-block">
       <div class="layer-head" style="background:linear-gradient(135deg,#2c5282,#4299e1)">
         <h3>④ 档案汇编（按法规要求归档）</h3><span>DHF · DMR · DHR · 技术文档 · 注册资料 — 把已有文件汇编成审计/注册档案</span>
@@ -1231,6 +1781,75 @@ function renderRoadmap() {
   body.innerHTML = html;
 }
 
+// 点模块 → 展开其文件卡片（点文件走 openDocModal 说明弹窗→生成）
+let openedModuleId = null;
+function openModuleDocs(mid){
+  const m = (framework.core_modules||[]).find(x=>x.id===mid);
+  const panel = document.getElementById('moduleDocPanel');
+  if(!m || !panel) return;
+  if(openedModuleId===mid){ panel.style.display='none'; openedModuleId=null; return; }  // 再点收起
+  openedModuleId = mid;
+  const docs = (m.docs||[]).map(bmFindDoc).filter(Boolean);
+  panel.innerHTML = `<div class="mdp-head">📁 ${m.name} · 相关文件（点击生成模板）</div>
+    <div class="doc-grid">${docs.map(doc=>`
+      <div class="doc-card" onclick="openDocModal('${doc.id}')">
+        <div class="doc-card-top"><div class="doc-id">${doc.id}</div><div class="doc-name">${doc.name}</div></div>
+        <div class="doc-desc">${doc.desc}</div>
+        <div class="doc-tags"><span class="tag tag-procedure">${TYPE_LABEL[doc.type]||doc.type}</span></div>
+      </div>`).join('')}</div>`;
+  panel.style.display='block';
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// 体系搭建地图·视图切换（框架 ↔ 搭建流程）
+let bmView = 'framework';
+function switchBmView(v){
+  bmView = v;
+  document.querySelectorAll('.bm-vtab').forEach(b=>b.classList.toggle('active', b.dataset.bmview===v));
+  // 搜索框只对框架视图有效，切到搭建流程时隐藏
+  const sw=document.getElementById('bmSearchWrap'); if(sw) sw.style.display=(v==='framework')?'block':'none';
+  if(v==='flow') renderBuildFlow(); else renderRoadmap();
+}
+// 按 doc id 从 framework.doc_levels 找文件详情
+function bmFindDoc(id){
+  for(const lvl of (framework.doc_levels||[]))
+    for(const d of lvl.documents) if(d.id===id) return d;
+  return null;
+}
+function renderBuildFlow(){
+  const body = document.getElementById('roadmapBody');
+  const flow = framework.build_flow || [];
+  if(!flow.length){ body.innerHTML='<div style="padding:40px;text-align:center;color:#a0aec0">暂无搭建流程数据</div>'; return; }
+  let html = `<div style="font-size:12.5px;color:#718096;margin-bottom:16px;line-height:1.6">
+    从零搭建 QMS 的推进顺序：<b>控制程序先行 → 核心业务程序 → 上市后与改进 → 质量手册收尾</b>；AI 特有文件随对应业务程序同步建立。点击文件卡片可生成模板。</div>`;
+  flow.forEach(p=>{
+    const docs = (p.docs||[]).map(bmFindDoc).filter(Boolean);
+    const meta = [
+      p.outputs ? `<span class="bf-chip out"><b>产出</b> ${esc(p.outputs)}</span>` : '',
+      p.depends ? `<span class="bf-chip dep"><b>依赖</b> ${esc(p.depends)}</span>` : '',
+      p.std ? `<span class="bf-chip std"><b>依据</b> ${esc(p.std)}</span>` : '',
+    ].filter(Boolean).join('');
+    html += `<div class="bf-phase">
+      <div class="bf-dot" style="background:${p.color||'#718096'}">${p.no}</div>
+      <div class="bf-head"><h3>${p.phase}</h3><div class="bf-goal">${p.goal||''}</div></div>
+      ${(p.steps&&p.steps.length)?`<ol class="bf-steps">${p.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}
+      ${(p.tasks&&p.tasks.length)?`<ul class="bf-tasks">${p.tasks.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
+      ${meta?`<div class="bf-meta">${meta}</div>`:''}
+      ${p.pitfall?`<div class="bf-pit">${esc(p.pitfall)}</div>`:''}
+      ${docs.length?`<div class="bf-docwrap${docs.length>6?' collapsed':''}">
+        ${docs.length>6?`<div class="bf-doctoggle" onclick="this.parentNode.classList.toggle('collapsed');this.textContent=this.parentNode.classList.contains('collapsed')?'📄 展开 ${docs.length} 份文件 ▾':'收起文件 ▴'">📄 展开 ${docs.length} 份文件 ▾</div>`:''}
+        <div class="bf-docgrid">${docs.map(doc=>`
+        <div class="doc-card" onclick="openDocModal('${doc.id}')">
+          <div class="doc-card-top"><div class="doc-id">${doc.id}</div><div class="doc-name">${doc.name}</div></div>
+          <div class="doc-desc">${doc.desc}</div>
+          <div class="doc-tags"><span class="tag tag-procedure">${TYPE_LABEL[doc.type]||doc.type}</span></div>
+        </div>`).join('')}</div>
+      </div>`:''}
+    </div>`;
+  });
+  body.innerHTML = html;
+}
+
 let genGroupBy = 'level';      // level=按文件体系  stage=按注册阶段
 let genChecklist = null;        // 缓存合规对照表(阶段→文档)
 
@@ -1242,6 +1861,7 @@ function setGenGroup(by){
 
 async function renderGenSidebar() {
   const el = document.getElementById('genDocList');
+  if(!el) return;   // 生成器侧边栏容器已移除（生成改由路线图/合规图谱就地弹窗），跳过以免 null 报错中断 loadFramework
   if(genGroupBy==='stage'){
     // 按注册阶段分组：只列出"有可生成模板(doc_id)"的文档
     if(!genChecklist){
@@ -1276,6 +1896,17 @@ async function renderGenSidebar() {
 
 function findDocName(id){ const d=findDoc(id); return d?d.name:null; }
 
+// 已生成模板清单(doc_id集合)，用于体系地图判断"生成/查看"
+let _tplDone = new Set();
+let _tplRidByDoc = {};   // doc_id -> 存档rid(用于查看)
+async function refreshTemplateDone(){
+  try{
+    const d=await fetch('/api/docs?product=__template__').then(r=>r.json());
+    _tplDone=new Set((d.docs||[]).map(x=>x.doc_id).filter(Boolean));
+    _tplRidByDoc={}; (d.docs||[]).forEach(x=>{if(x.doc_id)_tplRidByDoc[x.doc_id]=x.id;});
+  }catch{}
+}
+
 // ── Doc Modal ──────────────────────────────────────────────────
 function findDoc(id) {
   for (const lvl of framework.doc_levels)
@@ -1286,20 +1917,34 @@ function findDoc(id) {
   return null;
 }
 
+// 体系搭建地图点文件 → 复用注册路线图的 taskModal 生成弹窗（一个弹窗内看说明+就地生成+归档）
 function openDocModal(docId) {
   const doc = findDoc(docId);
   if (!doc) return;
-  selectedDocId = docId;
-  document.getElementById('modalTitle').textContent = doc.name;
-  document.getElementById('modalMeta').textContent = doc.id+' · '+(doc.standards||[]).join('、');
-  document.getElementById('modalDesc').textContent = doc.desc||'';
-  const refsHtml = (doc.refs&&doc.refs.length)
-    ? `<span class="tag tag-market tag-clickable" onclick="showRefs('${doc.id}')" title="点击查看法规依据">📎 ${doc.refs.length} 条法规依据将自动检索</span>` : '';
-  document.getElementById('modalTags').innerHTML = [
-    `<span class="tag tag-procedure">${TYPE_LABEL[doc.type]||'档案汇编'}</span>`, refsHtml
-  ].join('');
-  document.getElementById('modalExtra').value='';
-  document.getElementById('docModal').classList.add('open');
+  rmCurTask=null;
+  document.getElementById('mTitle').textContent=doc.name;
+  document.getElementById('mMeta').textContent=`${doc.id} · ${TYPE_LABEL[doc.type]||'文件'}`;
+  const refsHtml=(doc.refs&&doc.refs.length)
+    ? `<div class="m-section"><div class="lab">📎 法规依据（生成时自动检索）</div><div class="val">${(doc.refs||[]).map(r=>esc(COLLECTION_LABEL[r.collection]||r.collection)+'：'+esc(r.match)).join('<br>')}</div></div>` : '';
+  const done=_tplDone.has(doc.id);
+  const nameEsc=(doc.name||'').replace(/'/g,"\\'");
+  const actionBlock = done
+    ? `<div class="doc-pick"><div class="doc-pick-item" onclick="rmViewDoc('${_tplRidByDoc[doc.id]||''}','${nameEsc}')">
+        <span class="dp-name">${esc(doc.name)}</span><span class="dp-id">${doc.id}</span><span class="dp-go" style="color:#38a169">✓ 已生成，点击查看</span>
+       </div></div>
+       <div style="margin-top:6px"><span style="color:#3182ce;cursor:pointer;font-size:12px" onclick="rmStartGen('${doc.id}',null,'${nameEsc}',null,true)">↻ 重新生成模板</span></div>`
+    : `<div class="doc-pick"><div class="doc-pick-item" onclick="rmStartGen('${doc.id}',null,'${nameEsc}',null,true)">
+        <span class="dp-name">${esc(doc.name)}</span><span class="dp-id">${doc.id}</span><span class="dp-go">✨ 生成模板</span>
+       </div></div>`;
+  document.getElementById('mScroll').innerHTML=`
+    <div class="m-section"><div class="lab">📄 文件说明</div><div class="val">${esc(doc.desc||'')}</div></div>
+    ${(doc.standards&&doc.standards.length)?`<div class="m-section"><div class="lab">📖 对应标准</div><div class="val">${esc((doc.standards||[]).join('、'))}</div></div>`:''}
+    ${refsHtml}
+    <div class="m-section"><div class="lab">${done?'📄 质量体系模板':'✨ 生成质量体系模板（通用，自动检索法规依据，完成后归档到「质量体系文件」）'}</div>
+      ${actionBlock}
+    </div>`;
+  rmCloseGen();
+  document.getElementById('taskModal').classList.add('open');
 }
 
 function closeModal() {
@@ -1336,9 +1981,9 @@ function closeRefs() {
 
 function confirmGenerate() {
   const extra = document.getElementById('modalExtra').value.trim();
+  const doc = findDoc(selectedDocId);
   closeModal();
-  showPage('generator');
-  selectGenDoc(selectedDocId, extra);
+  rmStartGen(selectedDocId, null, doc?doc.name:selectedDocId, extra);   // 就地弹窗生成（原生成器页已移除）
 }
 
 // ── Generator ─────────────────────────────────────────────────
@@ -1442,11 +2087,14 @@ async function startGenerate(){
   setGenUI('generating');
   btn.textContent='⏳ 规划章节…';
   out.innerHTML='<div class="gen-placeholder">正在规划文档章节…</div>';
+  if(!SESSION_TOKEN){ setGenStatus(''); toast('登录已失效，请重新登录'); showLoginGate(); return; }
   try{
     const resp=await fetch('/api/generate/outline',{
-      method:'POST',headers:{'Content-Type':'application/json'},
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SESSION_TOKEN},
       body:JSON.stringify({doc_id:selectedDocId}),
     });
+    if(resp.status===401){ setGenStatus(''); toast('登录已失效，请重新登录'); showLoginGate(); return; }
     if(!resp.ok) throw new Error('HTTP '+resp.status);
     const data=await resp.json();
     genOutline=data.sections||[];
@@ -1528,9 +2176,11 @@ async function streamOneSection(section, outline, targetId, idx){
     if(done) return;
     if(Date.now()-lastDelta>40000) setGenStatus(`⏳ ${label}仍在生成中，请稍候…`);
   },5000);
+  if(!SESSION_TOKEN){ clearInterval(stallTimer); genStreaming=false; setGenStatus(''); toast('登录已失效，请重新登录'); showLoginGate(); return; }
   try{
     const resp=await fetch('/api/generate/stream',{
-      method:'POST',headers:{'Content-Type':'application/json'},
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SESSION_TOKEN},
       body:JSON.stringify({
         doc_id:selectedDocId,
         extra_context:pendingExtra||undefined,
@@ -1538,6 +2188,7 @@ async function streamOneSection(section, outline, targetId, idx){
         outline:outline||undefined,
       }),
     });
+    if(resp.status===401){ setGenStatus(''); toast('登录已失效，请重新登录'); showLoginGate(); throw new Error('未登录'); }
     if(!resp.ok||!resp.body) throw new Error('HTTP '+resp.status);
     const reader=resp.body.getReader(); const dec=new TextDecoder(); let buf='';
     while(!done){
@@ -1638,19 +2289,64 @@ async function kbDel(id,name){
 }
 
 function ask(q){ document.getElementById('inputBox').value=q; sendMsg(); }
-function newChat(){ chatHistory=[]; document.getElementById('messages').innerHTML='<div class="welcome-box"><h2>💬 新对话</h2><p>可以开始提问</p></div>'; }
+function newChat(){ chatHistory=[]; qaAttachImages=[]; qaAttachFiles=[]; renderChips(); document.getElementById('messages').innerHTML='<div class="welcome-box"><h2>💬 新对话</h2><p>可以开始提问</p></div>'; }
+
+// ── 问答临时附件（仅用于本次提问，不入知识库）──
+let qaAttachImages=[];   // {name, dataUrl}
+let qaAttachFiles=[];    // {name, content_base64}
+const QA_IMG_MAX=5*1024*1024, QA_FILE_MAX=10*1024*1024, QA_IMG_N=4, QA_FILE_N=5;
+const QA_FILE_EXT=['.pdf','.docx','.txt','.md'];
+
+function readAsDataURL(f){ return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);}); }
+
+async function onAttachPick(fileList){
+  for(const f of Array.from(fileList||[])){
+    const isImg=f.type.startsWith('image/');
+    if(isImg){
+      if(qaAttachImages.length>=QA_IMG_N){ toast(`最多 ${QA_IMG_N} 张图片`); continue; }
+      if(f.size>QA_IMG_MAX){ toast(`图片超过 5MB：${f.name}`); continue; }
+      const dataUrl=await readAsDataURL(f);
+      qaAttachImages.push({name:f.name, dataUrl});
+    } else {
+      const ext='.'+(f.name.split('.').pop()||'').toLowerCase();
+      if(!QA_FILE_EXT.includes(ext)){ toast(`不支持的类型：${f.name}`); continue; }
+      if(qaAttachFiles.length>=QA_FILE_N){ toast(`最多 ${QA_FILE_N} 个文件`); continue; }
+      if(f.size>QA_FILE_MAX){ toast(`文件超过 10MB：${f.name}`); continue; }
+      const dataUrl=await readAsDataURL(f);
+      qaAttachFiles.push({name:f.name, content_base64:(dataUrl.split(',')[1]||'')});
+    }
+  }
+  renderChips();
+}
+function rmImg(i){ qaAttachImages.splice(i,1); renderChips(); }
+function rmFile(i){ qaAttachFiles.splice(i,1); renderChips(); }
+function renderChips(){
+  const box=document.getElementById('attachChips');
+  const chips=[
+    ...qaAttachImages.map((a,i)=>`<span class="chip">🖼️ <span>${esc(a.name)}</span><b onclick="rmImg(${i})">✕</b></span>`),
+    ...qaAttachFiles.map((a,i)=>`<span class="chip">📄 <span>${esc(a.name)}</span><b onclick="rmFile(${i})">✕</b></span>`),
+  ];
+  box.innerHTML=chips.join('');
+  box.classList.toggle('show', chips.length>0);
+}
 
 async function sendMsg(){
   const box=document.getElementById('inputBox');
   const q=box.value.trim();
-  if(!q||isLoading) return;
+  const hasAttach=qaAttachImages.length||qaAttachFiles.length;
+  if((!q && !hasAttach)||isLoading) return;
   isLoading=true;
   document.getElementById('sendBtn').disabled=true;
   document.getElementById('welcome')?.remove();
 
-  addUserBubble(q);
-  chatHistory.push({role:'user',content:q});
+  const nImg=qaAttachImages.length, nFile=qaAttachFiles.length;
+  const attachNote=hasAttach?`📎 已附带 ${nImg?nImg+' 张图片':''}${nImg&&nFile?' · ':''}${nFile?nFile+' 个文件':''}`:'';
+  addUserBubble(q||'（见附件）', attachNote);
+  chatHistory.push({role:'user',content:q||'（见附件）'});   // 历史只存文本
   box.value=''; box.style.height='auto';
+  const imgs=qaAttachImages.map(a=>({data:a.dataUrl}));
+  const files=qaAttachFiles.map(a=>({name:a.name, content_base64:a.content_base64}));
+  qaAttachImages=[]; qaAttachFiles=[]; renderChips();   // 发送后清空
 
   const thinkId=addThinking();
   let ansEl=null, fullAns='', srcDone=false;
@@ -1660,9 +2356,11 @@ async function sendMsg(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        question:q, top_k:5,
+        question:q||'（见附件）', top_k:5,
         history:chatHistory.slice(-6),
         collection:document.getElementById('kbColl').value||null,
+        images:imgs.length?imgs:undefined,
+        files:files.length?files:undefined,
       }),
     });
     if(!resp.ok || !resp.body) throw new Error('HTTP '+resp.status);
@@ -1707,10 +2405,11 @@ async function sendMsg(){
   }
 }
 
-function addUserBubble(text){
+function addUserBubble(text, note){
   const el=document.createElement('div');
   el.className='msg user';
-  el.innerHTML=`<div class="av">👤</div><div class="mb"><div class="bbl">${esc(text)}</div></div>`;
+  const noteHtml=note?`<div style="font-size:11px;opacity:.85;margin-top:5px">${esc(note)}</div>`:'';
+  el.innerHTML=`<div class="av">👤</div><div class="mb"><div class="bbl">${esc(text)}${noteHtml}</div></div>`;
   document.getElementById('messages').appendChild(el);
   scrollBottom();
 }
@@ -1858,12 +2557,20 @@ function closeReadModal(){
   curReadDocId=null;
 }
 
-function downloadReadDoc(){
+async function downloadReadDoc(){
   if(!curReadDocId) return;
-  // 复用 raw 接口；浏览器对 inline PDF 也会按 Content-Disposition 文件名下载
-  const a=document.createElement('a');
-  a.href='/api/documents/'+encodeURIComponent(curReadDocId)+'/raw';
-  a.download=''; document.body.appendChild(a); a.click(); a.remove();
+  try{
+    const r=await fetch('/api/documents/'+encodeURIComponent(curReadDocId)+'/raw');  // fetch 带 token；<a href> 直跳会丢 token → 未登录
+    if(!r.ok) throw new Error('下载失败');
+    const blob=await r.blob();
+    const cd=r.headers.get('Content-Disposition')||'';
+    let name='文件';
+    const m=cd.match(/filename\*=UTF-8''([^;]+)/); if(m) name=decodeURIComponent(m[1]);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000);
+  }catch{ toast('下载失败'); }
 }
 
 // ── Notes ──────────────────────────────────────────────────────
@@ -2187,6 +2894,804 @@ function playSeg(i){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">${prev}${next}</div>
   </div>`;
   loadTrList();  // 刷新左侧小节高亮
+}
+
+// ══ 注册路线图 (merged from roadmap.html) ══════════════════════
+// 复用 index 的：window.fetch 重写(token/401)、SESSION_TOKEN、esc、toast、
+// checkHealth、genChecklist(缓存的 /api/compliance/checklist)。
+let regRoadmapLoaded=false;
+let rmCurTask=null, rmGenStreaming=false, rmGenDocId=null;
+let rmGenDocName='', rmGenSeq=null, rmGenExtra='';
+const RM_STAGE_COLOR={S1:'#1a365d',S2:'#dd6b20',S3:'#805ad5',S4:'#c53030',S5:'#38a169',S6:'#4a5568'};
+
+async function loadRegRoadmap(){
+  try{
+    if(!genChecklist){
+      genChecklist=await fetch('/api/compliance/checklist').then(r=>r.json());
+    }
+    renderRegRoadmap();
+  }catch(e){ toast('加载路线图失败'); }
+}
+
+function renderRegRoadmap(){
+  const body=document.getElementById('rmBody');
+  body.innerHTML=genChecklist.stages.map(s=>{
+    const color=RM_STAGE_COLOR[s.key]||'#2b6cb0';
+    // 按子阶段(sub)分组
+    const groups={};
+    for(const it of s.items){ (groups[it.sub]=groups[it.sub]||[]).push(it); }
+    const groupsHtml=Object.entries(groups).map(([sub,items])=>`
+      <div class="sub-group">
+        <div class="sub-label">${esc(sub)}</div>
+        <div class="task-grid">
+          ${items.map(it=>rmTaskCard(it)).join('')}
+        </div>
+      </div>`).join('');
+    return `<div class="phase">
+      <div class="phase-dot" style="background:${color}">${s.no}</div>
+      <div class="rm-phase-head">
+        <h3>${esc(s.name)} <span class="en">${esc(s.en||'')}</span><span class="dur">${s.items.length} 项</span></h3>
+        <div class="goal">🎯 ${esc(s.goal||'')}</div>
+      </div>
+      ${groupsHtml}
+    </div>`;
+  }).join('');
+}
+
+// ── 注册路线图·双视图切换（文件框架清单 / 注册流程 mermaid 图）──
+let regFlowRendered=false;
+function switchRegView(v){
+  document.querySelectorAll('#page-regroadmap .bm-vtab[data-rrview]').forEach(t=>t.classList.toggle('active', t.dataset.rrview===v));
+  document.getElementById('rmBody').style.display = v==='frame'?'':'none';
+  document.getElementById('rmFlowBody').style.display = v==='flow'?'':'none';
+  if(v==='flow' && !regFlowRendered){ regFlowRendered=true; renderRegFlow(); }
+}
+// ── 自绘横向行泳道流程图（纯展示，无生成按钮；判断分支 + 闭环回退）──
+// 每个阶段 = 一条横向泳道(表头在左，节点向右按列排)；跨阶段/回退用 SVG 连线。
+const RF_STAGES=[
+  {key:'S1',no:'①',name:'立项与产品定性',color:'#1a365d'},
+  {key:'S2',no:'②',name:'研发阶段',color:'#c8641a'},
+  {key:'S3',no:'③',name:'注册申报准备',color:'#805ad5'},
+  {key:'S4',no:'④',name:'注册审查·核查',color:'#c53030'},
+  {key:'S5',no:'⑤',name:'获批与上市',color:'#2f855a'},
+  {key:'S6',no:'⑥',name:'上市后管理',color:'#4a5568'},
+];
+// 节点：{id,stage,col,sub(泳道内第几子行 0..),kind('node'|'dia'|'term'|'start'),act,out}
+// 连线：{from,to,type('flow'|'yes'|'no'|'loop'),lab}
+const RF_NODES=[
+  // S1
+  {id:'start',stage:'S1',col:0,sub:0,kind:'start',act:'立项启动'},
+  {id:'d1',stage:'S1',col:1,sub:0,kind:'dia',act:'是否属于<br>医疗器械?'},
+  {id:'stop',stage:'S1',col:1,sub:1,kind:'term',act:'非医疗器械·终止'},
+  {id:'n1',stage:'S1',col:2,sub:0,act:'#1 产品定性分析',out:'定性分析报告'},
+  {id:'n2',stage:'S1',col:3,sub:0,act:'#2 AI类型判定',out:'AI类型判断说明'},
+  {id:'d2',stage:'S1',col:4,sub:0,kind:'dia',act:'辅助决策<br>类AI?'},
+  {id:'n3a',stage:'S1',col:5,sub:0,act:'#3 分类界定·三类',out:'三类·国家局审查最严'},
+  {id:'n3b',stage:'S1',col:5,sub:1,act:'#3 分类界定·二类',out:'二类·省局审查'},
+  {id:'n5',stage:'S1',col:6,sub:0,act:'#5 通用名命名',out:'通用名申请材料'},
+  {id:'d3',stage:'S1',col:7,sub:0,kind:'dia',act:'走创新<br>通道?'},
+  {id:'n4',stage:'S1',col:8,sub:0,act:'#4 创新通道申请',out:'创新申请表'},
+  // S2 五子线：sub 0..4（并行，从阶段入口 s2in 分出）
+  {id:'s2in',stage:'S2',col:0,sub:2,kind:'start',act:'研发启动'},
+  {id:'a',stage:'S2',col:1,sub:0,act:'2A 软件生命周期',out:'SDP·SRS·设计·测试·配置·SOUP'},
+  {id:'b',stage:'S2',col:1,sub:1,act:'2B 风险管理',out:'风险计划·危害识别·控制·报告'},
+  {id:'c1',stage:'S2',col:1,sub:2,act:'2C 数据集/标注',out:'数据集说明·标注质控'},
+  {id:'cd',stage:'S2',col:2,sub:2,kind:'dia',act:'用了大<br>模型?'},
+  {id:'pm',stage:'S2',col:3,sub:2,act:'#28 预训练模型评估',out:'预训练评估报告'},
+  {id:'alg',stage:'S2',col:4,sub:2,act:'#29-31 训练·独立测试·泛化',out:'算法性能·泛化报告'},
+  {id:'d',stage:'S2',col:1,sub:3,act:'2D 网络安全',out:'威胁建模·测试·PIA'},
+  {id:'u',stage:'S2',col:1,sub:4,act:'2E 可用性工程',out:'使用规范·形成性·总结性'},
+  // S3
+  {id:'s3in',stage:'S3',col:0,sub:0,kind:'start',act:'研发完成·进入申报'},
+  {id:'ptr',stage:'S3',col:1,sub:0,act:'#40 产品技术要求',out:'产品技术要求(草案)'},
+  {id:'chk',stage:'S3',col:1,sub:0,kind:'ext',act:'#41 注册检验',out:'注册检验报告·外部'},
+  {id:'cd3',stage:'S3',col:1,sub:1,kind:'dia',act:'临床评价<br>路径?'},
+  {id:'p1',stage:'S3',col:2,sub:1,act:'#42-44 同品种',out:'等同性论证·AI临床评价'},
+  {id:'p2',stage:'S3',col:2,sub:2,act:'#43 临床试验',out:'方案·报告·伦理'},
+  {id:'p3',stage:'S3',col:2,sub:3,act:'#45 真实世界数据',out:'RWD研究报告'},
+  {id:'zl',stage:'S3',col:3,sub:1,act:'#46-52 注册资料整理',out:'综述·软件描述·算法·标签说明书'},
+  // S4
+  {id:'sub4',stage:'S4',col:0,sub:0,kind:'ext',act:'#53 提交申请',out:'受理通知书·外部'},
+  {id:'d4',stage:'S4',col:1,sub:0,kind:'dia',act:'形式审查<br>通过?'},
+  {id:'rev',stage:'S4',col:2,sub:0,kind:'ext',act:'#74 技术审评',out:'技术审评意见·外部'},
+  {id:'d5',stage:'S4',col:3,sub:0,kind:'dia',act:'收到<br>发补?'},
+  {id:'fb',stage:'S4',col:3,sub:1,act:'#54 回复发补',out:'补充资料回复'},
+  {id:'ins',stage:'S4',col:4,sub:0,act:'#55-57 迎接体系核查',out:'企业自查·AI专项SOP'},
+  {id:'d6',stage:'S4',col:5,sub:0,kind:'dia',act:'核查<br>通过?'},
+  {id:'fix',stage:'S4',col:5,sub:1,act:'#58 整改报告',out:'整改·验证记录'},
+  // S5
+  {id:'cert',stage:'S5',col:0,sub:0,kind:'ext',act:'#59-60 领注册证',out:'注册证·版本确认·外部'},
+  {id:'lock',stage:'S5',col:1,sub:0,act:'#61 锁定标签说明书',out:'正式标签·说明书'},
+  {id:'mon',stage:'S5',col:2,sub:0,act:'#62-63 上市后监测搭建',out:'监测计划·不良事件SOP'},
+  // S6
+  {id:'ae',stage:'S6',col:0,sub:0,act:'#65-66 不良事件监测',out:'不良事件报告·PSUR'},
+  {id:'perf',stage:'S6',col:1,sub:0,act:'#67-68 算法性能监控',out:'性能漂移·RWD报告'},
+  {id:'chg',stage:'S6',col:2,sub:0,act:'#69-70 变更影响评估',out:'变更评估·算法更新记录'},
+  {id:'d7',stage:'S6',col:3,sub:0,kind:'dia',act:'重大<br>变更?'},
+  {id:'rec',stage:'S6',col:4,sub:0,act:'#71-73 变更记录·再评价·安全更新',out:'变更申请·再评价·补丁'},
+  {id:'run',stage:'S6',col:5,sub:0,kind:'term',act:'持续运行'},
+];
+const RF_EDGES=[
+  {from:'start',to:'d1',type:'flow'},
+  {from:'d1',to:'n1',type:'yes',lab:'是'},{from:'d1',to:'stop',type:'loop',lab:'否'},
+  {from:'n1',to:'n2',type:'flow'},{from:'n2',to:'d2',type:'flow'},
+  {from:'d2',to:'n3a',type:'yes',lab:'是'},{from:'d2',to:'n3b',type:'no',lab:'否'},
+  {from:'n3a',to:'n5',type:'flow'},{from:'n3b',to:'n5',type:'flow'},
+  {from:'n5',to:'d3',type:'flow'},{from:'d3',to:'n4',type:'yes',lab:'是'},
+  {from:'n4',to:'s2in',type:'flow',lab:'进入②'},{from:'d3',to:'s2in',type:'no',lab:'否·普通'},
+  {from:'s2in',to:'a',type:'flow'},{from:'s2in',to:'b',type:'flow'},{from:'s2in',to:'c1',type:'flow'},
+  {from:'s2in',to:'d',type:'flow'},{from:'s2in',to:'u',type:'flow'},
+  {from:'c1',to:'cd',type:'flow'},{from:'cd',to:'pm',type:'yes',lab:'是'},
+  {from:'pm',to:'alg',type:'flow'},{from:'cd',to:'alg',type:'no',lab:'否'},
+  {from:'a',to:'s3in',type:'flow'},{from:'b',to:'s3in',type:'flow'},{from:'alg',to:'s3in',type:'flow',lab:'进入③'},
+  {from:'d',to:'s3in',type:'flow'},{from:'u',to:'s3in',type:'flow'},
+  {from:'s3in',to:'ptr',type:'flow'},
+  {from:'ptr',to:'chk',type:'flow'},{from:'ptr',to:'cd3',type:'flow'},
+  {from:'cd3',to:'p1',type:'yes',lab:'同品种'},{from:'cd3',to:'p2',type:'flow',lab:'试验'},{from:'cd3',to:'p3',type:'no',lab:'RWD'},
+  {from:'p1',to:'zl',type:'flow'},{from:'p2',to:'zl',type:'flow'},{from:'p3',to:'zl',type:'flow'},{from:'chk',to:'zl',type:'flow'},
+  {from:'zl',to:'sub4',type:'flow',lab:'进入④'},
+  {from:'sub4',to:'d4',type:'flow'},{from:'d4',to:'sub4',type:'loop',lab:'否·补正'},
+  {from:'d4',to:'rev',type:'yes',lab:'是'},{from:'rev',to:'d5',type:'flow'},
+  {from:'d5',to:'fb',type:'loop',lab:'是·发补'},{from:'fb',to:'rev',type:'loop',lab:'↺'},
+  {from:'d5',to:'ins',type:'no',lab:'否'},{from:'ins',to:'d6',type:'flow'},
+  {from:'d6',to:'fix',type:'loop',lab:'否·整改'},{from:'fix',to:'d6',type:'loop',lab:'↺'},
+  {from:'d6',to:'cert',type:'yes',lab:'是·进⑤'},
+  {from:'cert',to:'lock',type:'flow'},{from:'lock',to:'mon',type:'flow'},
+  {from:'mon',to:'ae',type:'flow',lab:'进入⑥'},
+  {from:'ae',to:'perf',type:'flow'},{from:'perf',to:'chg',type:'flow'},{from:'chg',to:'d7',type:'flow'},
+  {from:'d7',to:'rec',type:'no',lab:'否'},{from:'rec',to:'run',type:'flow'},
+  {from:'d7',to:'ptr',type:'loop',lab:'是·重大变更 ↺回③'},
+];
+let rfGraph=null;
+async function renderRegFlow(){
+  const box=document.getElementById('rmFlowBody');
+  if(!window.mermaid){ box.innerHTML='<div style="padding:40px;text-align:center;color:#e53e3e">mermaid 未加载</div>'; return; }
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.getAttribute('data-theme')!=='light';
+  const clean=s=>String(s||'').replace(/<br\/?>/g,'·').replace(/["\[\]{}()|]/g,'').replace(/📄/g,'');
+  // 节点：按 kind 映射 mermaid 形状（起止=胶囊 / 判断=菱形 / 外部件=平行四边形 / 处理=矩形）
+  const nodeDef=n=>{
+    const t=clean(n.act)+(n.out?'<br/>📄'+clean(n.out):'');
+    if(n.kind==='dia') return n.id+'{"'+clean(n.act)+'"}';
+    if(n.kind==='start'||n.kind==='term') return n.id+'(["'+clean(n.act)+'"])';
+    if(n.kind==='ext') return n.id+'[/"'+t+'"/]';
+    return n.id+'["'+t+'"]';
+  };
+  // 每阶段一个 subgraph 泳道，节点归入各自阶段
+  let def='flowchart TB\n';
+  RF_STAGES.forEach(st=>{
+    const ns=RF_NODES.filter(n=>n.stage===st.key); if(!ns.length)return;
+    def+=' subgraph '+st.key+'["'+st.no+' '+st.name+'"]\n  direction LR\n';
+    ns.forEach(n=>{ def+='  '+nodeDef(n)+'\n'; });
+    def+=' end\n';
+  });
+  // 连线：普通实线 / 判断分支带标签 / 回退虚线
+  RF_EDGES.forEach(e=>{
+    if(!RF_NODES.find(n=>n.id===e.from)||!RF_NODES.find(n=>n.id===e.to))return;
+    const lab=e.lab?'|"'+clean(e.lab)+'"|':'';
+    const link=e.type==='loop'?'-.->':'-->';
+    def+=' '+e.from+' '+link+lab+' '+e.to+'\n';
+  });
+  // 语义配色 classDef（柔和填充 + 同色系描边，深浅色分别配）
+  const P = dark
+    ? {proc:['#1e2a3a','#4a90d9','#dbeafe'], dia:['#33280f','#e0a94a','#fbe8c0'],
+       term:['#14301f','#5cc47e','#c6f0d4'], ext:['#242b33','#8a95a2','#dfe4ea'],
+       laneStroke:'#3a4655', laneFill:'none'}
+    : {proc:['#eaf3fc','#3182ce','#1a4971'], dia:['#fbf3e2','#dd8a1a','#8a5a00'],
+       term:['#e6f4ea','#2f855a','#22543d'], ext:['#eef1f4','#8a95a2','#3a4655'],
+       laneStroke:'#cbd5e0', laneFill:'#fafbfc'};
+  def+=` classDef proc fill:${P.proc[0]},stroke:${P.proc[1]},stroke-width:1.5px,color:${P.proc[2]},rx:8,ry:8;\n`;
+  def+=` classDef dia fill:${P.dia[0]},stroke:${P.dia[1]},stroke-width:1.5px,color:${P.dia[2]};\n`;
+  def+=` classDef term fill:${P.term[0]},stroke:${P.term[1]},stroke-width:2px,color:${P.term[2]};\n`;
+  def+=` classDef ext fill:${P.ext[0]},stroke:${P.ext[1]},stroke-width:1.5px,color:${P.ext[2]},stroke-dasharray:4 3;\n`;
+  const cls={dia:[],term:[],ext:[],proc:[]};
+  RF_NODES.forEach(n=>{ const k=n.kind==='dia'?'dia':(n.kind==='start'||n.kind==='term')?'term':n.kind==='ext'?'ext':'proc'; cls[k].push(n.id); });
+  Object.entries(cls).forEach(([k,ids])=>{ if(ids.length) def+=' class '+ids.join(',')+' '+k+';\n'; });
+  // 泳道(subgraph)描边淡化
+  RF_STAGES.forEach(st=>{ def+=` style ${st.key} fill:${P.laneFill},stroke:${P.laneStroke},stroke-width:1px,color:${dark?'#a3adb9':'#5a6572'};\n`; });
+  try{
+    if(window.mermaid&&mermaid.initialize) mermaid.initialize({
+      startOnLoad:false, securityLevel:'loose',
+      theme:'base',
+      themeVariables:{
+        fontFamily:'"PingFang SC","Microsoft YaHei",system-ui,sans-serif',
+        fontSize:'13px',
+        lineColor: dark?'#7f8a97':'#9aa4b0',
+        primaryColor: dark?'#1e2a3a':'#eaf3fc',
+        primaryBorderColor: dark?'#4a90d9':'#3182ce',
+        primaryTextColor: dark?'#dbeafe':'#1a4971',
+      },
+      flowchart:{curve:'basis', nodeSpacing:44, rankSpacing:64, padding:14, htmlLabels:true, useMaxWidth:true},
+    });
+    const {svg}=await mermaid.render('regflow'+(++_mmSeq), def);
+    box.innerHTML='<div class="mermaid-fig" style="text-align:center">'+svg+'</div>';
+    requestAnimationFrame(()=>rfEqualizeLanes(box));
+  }catch(err){ box.innerHTML='<div style="padding:40px;text-align:center;color:#e53e3e">流程图渲染失败：'+esc(String(err&&err.message||err))+'</div>'; }
+  return;
+}
+
+// 让 6 个阶段泳道(subgraph cluster)左对齐 + 等宽（mermaid 原生做不到，渲染后补）
+function rfEqualizeLanes(box){
+  const svgEl=box.querySelector('svg'); if(!svgEl) return;
+  const keys=RF_STAGES.map(s=>s.key);
+  // mermaid v10 cluster: g.cluster[id="Sx"] 或 id 以阶段 key 结尾，内含 rect(框) 与 .cluster-label
+  const clusters=[...svgEl.querySelectorAll('g.cluster')].map(g=>{
+    const id=g.id||'';
+    const key=keys.find(k=>id===k||id.endsWith('-'+k)||id.split(/[^A-Za-z0-9]/).includes(k));
+    const rect=g.querySelector('rect');
+    if(!key||!rect) return null;
+    return {g,rect,x:parseFloat(rect.getAttribute('x')||'0'),w:parseFloat(rect.getAttribute('width')||'0')};
+  }).filter(Boolean);
+  if(clusters.length<2) return;
+  const minX=Math.min(...clusters.map(c=>c.x));
+  const maxR=Math.max(...clusters.map(c=>c.x+c.w));
+  clusters.forEach(c=>{
+    // 左边界拉齐到最左、宽度拉到最右（等宽且左对齐）
+    c.rect.setAttribute('x',minX);
+    c.rect.setAttribute('width',maxR-minX);
+    // 阶段标题(cluster-label)重新贴到框左上，避免居中偏移
+    const lbl=c.g.querySelector('.cluster-label, .clusterLabel, foreignObject, text');
+    if(lbl&&lbl.tagName!=='rect'){ try{ lbl.setAttribute('transform','translate('+(minX+10)+',0)'); }catch(e){} }
+  });
+}
+
+function rmTaskCard(it){
+  const canGen=it.genable;
+  const docTag=(it.sys_ref&&it.doc_id)
+    ? `<span class="tag tag-dossier">🗂️ 体系文件·本产品实例</span>`
+    : canGen
+    ? `<span class="tag tag-doc">📄 可生成</span>`
+    : `<span class="tag tag-none">外部出具/流程</span>`;
+  return `<div class="task-card" onclick="rmOpenTask(${it.seq})">
+    <div class="tc-top"><div class="tc-id">#${it.seq}</div><div class="tc-title">${esc(it.activity)}</div></div>
+    <div class="tc-what">输出：${esc(it.output)}</div>
+    <div class="tc-io"><div class="io-box"><b>法规依据</b>${esc(it.basis)}</div></div>
+    <div class="tc-tags">${docTag}</div>
+    <div class="tc-foot">${(it.sys_ref&&it.doc_id)||canGen?'点击查看并生成文档 →':'点击查看详情 →'}</div>
+  </div>`;
+}
+
+function rmFindTask(seq){
+  for(const s of genChecklist.stages) for(const it of s.items) if(it.seq===seq) return {it,stage:s};
+  return null;
+}
+
+function rmOpenTask(seq){
+  const r=rmFindTask(seq);
+  if(!r) return;
+  const it=r.it; rmCurTask=it;
+  document.getElementById('mTitle').textContent=it.activity;
+  document.getElementById('mMeta').textContent=`#${it.seq} · ${r.stage.no} ${r.stage.name} · ${it.sub}`;
+  const docName=esc(it.output.split('；')[0].split('&')[0].trim());
+  const docPick=(it.sys_ref && it.doc_id)
+    ? `<div class="doc-pick"><div class="doc-pick-item" onclick="rmStartGen('${it.doc_id}',${it.seq},'${docName.replace(/'/g,"\\'")}',null,false)">
+        <span class="dp-name">${docName}</span><span class="dp-id">${it.doc_id}</span><span class="dp-go">✨ 生成本产品文件</span>
+       </div></div>
+       <div class="no-doc" style="margin-top:6px">本项对应质量体系文件「${esc(findDocName(it.doc_id)||it.doc_id)}」，此处按当前产品生成实例；通用模板在「体系搭建」页。</div>`
+    : it.genable
+    ? `<div class="doc-pick"><div class="doc-pick-item" onclick="rmStartGen(${it.doc_id?`'${it.doc_id}'`:'null'},${it.seq},'${docName.replace(/'/g,"\\'")}',null,false)">
+        <span class="dp-name">${docName}</span><span class="dp-id">${it.doc_id||'#'+it.seq}</span><span class="dp-go">✨ 生成文档</span>
+       </div></div>`
+    : `<div class="no-doc">本项为外部机构出具或纯流程类（如检验报告、注册证、受理通知），不提供生成模板。</div>`;
+  document.getElementById('mScroll').innerHTML=`
+    <div class="m-section"><div class="lab">📌 活动</div><div class="val">${esc(it.activity)}</div></div>
+    <div class="m-section"><div class="lab">📄 输出文档/证据</div><div class="val">${esc(it.output)}</div></div>
+    <div class="m-section"><div class="lab">📖 法规依据</div><div class="val">${esc(it.basis)}</div></div>
+    <div class="m-section"><div class="lab">📑 具体条款</div><div class="val">${esc(it.clause)}</div></div>
+    ${it.note?`<div class="m-section"><div class="lab">💡 关键说明</div><div class="val">${esc(it.note)}</div></div>`:''}
+    <div class="m-section"><div class="lab">✨ 生成文档（自动检索法规依据、结合产品信息，完成后归档到文件管理）</div>${docPick}</div>`;
+  rmCloseGen();
+  document.getElementById('taskModal').classList.add('open');
+}
+
+function closeTaskModal(){
+  if(rmGenStreaming){
+    if(!confirm('文档正在生成中，关闭后本次生成将中断，确定关闭？')) return;
+    rmGenStreaming=false;   // 允许用户强制关闭，复位标志避免卡死
+  }
+  document.getElementById('taskModal').classList.remove('open');
+}
+
+// ── Generation (reuses /api/generate/stream) ──
+let rmAsTemplate=false;   // true=生成质量体系模板(体系地图)，false=生成产品实例(注册路线图)
+function rmStartGen(docId,seq,docName,extra,asTemplate){
+  rmGenDocId=docId; rmGenSeq=seq; rmGenDocName=docName||docId||('#'+seq); rmGenExtra=extra||''; rmAsTemplate=!!asTemplate;
+  document.getElementById('genRegen').style.display='';   // rmViewDoc 会隐藏它，生成时恢复
+  document.getElementById('genTitle').textContent='生成：'+rmGenDocName;
+  document.getElementById('genWrap').classList.add('show');
+  document.getElementById('modalFoot').style.display='none';
+  document.getElementById('taskModal').classList.add('open');   // 从文件卡片直接调用时确保弹窗打开
+  rmRunGenerate();
+}
+function rmCloseGen(){
+  document.getElementById('genWrap').classList.remove('show');
+  document.getElementById('modalFoot').style.display='block';
+}
+// 就地查看已存文档(在 taskModal 生成区显示，不跳页)
+async function rmViewDoc(rid,name){
+  if(!rid) return;
+  document.getElementById('genTitle').textContent='查看：'+(name||'');
+  document.getElementById('genWrap').classList.add('show');
+  document.getElementById('modalFoot').style.display='none';
+  const out=document.getElementById('genOut'); out.innerHTML='<div style="color:#a0aec0">加载中…（公文预览）</div>';
+  document.getElementById('genRegen').style.display='none';
+  // 优先用 docx-preview 渲染公文格式(呈现=下载);失败回退 markdown
+  const okDocx = await renderDocx(out, rid);
+  if(okDocx) return;
+  try{
+    const d=await fetch('/api/docs/'+rid).then(r=>r.json());
+    renderMd(out, d.content||'');
+  }catch{ out.innerHTML='<div style="color:#e53e3e">加载失败</div>'; }
+}
+async function rmRunGenerate(){
+  if((!rmGenDocId && rmGenSeq==null)||rmGenStreaming) return;
+  rmGenStreaming=true;
+  genInFlight++; try{updateTopbar();}catch(_){}   // 顶部显示生成中计数
+  const btn=document.getElementById('genRegen');
+  btn.disabled=true; btn.textContent='⏳ 生成中…';
+  const out=document.getElementById('genOut');
+  // 不实时显示内容,只显示"生成中"占位(内容最终统一去文件管理看公文docx预览)
+  out.innerHTML='<div style="padding:40px;text-align:center;color:#4a5568"><div style="font-size:32px">⏳</div><div style="margin-top:12px;font-size:15px">正在生成文档…</div><div id="genProgHint" style="margin-top:6px;color:#a0aec0;font-size:13px">请稍候,生成完成后将自动跳转到文件管理查看</div></div>';
+  let full=''; let done=false; let lastDelta=Date.now(); let stallTimer=null;
+  const hint=()=>document.getElementById('genProgHint');
+  stallTimer=setInterval(()=>{
+    if(done) return;
+    if(Date.now()-lastDelta>40000 && hint()) hint().textContent='仍在生成中,长文档较慢,请耐心等待…';
+  },5000);
+  try{
+    const resp=await fetch('/api/generate/stream',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(Object.assign(rmGenDocId?{doc_id:rmGenDocId}:{seq:rmGenSeq}, rmGenExtra?{extra_context:rmGenExtra}:{}, {as_template:rmAsTemplate})),
+    });
+    if(!resp.ok||!resp.body) throw new Error('HTTP '+resp.status);
+    const reader=resp.body.getReader();const dec=new TextDecoder();let buf='';
+    while(!done){
+      const {value,done:rd}=await reader.read();if(rd)break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n');buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: '))continue;
+        const raw=line.slice(6);
+        if(raw==='[DONE]'){done=true;break;}
+        let ev; try{ ev=JSON.parse(raw); }catch{ continue; }
+        // 只累计内容,不渲染显示;进度只更新提示文字
+        if(ev.type==='delta'){full+=ev.content;lastDelta=Date.now();
+          if(hint()) hint().textContent=`已生成约 ${full.length} 字…`;}
+        else if(ev.type==='meta'&&ev.continuing){lastDelta=Date.now(); if(hint()) hint().textContent=`续写中(第${ev.round}段)…`;}
+        else if(ev.type==='meta'&&ev.truncated){toast(ev.message||'文档可能仍不完整');}
+        else if(ev.type==='error'){done=true;out.innerHTML=`<div style="color:#e53e3e;padding:20px">⚠️ 生成失败：${(ev.message||'').replace(/</g,'&lt;')}</div>`;toast('生成失败：'+(ev.message||''));break;}
+      }
+    }
+    if(!done&&!full){out.innerHTML='<div style="color:#e53e3e;padding:20px">⚠️ 连接结束但未收到内容，请重试</div>';return;}
+    // 生成成功→存档→关弹窗→跳文件管理并打开这份(公文docx预览)
+    if(full.trim()){
+      let rid=null;
+      try{
+        const sr=await fetch('/api/docs/save',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({doc_id:rmGenDocId,doc_name:rmGenDocName,content:full,as_template:rmAsTemplate})}).then(r=>r.json());
+        rid=sr.id;
+        toast(rmAsTemplate?'✓ 已生成并归档到「质量体系文件」':'✓ 已生成并归档到「注册申报文件」');
+      }catch{ toast('生成完成，但归档失败'); }
+      // 关生成弹窗,跳文件管理,打开这份
+      rmGenStreaming=false;
+      try{ closeTaskModal(); }catch(_){}
+      showPage('docs');
+      if(rmAsTemplate && typeof switchDocTab==='function'){ try{switchDocTab('template');}catch(_){}}
+      setTimeout(()=>{ if(rid && typeof viewSavedDoc==='function') viewSavedDoc(rid); }, 600);
+    }
+  }catch(e){
+    out.innerHTML=`<div style="color:#e53e3e;padding:20px">⚠️ 请求失败：${(e.message||e).toString().replace(/</g,'&lt;')}</div>`;
+    toast('请求失败：'+e.message);
+  }finally{
+    if(stallTimer)clearInterval(stallTimer);
+    out.classList.remove('streaming');
+    rmGenStreaming=false; btn.disabled=false; btn.textContent='↻ 重新生成';
+    genInFlight=Math.max(0,genInFlight-1); try{updateTopbar();}catch(_){}
+  }
+}
+function rmCopyGen(){
+  navigator.clipboard.writeText(document.getElementById('genOut').innerText).then(()=>toast('✓ 已复制'));
+}
+document.getElementById('taskModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeTaskModal();});
+
+// ══ 合规图谱 (merged from compliance.html) ══════════════════════
+// 复用 index 的：window.fetch 重写(token/401)、SESSION_TOKEN、esc、toast。
+let complianceInited=false;
+let GRAPH=null, CHECKLIST=null, curView='graph';
+let network=null, visNodes=null, visEdges=null, fullGraphData=null, allNodesIndex=[];
+const stageColor={};
+
+async function initCompliance(){
+  if (!SESSION_TOKEN){ toast('请先登录'); showLoginGate&&showLoginGate(); return; }
+  try{
+    const [ov,cl]=await Promise.all([
+      fetch('/api/compliance/overview').then(r=>r.json()),
+      genChecklist?Promise.resolve(genChecklist):fetch('/api/compliance/checklist').then(r=>r.json()),
+    ]);
+    GRAPH=ov; CHECKLIST=cl; genChecklist=cl;
+    ov.stages.forEach(s=>stageColor[s.key]=s.color);
+    const st=ov.stats;
+    const hs=document.getElementById('hstats');
+    if(hs) hs.textContent=
+      `${st.nodes||0} 节点 · ${st.edges||0} 关系 · ${st.requirements} 法规要求 · ${st.documents} 文档`;
+    // 默认进图谱视图
+    switchView('graph');
+  }catch(e){ document.getElementById('body').innerHTML=`<div class="cmp-empty">加载失败：${esc(e.message)}</div>`; }
+}
+
+function switchView(v){
+  curView=v;
+  document.querySelectorAll('#page-compliance .cmp-tab').forEach(t=>t.classList.toggle('active',t.dataset.view===v));
+  const isGraph=v==='graph';
+  document.getElementById('graphWrap').style.display=isGraph?'block':'none';
+  document.getElementById('toolbar').style.display=isGraph?'none':'flex';
+  document.getElementById('body').style.display=isGraph?'none':'block';
+  if(isGraph){ if(!network) initGraph(); else network.redraw(); return; }
+  document.getElementById('searchBox').value='';
+  render();
+}
+
+const HINTS={stage:'点击阶段展开该阶段要产出的文档与对应法规要求',
+  requirement:'点击法规要求，查看由哪些文档在哪些阶段满足',
+  document:'点击文档，查看它满足哪些法规要求、属于哪些阶段'};
+
+function render(){
+  document.getElementById('viewHint').textContent=HINTS[curView]||'';
+  if(curView==='stage') renderStage();
+  else if(curView==='requirement') renderRequirement();
+  else renderDocument();
+}
+
+function genBtnHtml(docId, label){
+  if(docId) return `<button class="gen-btn" onclick="genDoc('${docId}',event)">📄 可生成</button>`;
+  return `<span class="gen-btn none" title="暂无模板">清单项</span>`;
+}
+
+// ── 按阶段 ──
+function renderStage(){
+  const kw=(document.getElementById('searchBox').value||'').trim();
+  const body=document.getElementById('body');
+  body.innerHTML=CHECKLIST.stages.map(s=>{
+    let items=s.items;
+    if(kw) items=items.filter(i=>(i.activity+i.output+i.basis+i.clause+i.sub).includes(kw));
+    if(!items.length) return '';
+    const rows=items.map(i=>`
+      <div class="row">
+        <div><span class="col-lab">${esc(i.sub)} · 输出文档</span><span class="doc">${esc(i.output)}</span></div>
+        <div><span class="col-lab">活动</span><span class="act">${esc(i.activity)}</span></div>
+        <div><span class="col-lab">满足法规要求</span><span class="basis">${esc(i.basis)}</span><br><span class="clause">${esc(i.clause)}</span></div>
+        <div>${genBtnHtml(i.doc_id)}</div>
+      </div>`).join('');
+    return `<div class="stage-block">
+      <div class="stage-hd" style="border-left-color:${s.color}" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="no" style="background:${s.color}">${s.no}</span>
+        <h3>${esc(s.name)}</h3>
+        <span class="meta">${items.length} 项</span>
+      </div>
+      <div class="stage-body ${kw?'open':''}">
+        <div class="rowhead"><span>输出文档</span><span>活动</span><span>满足法规要求</span><span></span></div>
+        ${rows}
+      </div></div>`;
+  }).join('')||'<div class="cmp-empty">无匹配项</div>';
+}
+
+// ── 按法规要求 ──
+async function renderRequirement(){
+  const kw=(document.getElementById('searchBox').value||'').trim();
+  const body=document.getElementById('body');
+  let results;
+  if(kw){
+    results=(await fetch('/api/compliance/search?q='+encodeURIComponent(kw)).then(r=>r.json())).results;
+  }else{
+    results=(await fetch('/api/compliance/search?q='+encodeURIComponent('')).then(r=>r.json())).results||[];
+    if(!results.length) results=allRequirementsFromChecklist();
+  }
+  if(!results.length){ body.innerHTML='<div class="cmp-empty">无匹配法规要求</div>'; return; }
+  body.innerHTML=results.map(r=>`
+    <div class="card">
+      <div class="card-hd" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="ic">📋</span>
+        <div class="main"><div class="t">${esc(r.basis)}</div><div class="s">${esc(r.clause)}</div></div>
+        <span class="badge">${r.docs.length} 份文档满足</span>
+      </div>
+      <div class="card-body">
+        ${r.docs.map(d=>`<div class="link-item">
+          <span class="stage-pill" style="background:${stageColor[d.stage]||'#888'}">${stageNo(d.stage)}</span>
+          <span class="lname"><b>${esc(d.doc_name)}</b></span>
+          ${d.doc_id?`<button class="gen-btn" onclick="genDoc('${d.doc_id}',event)">📄 可生成</button>`:'<span class="gen-btn none">清单项</span>'}
+        </div>`).join('')}
+      </div></div>`).join('');
+}
+
+// 本地从 checklist 汇总法规要求（search 空查询兜底）
+function allRequirementsFromChecklist(){
+  const map={};
+  CHECKLIST.stages.forEach(s=>s.items.forEach(i=>{
+    const k=i.basis+'|'+i.clause;
+    if(!map[k]) map[k]={basis:i.basis,clause:i.clause,docs:[]};
+    map[k].docs.push({doc_name:i.output,doc_id:i.doc_id,stage:i.stage});
+  }));
+  return Object.values(map);
+}
+
+// ── 按文档 ──
+function renderDocument(){
+  const kw=(document.getElementById('searchBox').value||'').trim();
+  const body=document.getElementById('body');
+  const map={};
+  CHECKLIST.stages.forEach(s=>s.items.forEach(i=>{
+    const k=i.doc_id||('item-'+i.seq);
+    if(!map[k]) map[k]={name:i.output,doc_id:i.doc_id,reqs:[],stages:new Set()};
+    map[k].reqs.push({basis:i.basis,clause:i.clause});
+    map[k].stages.add(i.stage);
+  }));
+  let docs=Object.values(map);
+  if(kw) docs=docs.filter(d=>(d.name+d.reqs.map(r=>r.basis+r.clause).join('')).includes(kw));
+  if(!docs.length){ body.innerHTML='<div class="cmp-empty">无匹配文档</div>'; return; }
+  body.innerHTML=docs.map(d=>`
+    <div class="card">
+      <div class="card-hd" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="ic">📄</span>
+        <div class="main"><div class="t">${esc(d.name)}</div>
+          <div class="s">${[...d.stages].map(stageNo).join(' / ')} 阶段 · 满足 ${d.reqs.length} 条法规要求</div></div>
+        ${d.doc_id?`<button class="gen-btn" onclick="genDoc('${d.doc_id}',event)">📄 可生成</button>`:'<span class="badge">清单项</span>'}
+      </div>
+      <div class="card-body">
+        ${d.reqs.map(r=>`<div class="link-item">
+          <span class="ic">📋</span><span class="lname"><b>${esc(r.basis)}</b> — ${esc(r.clause)}</span>
+        </div>`).join('')}
+      </div></div>`).join('');
+}
+
+function stageNo(key){const s=(GRAPH.stages||[]).find(x=>x.key===key);return s?s.no:key;}
+
+let searchTimer=null;
+function onSearch(){ clearTimeout(searchTimer); searchTimer=setTimeout(render,250); }
+
+// ── 生成文档：就地复用注册路线图的生成弹窗（生成后自动归档）──
+function genDoc(docId,ev){ if(ev) ev.stopPropagation(); rmStartGen(docId, null, docId); }
+
+// ══ 力导向图谱可视化 ══════════════════════════════════════════════════════
+const TYPE_STYLE={
+  Stage:      {color:'#f6ad55', size:30, shape:'dot'},
+  Document:   {color:'#4fd1c5', size:18, shape:'dot'},
+  Requirement:{color:'#90cdf4', size:14, shape:'dot'},
+  Regulation: {color:'#f687b3', size:22, shape:'dot'},
+  Dossier:    {color:'#b794f4', size:26, shape:'dot'},
+};
+const REL_COLOR={PRODUCES:'#f6ad55',SATISFIES:'#63b3ed',CITES:'#f687b3',BELONGS_TO:'rgba(255,255,255,0.06)',ARCHIVED_IN:'#b794f4'};
+
+// 子图聚焦模式：默认只画枢纽概览图，点/搜某节点 → 只加载它的局部子图。
+let curCenter=null;
+
+function buildVisData(data, centerId){
+  const nodes=data.nodes.map(n=>{
+    const st=TYPE_STYLE[n.type]||{color:'#a0aec0',size:14,shape:'dot'};
+    let label=n.label||n.id;
+    if(n.badge!=null) label=label+`  (${n.badge})`;
+    if(label.length>22) label=label.slice(0,21)+'…';
+    const isCenter=n.id===centerId;
+    return {id:n.id, label, title:`${n.type}: ${n.label}`,
+      color:{background:st.color,border:isCenter?'#fff':'rgba(255,255,255,0.5)',
+        highlight:{background:st.color,border:'#fff'}},
+      size:isCenter?st.size+10:st.size, shape:st.shape,
+      font:{color:'#e2e8f0',size:isCenter?13:11,face:'PingFang SC'},
+      borderWidth:isCenter?3:1, _type:n.type, _full:n.label, _doc_id:n.doc_id};
+  });
+  const edges=data.edges
+    .filter(e=>e.rel!=='BELONGS_TO')
+    .map((e,i)=>({id:'e'+i, from:e.source,to:e.target,
+      color:{color:REL_COLOR[e.rel]||'#555',opacity:0.5},
+      width:e.rel==='SATISFIES'?0.8:1.4, arrows:{to:{enabled:true,scaleFactor:0.35}},
+      smooth:false, _rel:e.rel}));
+  return {nodes, edges};
+}
+
+function renderGraphData(data, centerId){
+  const {nodes,edges}=buildVisData(data, centerId);
+  if(!network){
+    visNodes=new vis.DataSet(nodes);
+    visEdges=new vis.DataSet(edges);
+    network=new vis.Network(document.getElementById('graphCanvas'),{nodes:visNodes,edges:visEdges},{
+      physics:{solver:'forceAtlas2Based',
+        forceAtlas2Based:{gravitationalConstant:-60,centralGravity:0.015,springLength:120,springConstant:0.08,damping:0.8,avoidOverlap:0.2},
+        stabilization:{enabled:true,iterations:120,updateInterval:25,fit:true},
+        minVelocity:1.5, maxVelocity:30},
+      layout:{improvedLayout:false},
+      interaction:{hover:false,navigationButtons:false,keyboard:false,hideEdgesOnDrag:true,hideEdgesOnZoom:true},
+      nodes:{shadow:false}, edges:{shadow:false},
+    });
+    network.once('stabilizationIterationsDone',()=>{ network.setOptions({physics:false}); network.fit({animation:false}); });
+    network.on('click',params=>{
+      if(params.nodes.length){ focusNode(params.nodes[0]); }
+      else { closePanel(); hideGsResults(); }
+    });
+  }else{
+    network.setOptions({physics:{enabled:true,stabilization:{enabled:true,iterations:120,fit:true}}});
+    visNodes.clear(); visEdges.clear();
+    visNodes.add(nodes); visEdges.add(edges);
+    network.once('stabilizationIterationsDone',()=>{ network.setOptions({physics:false}); network.fit({animation:false}); });
+  }
+}
+
+async function initGraph(){
+  const hint=document.querySelector('#page-compliance .graph-hint');
+  if(hint) hint.textContent='⏳ 加载概览图…';
+  fetch('/api/compliance/graph').then(r=>r.json()).then(d=>{
+    allNodesIndex=d.nodes.map(n=>({id:n.id,type:n.type,label:n.label,alias:(n.alias||'')+' '+(n.basis||'')}));
+  });
+  const data=await fetch('/api/compliance/overview-graph').then(r=>r.json());
+  renderGraphData(data, null);
+  if(hint) hint.textContent='点击枢纽节点（法规/阶段/档案）展开其关联 · 或上方搜索任意节点';
+}
+
+// 聚焦某节点：加载它的局部子图并渲染（替换当前图）
+async function focusNode(nodeId){
+  curCenter=nodeId;
+  const hint=document.querySelector('#page-compliance .graph-hint');
+  if(hint) hint.textContent='⏳ 展开关联…';
+  const data=await fetch('/api/compliance/subgraph/'+encodeURIComponent(nodeId)+'?hops=1').then(r=>r.json()).catch(()=>null);
+  if(data && data.nodes && data.nodes.length){
+    renderGraphData(data, nodeId);
+    if(hint) hint.textContent=`已展开「${(allNodesIndex.find(x=>x.id===nodeId)||{}).label||nodeId}」的关联 · 点其它节点继续展开 · 「返回概览」回到全局`;
+    showBackBtn(true);
+  }
+  showNodePanel(nodeId);
+}
+
+async function backToOverview(){
+  closePanel(); showBackBtn(false); curCenter=null;
+  const data=await fetch('/api/compliance/overview-graph').then(r=>r.json());
+  renderGraphData(data, null);
+  const hint=document.querySelector('#page-compliance .graph-hint');
+  if(hint) hint.textContent='点击枢纽节点（法规/阶段/档案）展开其关联 · 或上方搜索任意节点';
+}
+
+function showBackBtn(show){
+  let b=document.getElementById('gBackBtn');
+  if(!b){
+    b=document.createElement('button'); b.id='gBackBtn'; b.textContent='← 返回概览';
+    b.onclick=backToOverview;
+    b.style.cssText='position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(49,130,206,.9);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer';
+    document.querySelector('#page-compliance .graph-wrap').appendChild(b);
+  }
+  b.style.display=show?'block':'none';
+}
+
+function closePanel(){ document.getElementById('nodePanel').classList.remove('show'); }
+
+async function showNodePanel(nodeId){
+  const d=await fetch('/api/compliance/node/'+encodeURIComponent(nodeId)).then(r=>r.json()).catch(()=>null);
+  if(!d){ return; }
+  const n=d.node;
+  const typeLabel={Stage:'注册阶段',Document:'文档/证据',Requirement:'审查要点',Regulation:'法规/标准',Dossier:'归档档案'}[n.type]||n.type;
+  document.getElementById('npType').textContent=typeLabel;
+  document.getElementById('npTitle').textContent=n.name||n.clause||n.basis||n.id;
+  let sub='';
+  if(n.type==='Requirement'){ sub=`<b style="color:#90cdf4">出自：</b>${esc(n.basis||'')}<br><b style="color:#90cdf4">条款：</b>${esc(n.clause||'')}`; if(n.detail||n.summary) sub+=`<br><span style="color:#64748b">${esc(n.detail||n.summary)}</span>`; }
+  else if(n.type==='Stage'){ sub=esc(n.goal||''); }
+  else if(n.type==='Document'){ sub=n.sub?('工作包：'+esc(n.sub)):''; }
+  else if(n.type==='Regulation'){ sub='法规 / 行业标准 / 指导原则'; }
+  else if(n.type==='Dossier'){ sub=esc(n.desc||'归档汇编（DHF/DMR/DHR/技术文档/NMPA）'); }
+  document.getElementById('npSub').innerHTML=sub;
+  const gw=document.getElementById('npGenWrap');
+  if(n.type==='Document'&&n.doc_id){ gw.innerHTML=`<button class="np-gen" onclick="genDoc('${n.doc_id}')">🚀 生成此文档</button>`; }
+  else gw.innerHTML='';
+  const relLab={PRODUCES:'产出',SATISFIES:'满足',CITES:'引用',BELONGS_TO:'属于',ARCHIVED_IN:'归入'};
+  const reqNbs=d.neighbors.filter(nb=>nb.type==='Requirement');
+  const otherNbs=d.neighbors.filter(nb=>nb.type!=='Requirement');
+  const nb1=(nb)=>{
+    const c=(TYPE_STYLE[nb.type]||{}).color||'#888';
+    return `<div class="np-nb" onclick="focusNode('${nb.id.replace(/'/g,"\\'")}')">
+      <span class="nb-dot" style="background:${c}"></span>
+      <span class="nb-lab">${esc(nb.label)}</span>
+      <span class="nb-rel">${nb.dir==='out'?(relLab[nb.rel]||nb.rel):'被'+(relLab[nb.rel]||nb.rel)}</span></div>`;
+  };
+  let html=otherNbs.map(nb1).join('');
+  if(reqNbs.length){
+    const groups={};
+    reqNbs.forEach(nb=>{ const k=nb.basis||'其他'; (groups[k]=groups[k]||[]).push(nb); });
+    html+=`<div style="margin-top:8px;font-size:10px;color:#64748b">满足的审查要点（共 ${reqNbs.length} 条，按法规分组）</div>`;
+    html+=Object.entries(groups).map(([reg,items])=>`
+      <div class="req-group">
+        <div class="req-group-hd" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <span style="color:#90cdf4">▸</span> ${esc(reg)} <span style="color:#64748b">(${items.length})</span>
+        </div>
+        <div class="req-group-body" style="display:none">${items.map(nb1).join('')}</div>
+      </div>`).join('');
+  }
+  document.getElementById('npNeighbors').innerHTML=html||'<div style="color:#64748b;font-size:11px">无关联</div>';
+  document.getElementById('nodePanel').classList.add('show');
+}
+
+// 图谱内搜索
+let gsTimer=null;
+function onGraphSearch(){
+  clearTimeout(gsTimer);
+  gsTimer=setTimeout(()=>{
+    const kw=(document.getElementById('graphSearch').value||'').trim().toLowerCase();
+    const box=document.getElementById('gsResults');
+    if(!kw){ hideGsResults(); return; }
+    const hits=allNodesIndex.filter(n=>((n.label||'')+' '+(n.alias||'')).toLowerCase().includes(kw)).slice(0,20);
+    if(!hits.length){ box.innerHTML='<div class="gs-item">无匹配节点</div>'; box.classList.add('show'); return; }
+    const tl={Stage:'阶段',Document:'文档',Requirement:'法规要求',Regulation:'法规'};
+    box.innerHTML=hits.map(h=>`<div class="gs-item" onclick="pickGs('${h.id.replace(/'/g,"\\'")}')">
+      <span class="gi-type">${tl[h.type]||h.type}</span>${esc(h.label)}</div>`).join('');
+    box.classList.add('show');
+  },200);
+}
+function pickGs(id){ document.getElementById('graphSearch').value=''; hideGsResults(); focusNode(id); }
+function hideGsResults(){ document.getElementById('gsResults').classList.remove('show'); }
+
+// ── 体系审查（红队）──────────────────────────────────────────────
+let reviewFindings=[];
+let reviewRunning=false;
+const SEV_COLOR={'高':'#e53e3e','中':'#dd6b20','低':'#718096'};
+const SEV_ORDER={'高':0,'中':1,'低':2};
+
+async function startReview(){
+  if(reviewRunning) return;
+  reviewRunning=true; reviewFindings=[];
+  const btn=document.getElementById('reviewStartBtn');
+  const status=document.getElementById('reviewStatus');
+  btn.disabled=true; btn.textContent='审查中…';
+  document.getElementById('reviewResults').innerHTML='';
+  document.getElementById('reviewSummary').style.display='none';
+  status.textContent='正在启动审查…';
+  try{
+    const resp=await fetch('/api/review/system/stream',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}),
+    });
+    if(!resp.ok||!resp.body) throw new Error('HTTP '+resp.status);
+    const reader=resp.body.getReader(); const dec=new TextDecoder(); let buf=''; let done=false;
+    while(!done){
+      const {value,done:rd}=await reader.read();
+      if(rd) break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n'); buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        const raw=line.slice(6);
+        if(raw==='[DONE]'){ done=true; break; }
+        let ev; try{ ev=JSON.parse(raw); }catch{ continue; }
+        if(ev.type==='meta'){ status.textContent=`审查对象：${ev.product}`; }
+        else if(ev.type==='progress'){ status.textContent=`正在审查阶段：${ev.name}…`; }
+        else if(ev.type==='findings'){ reviewFindings.push(...(ev.findings||[])); renderReview(); }
+        else if(ev.type==='error'){ toast(`阶段「${ev.stage}」审查失败`); }
+        else if(ev.type==='done'){ status.textContent=`审查完成，共 ${ev.total} 项问题`; }
+      }
+    }
+  }catch(e){ toast('审查失败：'+e.message); status.textContent='审查失败'; }
+  btn.disabled=false; btn.textContent='重新审查'; reviewRunning=false;
+}
+
+function renderReview(){
+  const wrap=document.getElementById('reviewResults');
+  const sum=document.getElementById('reviewSummary');
+  if(!reviewFindings.length){ wrap.innerHTML='<div style="color:#a0aec0;text-align:center;padding:40px">暂无问题</div>'; return; }
+  // 汇总计数
+  const cnt={'高':0,'中':0,'低':0};
+  reviewFindings.forEach(f=>{ cnt[f.severity]=(cnt[f.severity]||0)+1; });
+  sum.style.display='flex';
+  sum.innerHTML=['高','中','低'].map(s=>`<span style="font-size:12px;font-weight:600;color:#fff;background:${SEV_COLOR[s]};border-radius:12px;padding:3px 10px">${s}危 ${cnt[s]||0}</span>`).join('')
+    +`<span style="font-size:12px;color:#718096;align-self:center">共 ${reviewFindings.length} 项</span>`;
+  // 按严重度排序渲染
+  const sorted=[...reviewFindings].sort((a,b)=>(SEV_ORDER[a.severity]??9)-(SEV_ORDER[b.severity]??9));
+  wrap.innerHTML=sorted.map(f=>{
+    const sc=SEV_COLOR[f.severity]||'#718096';
+    const docs=(f.related_docs||[]).length?`<div style="font-size:11px;color:#4a5568;margin-top:6px">📄 涉及：${(f.related_docs||[]).map(esc).join('、')}</div>`:'';
+    const clause=f.related_clause?`<div style="font-size:11px;color:#4a5568;margin-top:4px">📖 依据：${esc(f.related_clause)}</div>`:'';
+    const sug=f.suggestion?`<div style="font-size:12px;color:#276749;background:#f0fff4;border-radius:6px;padding:6px 9px;margin-top:8px">✅ 整改建议：${esc(f.suggestion)}</div>`:'';
+    return `<div style="border:1px solid #e2e8f0;border-left:4px solid ${sc};border-radius:8px;padding:12px 14px;margin-bottom:10px;background:#fff">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="font-size:11px;font-weight:700;color:#fff;background:${sc};border-radius:5px;padding:1px 7px">${esc(f.severity)}</span>
+        <span style="font-size:11px;color:#718096;background:#edf2f7;border-radius:5px;padding:1px 7px">${esc(f.category||'')}</span>
+        <span style="font-size:10px;color:#a0aec0">${esc(f.source||'')}</span>
+      </div>
+      <div style="font-size:14px;font-weight:600;color:#1a202c">${esc(f.title||'')}</div>
+      ${f.detail?`<div style="font-size:12.5px;color:#4a5568;margin-top:5px;line-height:1.6">${esc(f.detail)}</div>`:''}
+      ${clause}${docs}${sug}
+    </div>`;
+  }).join('');
 }
 
 boot();

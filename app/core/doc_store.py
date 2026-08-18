@@ -105,6 +105,20 @@ def get_doc(rid, account_id):
     return dict(zip(cols, r))
 
 
+def get_doc_by_doc_id(account_id, product_name, doc_id):
+    """按 (account_id, product_name, doc_id) 取一份已保存文档（含 content）——用于生成时读依赖文件内容。"""
+    db = _db()
+    r = db.execute(
+        "SELECT id, doc_id, doc_name, product_name, content, char_count, updated_at "
+        "FROM generated_docs WHERE account_id=? AND doc_id=? AND product_name=?",
+        (account_id, doc_id, product_name),
+    ).fetchone()
+    if not r:
+        return None
+    cols = ["id", "doc_id", "doc_name", "product_name", "content", "char_count", "updated_at"]
+    return dict(zip(cols, r))
+
+
 def delete_doc(rid, account_id):
     db = _db()
     with _lock:

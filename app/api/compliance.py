@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from app.core.compliance_graph import (
     stats, by_stage, by_document, by_requirement, search_requirements,
@@ -6,8 +6,11 @@ from app.core.compliance_graph import (
     full_graph, node_detail, overview_subgraph,
 )
 from app.core.registration_checklist import get_checklist, STAGES
+from app.api.deps import get_current_account
 
-router = APIRouter(prefix="/api/compliance", tags=["compliance"])
+# 全部端点只读全局法规图谱，无需按账号区分，用 router 级依赖统一要求登录
+router = APIRouter(prefix="/api/compliance", tags=["compliance"],
+                   dependencies=[Depends(get_current_account)])
 
 
 @router.get("/overview")

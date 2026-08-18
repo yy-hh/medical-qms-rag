@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from app.core.roadmap import get_roadmap, get_task_by_id
+from app.api.deps import get_current_account
 
-router = APIRouter(prefix="/api/roadmap", tags=["roadmap"])
+router = APIRouter(prefix="/api/roadmap", tags=["roadmap"],
+                   dependencies=[Depends(get_current_account)])
 
 
 @router.get("")

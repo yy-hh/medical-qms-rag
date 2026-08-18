@@ -20,6 +20,7 @@ from app.api.notes import router as notes_router
 from app.api.hotnews import router as hotnews_router
 from app.api.training import router as training_router
 from app.api.auth import router as auth_router
+from app.api.review import router as review_router
 from app.core.rag_engine import get_engine
 from app.core import hotnews
 from app.core.migrate_accounts import run_migration
@@ -106,10 +107,15 @@ app.include_router(notes_router)
 app.include_router(hotnews_router)
 app.include_router(training_router)
 app.include_router(auth_router)
+app.include_router(review_router)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/", include_in_schema=False)
 async def index():
-    return FileResponse(str(STATIC_DIR / "index.html"))
+    # 禁缓存：index.html 内联了 JS，缓存旧版会导致登录/生成逻辑用到过期代码
+    return FileResponse(
+        str(STATIC_DIR / "index.html"),
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
+    )
