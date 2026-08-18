@@ -1,15 +1,89 @@
 import asyncio
+import base64
 import json
+import os
+import tempfile
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 
 from app.core.rag_engine import get_engine
 from app.core.config import settings
+from app.ingestion.loader import load_document
 from app.models.schemas import QueryRequest, StreamQueryRequest, QueryResponse, HealthResponse
 from app.api.deps import get_current_account
 
 router = APIRouter(tags=["query"])
+
+# 临时附件限制
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_FILE_BYTES = 10 * 1024 * 1024
+MAX_TOTAL_BYTES = 20 * 1024 * 1024
+MAX_ATTACH_TEXT = 20000
+ATTACH_EXT = {".pdf", ".docx", ".txt", ".md"}
+
+
+def _decode_checked(b64: str, limit: int) -> bytes:
+    """解码前按 base64 长度粗校验，解码后二次校验字节数（防 base64 炸弹）。"""
+    if len(b64) > limit * 4 // 3 + 1024:
+        raise HTTPException(status_code=413, detail="附件超过大小限制")
+    try:
+        raw = base64.b64decode(b64, validate=False)
+    except Exception:
+        raise HTTPException(status_code=400, detail="附件 base64 解码失败")
+    if len(raw) > limit:
+        raise HTTPException(status_code=413, detail="附件超过大小限制")
+    return raw
+
+
+def _prepare_images(images) -> list[str]:
+    """归一化为 data URL 列表，累计总大小校验。"""
+    out, total = [], 0
+    for img in images or []:
+        d = (img.data or "").strip()
+        if d.startswith("data:"):
+            b64 = d.split(",", 1)[1] if "," in d else ""
+            raw = _decode_checked(b64, MAX_IMAGE_BYTES)
+            url = d
+        else:
+            raw = _decode_checked(d, MAX_IMAGE_BYTES)
+            url = f"data:{img.mime or 'image/png'};base64,{d}"
+        total += len(raw)
+        if total > MAX_TOTAL_BYTES:
+            raise HTTPException(status_code=413, detail="附件总大小超限")
+        out.append(url)
+    return out
+
+
+def _prepare_files_text(files) -> str:
+    """文件落临时目录 → loader 抽文本 → 删除。解析失败注入占位不中断。"""
+    blocks, total = [], 0
+    for f in files or []:
+        ext = Path(f.name).suffix.lower()
+        if ext not in ATTACH_EXT:
+            raise HTTPException(status_code=400, detail=f"不支持的附件类型：{ext}")
+        raw = _decode_checked(f.content_base64, MAX_FILE_BYTES)
+        total += len(raw)
+        if total > MAX_TOTAL_BYTES:
+            raise HTTPException(status_code=413, detail="附件总大小超限")
+        # mkstemp 随机名、只用后缀 → 文件名不进路径，防目录穿越
+        fd, tmp = tempfile.mkstemp(suffix=ext)
+        try:
+            with os.fdopen(fd, "wb") as w:
+                w.write(raw)
+            pages = load_document(Path(tmp))
+            text = "\n".join(p["text"] for p in pages).strip()
+            blocks.append(f"【附件：{f.name}】\n{text}" if text
+                          else f"【附件：{f.name}】（未能解析出文本）")
+        except Exception as e:
+            blocks.append(f"【附件：{f.name}】（解析失败：{e}）")
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    return ("\n\n---\n\n".join(blocks))[:MAX_ATTACH_TEXT]
 
 
 @router.post("/api/query", response_model=QueryResponse)
@@ -34,6 +108,11 @@ async def stream_query(request: StreamQueryRequest,
     engine = get_engine()
     history = [m.model_dump() for m in (request.history or [])]
 
+    # 临时附件预处理：在 event_gen 之前做，解码/解析失败直接 HTTP 4xx（不混进 SSE）
+    image_urls = _prepare_images(request.images)
+    attach_text = _prepare_files_text(request.files)
+
+    # 检索仍只用原始问题：图片不可检索，文件文本作附件上下文直接给模型（不并入向量检索）
     sources = engine.retrieve(
         request.question,
         request.top_k or settings.top_k,
@@ -76,7 +155,8 @@ async def stream_query(request: StreamQueryRequest,
 
         # 2. Stream LLM response (sync iterator → async via executor)
         loop = asyncio.get_event_loop()
-        gen = engine.generate_stream(request.question, context, history)
+        gen = engine.generate_stream(request.question, context, history,
+                                     image_urls=image_urls, attachment_text=attach_text)
         _END = object()
         while True:
             try:

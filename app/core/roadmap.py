@@ -45,7 +45,7 @@ ROADMAP = [
                 "input": "产品定义、三国法规对照矩阵",
                 "output": "法规策略报告 / 适用标准清单",
                 "standards": ["医疗器械监督管理条例", "21 CFR Part 820", "EU MDR 2017/745"],
-                "doc_ids": ["L2-012"],
+                "doc_ids": ["QMS-QP-012"],
                 "dossier": ["NMPA", "TF"],
             },
             {
@@ -77,7 +77,7 @@ ROADMAP = [
                 "input": "组织架构、法规策略",
                 "output": "质量手册",
                 "standards": ["ISO 13485 §4.2.2", "GB/T 42061 §4.2.2"],
-                "doc_ids": ["L1-001"],
+                "doc_ids": ["QMS-QM-001"],
                 "dossier": ["TF", "NMPA"],
             },
             {
@@ -88,7 +88,7 @@ ROADMAP = [
                 "input": "质量手册",
                 "output": "文件与记录控制程序",
                 "standards": ["ISO 13485 §4.2.4", "§4.2.5"],
-                "doc_ids": ["L2-001"],
+                "doc_ids": ["QMS-QP-001"],
                 "dossier": ["DHF"],
             },
             {
@@ -99,7 +99,7 @@ ROADMAP = [
                 "input": "质量手册、文件控制程序",
                 "output": "管理评审程序 / 内部审核程序",
                 "standards": ["ISO 13485 §5.6", "§8.2.2"],
-                "doc_ids": ["L2-002", "L2-010"],
+                "doc_ids": ["QMS-QP-002", "QMS-QP-010"],
                 "dossier": ["DHF"],
             },
             {
@@ -110,7 +110,7 @@ ROADMAP = [
                 "input": "质量手册",
                 "output": "采购与供应商管理程序",
                 "standards": ["ISO 13485 §7.4"],
-                "doc_ids": ["L2-011"],
+                "doc_ids": ["QMS-QP-011"],
                 "dossier": ["DHF"],
             },
         ],
@@ -131,7 +131,7 @@ ROADMAP = [
                 "input": "产品定义、预期用途",
                 "output": "风险管理程序",
                 "standards": ["ISO 14971:2019", "GB/T 42062", "YY/T 0316"],
-                "doc_ids": ["L2-006"],
+                "doc_ids": ["QMS-QP-006"],
                 "dossier": ["DHF", "TF", "NMPA"],
             },
             {
@@ -142,7 +142,7 @@ ROADMAP = [
                 "input": "风险管理程序、产品定义",
                 "output": "风险管理档案（RMF）",
                 "standards": ["ISO 14971 §3.5", "GB/T 42062"],
-                "doc_ids": ["L4-001"],
+                "doc_ids": ["QMS-REC-001"],
                 "dossier": ["DHF", "TF", "NMPA"],
             },
         ],
@@ -163,7 +163,7 @@ ROADMAP = [
                 "input": "风险管理档案、产品定义",
                 "output": "软件开发生命周期程序",
                 "standards": ["IEC 62304 §5", "YY/T 0664"],
-                "doc_ids": ["L2-003"],
+                "doc_ids": ["QMS-QP-003"],
                 "dossier": ["DHF", "DMR"],
             },
             {
@@ -174,7 +174,7 @@ ROADMAP = [
                 "input": "风险管理档案、产品定义",
                 "output": "软件需求规格说明（SRS）",
                 "standards": ["IEC 62304 §5.2", "YY/T 0664"],
-                "doc_ids": ["L4-002"],
+                "doc_ids": ["QMS-REC-002"],
                 "dossier": ["DHF", "DMR", "NMPA"],
             },
             {
@@ -185,7 +185,7 @@ ROADMAP = [
                 "input": "软件开发生命周期程序",
                 "output": "配置管理程序 / 缺陷管理程序",
                 "standards": ["IEC 62304 §8", "§9", "YY/T 0664"],
-                "doc_ids": ["L2-004", "L2-005"],
+                "doc_ids": ["QMS-QP-004", "QMS-QP-005"],
                 "dossier": ["DMR", "DHR"],
             },
         ],
@@ -206,7 +206,7 @@ ROADMAP = [
                 "input": "产品定义、预期用途",
                 "output": "数据治理文件 / 数据集与标注 WI",
                 "standards": ["YY/T 1833.2 数据集", "YY/T 1833.3 标注", "YY/T 1833.4 可追溯性"],
-                "doc_ids": ["AI-002", "L3-002", "L3-001"],
+                "doc_ids": ["AI-002", "QMS-WI-002", "QMS-WI-001"],
                 "dossier": ["DHF", "TF", "NMPA"],
             },
             {
@@ -217,7 +217,7 @@ ROADMAP = [
                 "input": "数据集、SRS",
                 "output": "算法验证与性能评估报告",
                 "standards": ["NMPA 人工智能医疗器械注册审查指导原则", "YY/T 1858/1843"],
-                "doc_ids": ["L3-003"],
+                "doc_ids": ["QMS-WI-003"],
                 "dossier": ["DHF", "TF", "NMPA"],
             },
             {
@@ -249,7 +249,7 @@ ROADMAP = [
                 "input": "SRS、软件设计",
                 "output": "软件测试 WI / 测试报告",
                 "standards": ["IEC 62304 §5.6", "GB/T 25000.51"],
-                "doc_ids": ["L3-004", "L4-003"],
+                "doc_ids": ["QMS-WI-004", "QMS-REC-003"],
                 "dossier": ["DHF", "DHR", "NMPA"],
             },
             {
@@ -260,7 +260,7 @@ ROADMAP = [
                 "input": "SRS、风险管理档案",
                 "output": "可用性工程程序 / 可用性评价报告",
                 "standards": ["IEC 62366-1", "可用性工程注册审查指导原则"],
-                "doc_ids": ["L2-007"],
+                "doc_ids": ["QMS-QP-007"],
                 "dossier": ["DHF", "TF", "NMPA"],
             },
             {
@@ -271,7 +271,7 @@ ROADMAP = [
                 "input": "软件架构、SRS",
                 "output": "网络安全管理程序 / 安全测试报告",
                 "standards": ["YY/T 1833", "医疗器械网络安全注册审查指导原则", "IEC 81001-5-1"],
-                "doc_ids": ["L2-008"],
+                "doc_ids": ["QMS-QP-008"],
                 "dossier": ["DHF", "TF", "NMPA"],
             },
         ],
@@ -292,7 +292,7 @@ ROADMAP = [
                 "input": "算法验证报告、风险管理档案",
                 "output": "临床评价报告",
                 "standards": ["医疗器械临床评价技术指导原则", "AI辅助检测临床评价指导原则"],
-                "doc_ids": ["L4-004"],
+                "doc_ids": ["QMS-REC-004"],
                 "dossier": ["TF", "NMPA"],
             },
             {
@@ -324,7 +324,7 @@ ROADMAP = [
                 "input": "已上市产品、临床数据",
                 "output": "上市后监督与不良事件程序",
                 "standards": ["医疗器械不良事件监测和再评价管理办法", "ISO 13485 §8.2.1"],
-                "doc_ids": ["L2-013"],
+                "doc_ids": ["QMS-QP-013"],
                 "dossier": ["TF", "NMPA"],
             },
             {
@@ -335,7 +335,7 @@ ROADMAP = [
                 "input": "上市后数据、内审/投诉",
                 "output": "CAPA 程序 / CAPA 表单",
                 "standards": ["ISO 13485 §8.5.2", "§8.5.3", "21 CFR 820.100"],
-                "doc_ids": ["L2-009", "L4-005"],
+                "doc_ids": ["QMS-QP-009", "QMS-REC-005"],
                 "dossier": ["DHR"],
             },
             {

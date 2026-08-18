@@ -181,6 +181,20 @@ header .back:hover{background:rgba(255,255,255,.28)}
 <div class="toast" id="toast"></div>
 
 <script>
+// ── Auth：复用主页登录态，给所有 /api 请求自动带头 ──
+let SESSION_TOKEN = localStorage.getItem('qms_token') || '';
+const _origFetch = window.fetch.bind(window);
+window.fetch = (url, opts={}) => {
+  const isApi = typeof url === 'string' && url.startsWith('/api');
+  if (isApi && SESSION_TOKEN) {
+    opts.headers = { ...(opts.headers||{}), 'Authorization': 'Bearer ' + SESSION_TOKEN };
+  }
+  return _origFetch(url, opts).then(r => {
+    if (isApi && r.status === 401) { alert('登录已失效，请在主页重新登录'); location.href='/'; }
+    return r;
+  });
+};
+
 let GRAPH=null, CHECKLIST=null, curView='graph', curDocId=null, streaming=false;
 let network=null, visNodes=null, visEdges=null, fullGraphData=null, allNodesIndex=[];
 
@@ -189,6 +203,7 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 const stageColor={};
 
 async function init(){
+  if (!SESSION_TOKEN){ alert('请先在主页登录'); location.href='/'; return; }
   try{
     const [ov,cl]=await Promise.all([
       fetch('/api/compliance/overview').then(r=>r.json()),
@@ -336,10 +351,10 @@ let searchTimer=null;
 function onSearch(){ clearTimeout(searchTimer); searchTimer=setTimeout(render,250); }
 
 // ── 生成文档（复用 outline + stream，分章生成）──
-// 合规图谱不再直接生成文档；统一引导到「实施路线图」生成（生成后自动归档）。
+// 合规图谱不再直接生成文档；统一引导到「注册路线图」生成（生成后自动归档）。
 async function genDoc(docId,ev){
   if(ev) ev.stopPropagation();
-  if(confirm('文档生成已统一到「实施路线图」。是否前往实施路线图生成此文档？')){
+  if(confirm('文档生成已统一到「注册路线图」。是否前往注册路线图生成此文档？')){
     location.href='/static/roadmap.html';
   }
   return;
@@ -548,7 +563,7 @@ async function showNodePanel(nodeId){
   document.getElementById('npSub').innerHTML=sub;
   // 可生成文档 → 生成按钮
   const gw=document.getElementById('npGenWrap');
-  if(n.type==='Document'&&n.doc_id){ gw.innerHTML=`<button class="np-gen" onclick="genDoc('${n.doc_id}')">🚀 去实施路线图生成</button>`; }
+  if(n.type==='Document'&&n.doc_id){ gw.innerHTML=`<button class="np-gen" onclick="genDoc('${n.doc_id}')">🚀 去注册路线图生成</button>`; }
   else gw.innerHTML='';
   // 邻居列表：审查要点(Requirement)按法规分组折叠，其余平铺
   const relLab={PRODUCES:'产出',SATISFIES:'满足',CITES:'引用',BELONGS_TO:'属于',ARCHIVED_IN:'归入'};

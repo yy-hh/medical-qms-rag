@@ -1,10 +1,12 @@
 import asyncio
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.core import hotnews
+from app.api.deps import get_current_account
 
-router = APIRouter(prefix="/api/hotnews", tags=["hotnews"])
+router = APIRouter(prefix="/api/hotnews", tags=["hotnews"],
+                   dependencies=[Depends(get_current_account)])
 
 
 @router.get("")

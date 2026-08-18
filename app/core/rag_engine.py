@@ -28,13 +28,15 @@ SYSTEM_PROMPT = """你是一位专业的医疗器械行业质量管理体系（Q
 - 回答时明确引用文件名称和具体条款编号
 - 区分强制要求（"应"/"shall"）和建议性要求（"宜"/"should"）
 - 若检索内容不足以完整回答，明确说明并建议查阅原始文件
+- 用户本次提问可能附带【临时附件】（图片或文件内容，标注"临时附件"）：这是用户为本问题提供的具体材料，
+  请结合它作答（如审阅其中的检测报告/截图/文档是否符合法规），把它当作真实输入来分析，不要忽略或回避
 
 回答格式（使用 Markdown）：
 1. **直接回答**核心问题（1-3句）
 2. **法规依据**：引用具体条款（文件名 + 条款号）
 3. **实操建议**（如有）：分点列出
 
-注意：回答基于已上传的文件内容，如涉及最新法规变化，请以官方发布为准。"""
+注意：回答基于检索到的法规内容与用户本次附件，如涉及最新法规变化，请以官方发布为准。"""
 
 
 class _CurlDelta:
@@ -557,19 +559,37 @@ class RAGEngine:
         # 而 Poe 的 opus-4 本身就会输出 reasoning_content（已被忽略）。
         return None
 
-    def _messages(self, question: str, context: str, history: list[dict] | None) -> list[dict]:
+    def _messages(self, question: str, context: str, history: list[dict] | None,
+                  image_urls: list[str] | None = None,
+                  attachment_text: str | None = None) -> list[dict]:
         msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
-        for turn in (history or [])[-6:]:  # last 3 Q&A turns
+        for turn in (history or [])[-6:]:  # last 3 Q&A turns（历史恒为纯字符串）
             msgs.append({"role": turn["role"], "content": turn["content"]})
-        msgs.append({"role": "user", "content": f"参考以下文件内容：\n\n{context}\n\n当前问题：{question}"})
+        parts = [f"参考以下文件内容：\n\n{context}"]
+        if attachment_text:
+            parts.append("用户本次还上传了以下临时附件内容（仅用于回答本问题，不属于知识库）：\n\n"
+                         + attachment_text)
+        parts.append(f"当前问题：{question}")
+        user_text = "\n\n".join(parts)
+        if image_urls:
+            # 仅当前 user 消息可为多模态数组；history 仍是纯字符串
+            content = [{"type": "text", "text": user_text}] + [
+                {"type": "image_url", "image_url": {"url": u}} for u in image_urls
+            ]
+            msgs.append({"role": "user", "content": content})
+        else:
+            msgs.append({"role": "user", "content": user_text})
         return msgs
 
-    def generate_stream(self, question: str, context: str, history: list[dict] | None = None):
-        """Yield plain text deltas (filters out thinking tokens)."""
+    def generate_stream(self, question: str, context: str, history: list[dict] | None = None,
+                        image_urls: list[str] | None = None,
+                        attachment_text: str | None = None):
+        """Yield plain text deltas (filters out thinking tokens)。支持图片(视觉)+附件文本。"""
         stream = self.llm.chat.completions.create(
             model=settings.claude_model,
-            max_tokens=4096,
-            messages=self._messages(question, context, history),
+            max_tokens=8192,
+            messages=self._messages(question, context, history,
+                                    image_urls=image_urls, attachment_text=attachment_text),
             stream=True,
             extra_body=self._extra_body(),
         )

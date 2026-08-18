@@ -23,3 +23,13 @@ def get_current_account(
     if not open_id:
         raise HTTPException(status_code=401, detail="会话已失效，请重新登录")
     return open_id
+
+
+def get_shared_account(
+    authorization: str | None = Header(default=None),
+    x_session: str | None = Header(default=None),
+) -> str:
+    """共享数据依赖：仍要求登录（校验 token），但返回固定共享账户。
+    用于生成文档/公司信息/上传文档等全局共享模块（笔记除外，笔记仍用 get_current_account 按登录者隔离）。"""
+    get_current_account(authorization, x_session)   # 复用校验：未登录/失效会抛 401
+    return account_store.DEFAULT_ACCOUNT

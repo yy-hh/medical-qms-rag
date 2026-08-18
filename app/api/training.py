@@ -20,9 +20,11 @@ from app.core import video_gen
 from app.core.rag_engine import get_engine
 from app.core.config import settings
 from app.api.company import load_profile
-from app.api.deps import get_current_account
+from app.api.deps import get_current_account, get_shared_account
 
-router = APIRouter(prefix="/api/training", tags=["training"])
+# 教程为全局共享，用 router 级依赖统一要求登录；lecture 另有显式 account_id 参数取 profile
+router = APIRouter(prefix="/api/training", tags=["training"],
+                   dependencies=[Depends(get_current_account)])
 
 # 独立线程池：讲义 LLM 调用与视频生成（长阻塞）都放这里，不占用默认池
 _POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="training")
@@ -105,7 +107,7 @@ def _lecture_prompt(topic: str, account_id: str) -> str:
 
 @router.post("/lecture")
 async def generate_lecture(request: LectureRequest,
-                           account_id: str = Depends(get_current_account)):
+                           account_id: str = Depends(get_shared_account)):
     """SSE 流式生成培训讲义 markdown，并落库（status=draft）。"""
     topic = (request.topic or "").strip()
     if not topic:

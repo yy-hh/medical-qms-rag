@@ -14,11 +14,24 @@ class QueryRequest(BaseModel):
     history: Optional[list[Message]] = None
 
 
+class QueryImage(BaseModel):
+    data: str                       # "data:image/...;base64,..." 或纯 base64
+    mime: Optional[str] = None      # 纯 base64 时补前缀
+
+
+class QueryFile(BaseModel):
+    name: str                       # 原名含后缀（决定解析器）
+    content_base64: str
+
+
 class StreamQueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     top_k: int = Field(default=5, ge=1, le=20)
     collection: Optional[str] = None
     history: Optional[list[Message]] = None
+    # 本次提问的临时附件（不入知识库，用完即弃）
+    images: Optional[list[QueryImage]] = Field(default=None, max_length=4)
+    files: Optional[list[QueryFile]] = Field(default=None, max_length=5)
 
 
 class SourceChunk(BaseModel):

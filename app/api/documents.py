@@ -3,12 +3,13 @@ import shutil
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends
 from fastapi.responses import JSONResponse, FileResponse, Response
 
 from app.core.rag_engine import get_engine
 from app.core.config import settings
 from app.models.schemas import IngestResponse, DeleteResponse, DocumentInfo
+from app.api.deps import get_shared_account
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -28,6 +29,7 @@ def _find_raw_file(doc_id: str) -> Path | None:
 async def upload_document(
     file: UploadFile = File(...),
     collection: str = Form(default=None),
+    _account: str = Depends(get_shared_account),
 ):
     suffix = Path(file.filename).suffix.lower()
     if suffix not in ALLOWED_TYPES:
@@ -59,13 +61,14 @@ async def upload_document(
 
 
 @router.get("", response_model=list[DocumentInfo])
-async def list_documents(collection: str | None = None):
+async def list_documents(collection: str | None = None,
+                         _account: str = Depends(get_shared_account)):
     engine = get_engine()
     return engine.list_documents(collection)
 
 
 @router.get("/{doc_id}/raw")
-async def read_document(doc_id: str):
+async def read_document(doc_id: str, _account: str = Depends(get_shared_account)):
     """在线阅读原始文件。PDF 内联返回（浏览器内置 viewer 渲染）；
     TXT/MD 返回纯文本；DOCX 抽取文本后返回（浏览器无法直接渲染 docx）。"""
     path = _find_raw_file(doc_id)
@@ -103,7 +106,8 @@ async def read_document(doc_id: str):
 
 
 @router.delete("/{doc_id}", response_model=DeleteResponse)
-async def delete_document(doc_id: str, collection: str | None = None):
+async def delete_document(doc_id: str, collection: str | None = None,
+                          _account: str = Depends(get_shared_account)):
     engine = get_engine()
     deleted = engine.delete_document(doc_id, collection)
     if deleted == 0:

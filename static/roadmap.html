@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QMS 实施路线图</title>
+<title>医疗器械注册全流程路线图</title>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -99,13 +99,13 @@ header .back:hover{background:rgba(255,255,255,.28)}
 <body>
 <header>
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
-  <h1>QMS 实施路线图</h1>
-  <a class="back" href="/">← 返回体系地图</a>
+  <h1>医疗器械注册全流程路线图</h1>
+  <a class="back" href="/">← 返回体系搭建地图</a>
   <div id="headerStats"></div>
 </header>
 
 <div class="page-head">
-  <h2>🚀 QMS 落地路线图（8 阶段）</h2>
+  <h2>🚀 医疗器械注册全流程路线图（6 阶段）</h2>
   <p>SaMD 医疗器械软件 · 从产品定义到上市后监督的可执行时间线 · 点击任务卡片查看详情并一键生成对应文件模板</p>
 </div>
 
@@ -140,10 +140,29 @@ header .back:hover{background:rgba(255,255,255,.28)}
 
 <script>
 marked.setOptions({breaks:true,gfm:true});
+
+// ── Auth：复用主页登录态（token 存 localStorage），给所有 /api 请求自动带头 ──
+let SESSION_TOKEN = localStorage.getItem('qms_token') || '';
+const _origFetch = window.fetch.bind(window);
+window.fetch = (url, opts={}) => {
+  const isApi = typeof url === 'string' && url.startsWith('/api');
+  if (isApi && SESSION_TOKEN) {
+    opts.headers = { ...(opts.headers||{}), 'Authorization': 'Bearer ' + SESSION_TOKEN };
+  }
+  return _origFetch(url, opts).then(r => {
+    if (isApi && r.status === 401) {
+      alert('登录已失效，请在主页重新登录');
+      location.href = '/';
+    }
+    return r;
+  });
+};
+
 let roadmap={phases:[]};
 let curTask=null, genStreaming=false, genDocId=null;
 
 async function init(){
+  if (!SESSION_TOKEN){ alert('请先在主页登录'); location.href='/'; return; }
   await Promise.all([loadRoadmap(), checkHealth()]);
 }
 async function checkHealth(){

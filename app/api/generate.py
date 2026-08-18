@@ -10,7 +10,7 @@ from typing import Optional
 
 from app.core.qms_framework import get_document_by_id, get_framework as build_framework
 from app.api.company import load_profile
-from app.api.deps import get_current_account
+from app.api.deps import get_shared_account
 from app.core.rag_engine import get_engine
 from app.core.config import settings
 from app.core.docx_export import markdown_to_docx
@@ -43,6 +43,60 @@ def _retrieve_refs(engine, doc: dict, top_k: int = 4) -> tuple[str, list[dict]]:
                 break
     return "\n\n---\n\n".join(parts), sources
 
+
+def _extract_outline_and_gist(content: str, max_chars: int = 1800) -> str:
+    """从已生成文件的 markdown 抽"标题结构 + 关键段"，控制长度，供作依赖上下文（不塞全文）。"""
+    if not content:
+        return ""
+    lines = content.split("\n")
+    out = []
+    total = 0
+    para_buf = []
+    def flush_para():
+        nonlocal total
+        if para_buf:
+            txt = " ".join(para_buf).strip()
+            if txt and total < max_chars:
+                seg = txt[:200]
+                out.append(seg)
+                total += len(seg)
+            para_buf.clear()
+    for ln in lines:
+        s = ln.strip()
+        if s.startswith("#"):          # 标题：保留层级
+            flush_para()
+            if total < max_chars:
+                out.append(s)
+                total += len(s)
+        elif s.startswith("|") or s.startswith("---"):
+            continue                   # 跳过表格/分隔线
+        elif s:
+            para_buf.append(s)
+        else:
+            flush_para()
+        if total >= max_chars:
+            break
+    flush_para()
+    return "\n".join(out)
+
+
+def _build_dep_context(account_id, product_name, doc: dict) -> str:
+    """遍历 doc 的 depends_docs，取已保存依赖文件的"标题结构+关键段"拼成上下文；未生成的跳过。"""
+    from app.core import doc_store
+    deps = doc.get("depends_docs") or []
+    if not deps or not product_name:
+        return ""
+    parts = []
+    for dep_id in deps:
+        rec = doc_store.get_doc_by_doc_id(account_id, product_name, dep_id)
+        if not rec or not rec.get("content"):
+            continue
+        gist = _extract_outline_and_gist(rec["content"])
+        if gist:
+            parts.append(f"【{rec['doc_name']}】\n{gist}")
+    return "\n\n---\n\n".join(parts)
+
+
 router = APIRouter(prefix="/api/generate", tags=["generate"])
 
 # 全文完成信号：模型写完整篇后输出此标记。HTML 注释形式，marked 渲染后浏览器不显示，
@@ -63,6 +117,8 @@ class GenerateRequest(BaseModel):
     section: Optional[str] = None
     # 该章在整篇大纲中的上下文（章节列表），让单章生成时风格、编号连贯
     outline: Optional[list[str]] = None
+    # True=生成"质量体系模板"(带公司、不带具体产品，走占位符)；False=生成"某产品注册申报实例"(带当前产品信息)
+    as_template: bool = False
 
 
 def _doc_from_checklist_seq(seq: int) -> dict | None:
@@ -92,7 +148,7 @@ class OutlineRequest(BaseModel):
 
 
 def _build_prompt(doc: dict, profile: dict, extra_context: str = "", ref_context: str = "",
-                  section: str = "", outline: Optional[list[str]] = None) -> str:
+                  section: str = "", outline: Optional[list[str]] = None, dep_context: str = "") -> str:
     company = profile.get("company_name") or "[公司名称]"
     product = profile.get("product_name") or "[产品名称]"
     classes = "、".join(profile.get("device_class") or ["二类", "三类"])
@@ -119,9 +175,19 @@ def _build_prompt(doc: dict, profile: dict, extra_context: str = "", ref_context
     prod_lines = "\n".join(f"- {label}：{val}" for label, val in prod_fields if (val or "").strip())
     product_block = f"\n## 注册产品信息（请据此生成贴合本产品的内容，不要泛泛而谈）\n{prod_lines}\n" if prod_lines else ""
 
+    # 公司级信息：地址/联系方式/经营范围/质量体系范围（填了才拼，供质量手册等公司级文件用真实信息）
+    company_extra = [
+        ("注册地址", profile.get("company_address")),
+        ("联系方式", profile.get("contact")),
+        ("经营范围", profile.get("business_scope")),
+        ("质量管理体系范围", profile.get("qms_scope")),
+    ]
+    company_extra_lines = "".join(
+        f"- {label}：{val}\n" for label, val in company_extra if (val or "").strip())
+
     base_info = f"""## 企业信息
 - 企业名称：{company}
-- 产品名称：{product}
+{company_extra_lines}- 产品名称：{product}
 - 产品类型：医疗器械软件（SaMD）
 - 注册类别：{classes}
 - 目标市场：{markets}
@@ -134,14 +200,19 @@ def _build_prompt(doc: dict, profile: dict, extra_context: str = "", ref_context
 - 适用标准：{standards}
 - 文件说明：{description}
 
-{f"## 检索到的法规/标准依据（请据此生成，并在文中引用对应文件名）{chr(10)}{ref_context}{chr(10)}" if ref_context else ""}{f"## 补充说明{chr(10)}{extra_context}" if extra_context else ""}"""
+{f"## 检索到的法规/标准依据（请据此生成，并在文中引用对应文件名）{chr(10)}{ref_context}{chr(10)}" if ref_context else ""}{f"## 已生成的关联文件内容（本文件需与之保持一致、正确引用其内容/编号，勿照抄）{chr(10)}{dep_context}{chr(10)}" if dep_context else ""}{f"## 补充说明{chr(10)}{extra_context}" if extra_context else ""}"""
 
     common_rules = f"""1. 内容必须符合上述标准的具体条款要求
 2. 结合 SaMD 软件产品特点，内容具体实用，避免泛泛而谈
 3. 在需要企业填写的位置使用【{company}】、【产品名称】、【版本号】、【日期】等占位符
 4. 格式：标题使用 Markdown # ## ###，表格使用 Markdown 表格语法
-5. 不得中途省略、不得用"（略）""以下章节类似"等占位省略
-6. 内容真正写完后，在最后单独一行输出结束标记：{DOC_END_MARKER}（完成信号，务必输出）"""
+5. 凡涉及图形化表达——流程图、组织架构图、**文件体系层次结构图/分级结构图**、框图、时序/状态图、树状结构等，一律用 ```mermaid 代码块表达（flowchart/graph TD、sequenceDiagram、stateDiagram 等）。
+   - **严禁用以下任何方式模拟图形**：ASCII 字符、竖线 |、方框字符 ┌└│─├、空格/居中排版拼框、或用 Markdown 表格来画"框图/层次图/结构图"。这些都极丑且无法排版。
+   - 例：文件体系"第一层质量手册→第二层程序文件→第三层作业指导书→第四层记录"这种分级结构，必须写成 `flowchart TD; A["第一层 质量手册（体系纲领）"] --> B["第二层 程序文件"] --> C["第三层 作业指导书/技术文件"] --> D["第四层 记录与表单"]`，绝不能用表格或方框字符拼。
+   - mermaid 节点文字用简洁中文短语，含括号/冒号等特殊字符时须用双引号包裹如 A["文字（说明）"]，避免语法错误。
+   - 仅**纯数据/条目**（如指标值、清单、对照）才用 Markdown 表格；凡是"有层级、有流向、有框和连线"的，一律 mermaid。
+6. 不得中途省略、不得用"（略）""以下章节类似"等占位省略
+7. 内容真正写完后，在最后单独一行输出结束标记：{DOC_END_MARKER}（完成信号，务必输出）"""
 
     # 分章节模式：只生成指定章节，并告知全篇大纲以保持连贯
     if section:
@@ -188,7 +259,7 @@ GENERATE_SYSTEM = """你是一位拥有 15 年经验的医疗器械 QMS 咨询�
 
 @router.post("/stream")
 async def generate_document_stream(request: GenerateRequest,
-                                   account_id: str = Depends(get_current_account)):
+                                   account_id: str = Depends(get_shared_account)):
     doc = None
     if request.doc_id:
         doc = get_document_by_id(request.doc_id)
@@ -197,12 +268,21 @@ async def generate_document_stream(request: GenerateRequest,
     if not doc:
         raise HTTPException(status_code=404, detail="未找到可生成的文档")
 
-    profile = load_profile(account_id)
+    full_profile = load_profile(account_id)
     engine = get_engine()
     ref_context, ref_sources = _retrieve_refs(engine, doc)
+    if request.as_template:
+        # 质量体系模板：带公司信息（名称/地址/经营范围/体系范围）、不带具体产品（产品字段走占位符），不注入产品依赖
+        from app.api.company import COMPANY_FIELDS
+        profile = {f: full_profile.get(f, "") for f in COMPANY_FIELDS}
+        dep_context = ""
+    else:
+        # 产品实例：带当前产品信息 + 依赖上下文
+        profile = full_profile
+        dep_context = _build_dep_context(account_id, profile.get("product_name") or "", doc)
     user_prompt = _build_prompt(
         doc, profile, request.extra_context or "", ref_context,
-        section=request.section or "", outline=request.outline,
+        section=request.section or "", outline=request.outline, dep_context=dep_context,
     )
 
     # 不传 thinking：Poe 兼容端点带 thinking 会导致流式 ~30s 后 Connection error（见 rag_engine._extra_body）
@@ -356,7 +436,7 @@ OUTLINE_SYSTEM = """你是医疗器械 QMS 文档架构师。只输出该文件�
 
 @router.post("/outline")
 async def generate_outline(request: OutlineRequest,
-                           account_id: str = Depends(get_current_account)):
+                           account_id: str = Depends(get_shared_account)):
     """为某个文件生成章节大纲（章节标题列表），供前端分章节逐章生成。单轮小输出，快。"""
     doc = None
     if request.doc_id:
