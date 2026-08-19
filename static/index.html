@@ -579,6 +579,9 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
     <button class="nav-btn" id="nav-review" onclick="showPage('review')" title="体系审查（红队）">
       <span class="icon">🔍</span>体系审查
     </button>
+    <button class="nav-btn" id="nav-devdoc" onclick="showPage('devdoc')" title="开发文档">
+      <span class="icon">🛠️</span>开发文档
+    </button>
     <button class="nav-btn" id="nav-settings" onclick="showPage('settings')" title="公司信息">
       <span class="icon">⚙️</span>公司信息
     </button>
@@ -1021,6 +1024,69 @@ nav{width:64px;background:#1a202c;display:flex;flex-direction:column;align-items
             <span class="save-ok" id="saveOk2">✓ 已保存</span>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ══ Page: 开发文档 ══ -->
+    <div class="page" id="page-devdoc">
+      <div class="page-head"><h2>🛠️ 开发文档</h2></div>
+      <div class="doc-content" style="max-width:860px;margin:0 auto;padding:8px 24px 40px;overflow:auto">
+        <h2>运维 CLI（manage.py）</h2>
+        <p>项目根目录的 <code>manage.py</code> 封装了服务、知识库、文档生成等常用运维操作，替代手敲长命令。</p>
+
+        <h3>一、环境与安装</h3>
+        <p>项目使用 conda 环境 <code>medical_qms</code>（Python 3.11）。首次使用：</p>
+        <pre style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;overflow-x:auto"># 1. 克隆后创建/激活 conda 环境
+conda env create -f environment.yml   # 首次
+conda activate medical_qms
+
+# 2. CLI 均在项目根目录执行，用环境内的 python
+cd /path/to/medical-qms-rag
+python manage.py -h                    # 查看所有命令</pre>
+        <p style="color:#718096;font-size:13px">提示：CLI 内部已自动设置 PYTHONPATH，无需手动配置。知识库索引 qms.db 随仓库提交，clone 后开箱即用。</p>
+
+        <h3>二、服务管理（端口 8003）</h3>
+        <table>
+          <thead><tr><th>命令</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>python manage.py restart</code></td><td>重启服务（杀旧进程 + 后台启动 + 健康确认，一条搞定）</td></tr>
+            <tr><td><code>python manage.py status</code></td><td>查看端口监听 / 健康状态 / 文档数</td></tr>
+            <tr><td><code>python manage.py stop</code></td><td>停止服务</td></tr>
+            <tr><td><code>python manage.py logs -n 50</code></td><td>查看服务日志尾部 50 行</td></tr>
+            <tr><td><code>python manage.py serve</code></td><td>前台启动（调试用，Ctrl+C 停）</td></tr>
+          </tbody>
+        </table>
+
+        <h3>三、知识库管理（qms.db）</h3>
+        <table>
+          <thead><tr><th>命令</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>python manage.py kb list</code></td><td>列出库内文档（份数 / chunk 数 / 中文占比）</td></tr>
+            <tr><td><code>python manage.py kb list --collection regulations</code></td><td>按集合筛选</td></tr>
+            <tr><td><code>python manage.py kb health</code></td><td>体检：乱码 / 网页噪声 / 内容重复 / 开头残留</td></tr>
+            <tr><td><code>python manage.py kb clean</code></td><td>深度清洗全库（去噪声/页眉页脚/网页残留）</td></tr>
+            <tr><td><code>python manage.py kb ingest &lt;文件或目录&gt; --collection X</code></td><td>导入文档入库</td></tr>
+          </tbody>
+        </table>
+
+        <h3>四、文档生成（generated_docs）</h3>
+        <table>
+          <thead><tr><th>命令</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>python manage.py gen QMS-QP-001</code></td><td>生成指定文档（可多个 doc_id）</td></tr>
+            <tr><td><code>python manage.py gen --template</code></td><td>生成质量体系模板（存 __template__）</td></tr>
+            <tr><td><code>python manage.py gen</code></td><td>生成全部缺失文档</td></tr>
+          </tbody>
+        </table>
+        <p style="color:#718096;font-size:13px">生成为后台任务，进度日志在 <code>/tmp/gen.log</code>（<code>tail -f /tmp/gen.log</code> 跟踪）。单份长文档约 3-7 分钟。</p>
+
+        <h3>五、常见问题</h3>
+        <ul>
+          <li>改了 <code>app/</code> 代码要 <code>restart</code> 才生效；改 <code>static/*.html</code> 刷新浏览器即可。</li>
+          <li>重启用 <code>manage.py restart</code>（内部用 fuser 按端口杀，不用 pkill 避免误伤）。</li>
+          <li>生成文档格式为公文 docx（封面/宋体/表格/流程图），网页预览与下载同一产物。</li>
+          <li>知识库 40 份法规/指导原则/标准来自官方正式源，可用 <code>kb health</code> 随时体检。</li>
+        </ul>
       </div>
     </div>
 
